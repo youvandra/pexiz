@@ -21,11 +21,31 @@ services/
   replay/         March–April 2026 attack replay harness
 packages/
   sdk/            TypeScript client for the programs
+  localnet/       in-process SVM harness for tests and the replay
 scripts/
   measure/        mainnet measurement scripts (authorities, multisigs, nonces, drain)
+  devnet/         devnet deploy and live-demo scripts
+tests/            program tests (LiteSVM) and a local-validator crank test
+docs/             architecture, trust model, oracle rules, facts, running
 app/              web app (later)
 ```
 
-## Status
+## Status (26 Oct 2026)
 
-Early development.
+- All three programs build with `anchor build`.
+- Tests pass: 21 host tests, 64 program/service tests in LiteSVM and 1 crank
+  and alerts integration test on `solana-test-validator`.
+- `bun run replay` replays the April 2026 Drift admin takeover. The vault
+  exits 7 days 16 hours before `UpdateAdmin`.
+- Devnet deploy scripts are written but not yet run. The JLP path on a
+  mainnet fork is blocked; see [docs/open-questions.md](docs/open-questions.md).
+
+## Docs
+
+- [Architecture](docs/architecture.md)
+- [Oracle rules](docs/oracle-rules.md)
+- [Trust model](docs/trust-model.md)
+- [Measured facts](docs/facts.md)
+- [How to run](docs/running.md)
+- [Devnet](docs/devnet.md)
+- [Open questions](docs/open-questions.md)
