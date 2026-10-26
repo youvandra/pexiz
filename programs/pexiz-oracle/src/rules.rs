@@ -1,0 +1,299 @@
+//! Flag state machine. Pure functions, so the rules can be tested and fuzzed
+//! on the host without a validator.
+
+use crate::{reason, Flag, AMBER_ESCALATION_SECS, COOL_OFF_SECS, MEMBERS_WINDOW_SECS};
+
+/// Reason bits that turn the flag red on their own.
+pub const HARD_MASK: u32 = reason::TIME_LOCK_BELOW_MIN
+    | reason::THRESHOLD_DROPPED
+    | reason::MEMBERS_REPLACED
+    | reason::UPGRADE_AUTHORITY_MOVED;
+
+/// What an update observed on chain, already reduced to facts.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Observation {
+    pub threshold: u16,
+    pub time_lock_secs: u32,
+    pub member_count: u16,
+    /// Members present now that were absent at the previous observation.
+    pub newly_replaced: u16,
+    pub authority_moved: bool,
+    pub presigning: bool,
+}
+
+/// The part of `Venue` the rules read and write.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RuleState {
+    pub flag: Flag,
+    /// Reasons latched since the flag last left green.
+    pub reasons: u32,
+    /// Reasons that hold at the latest update.
+    pub active_reasons: u32,
+    pub amber_since: i64,
+    pub red_since: i64,
+    pub clear_since: i64,
+    /// Threshold accepted while green; a drop below it is red.
+    pub baseline_threshold: u16,
+    pub min_time_lock_secs: u32,
+    pub replaced_7d: u16,
+    pub replaced_window_start: i64,
+    /// Member count when the replacement window opened.
+    pub replaced_window_base: u16,
+}
+
+/// Applies one observation at time `now`. Returns the previous flag.
+pub fn step(s: &mut RuleState, o: &Observation, now: i64) -> Flag {
+    let from = s.flag;
+
+    // Rolling member-replacement window.
+    if s.replaced_7d > 0 && now - s.replaced_window_start >= MEMBERS_WINDOW_SECS {
+        s.replaced_7d = 0;
+    }
+    if o.newly_replaced > 0 {
+        if s.replaced_7d == 0 {
+            s.replaced_window_start = now;
+            s.replaced_window_base = o.member_count.max(1);
+        }
+        s.replaced_7d = s.replaced_7d.saturating_add(o.newly_replaced);
+    }
+
+    let mut active = 0u32;
+    if o.time_lock_secs < s.min_time_lock_secs {
+        active |= reason::TIME_LOCK_BELOW_MIN;
+    }
+    if o.threshold < s.baseline_threshold {
+        active |= reason::THRESHOLD_DROPPED;
+    }
+    if (s.replaced_7d as u32) * 3 > s.replaced_window_base as u32 {
+        active |= reason::MEMBERS_REPLACED;
+    }
+    if o.authority_moved {
+        active |= reason::UPGRADE_AUTHORITY_MOVED;
+    }
+    if o.presigning {
+        active |= reason::SIGNER_PRESIGNING;
+        if s.amber_since == 0 {
+            s.amber_since = now;
+        }
+        if now - s.amber_since >= AMBER_ESCALATION_SECS {
+            active |= reason::AMBER_ESCALATED;
+        }
+    } else {
+        s.amber_since = 0;
+    }
+
+    if active == 0 {
+        if s.clear_since == 0 {
+            s.clear_since = now;
+        }
+    } else {
+        s.clear_since = 0;
+    }
+
+    let to = if active & (HARD_MASK | reason::AMBER_ESCALATED) != 0 {
+        Flag::Red
+    } else if active != 0 {
+        // Only pre-signing: amber, but a red flag never steps down to amber.
+        if from == Flag::Red {
+            Flag::Red
+        } else {
+            Flag::Amber
+        }
+    } else if from == Flag::Green || now - s.clear_since >= COOL_OFF_SECS {
+        Flag::Green
+    } else {
+        from
+    };
+
+    if to == Flag::Green {
+        s.reasons = 0;
+        // Accept the current config as the new baseline. A raised threshold
+        // is accepted at once; a lowered one never reaches here while red.
+        s.baseline_threshold = o.threshold;
+    } else {
+        s.reasons |= active;
+    }
+    if to == Flag::Red && from != Flag::Red {
+        s.red_since = now;
+    }
+    if to != Flag::Red {
+        s.red_since = 0;
+    }
+    s.active_reasons = active;
+    s.flag = to;
+    from
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    const DAY: i64 = 86_400;
+    const T0: i64 = 1_774_224_000; // 23 Mar 2026 00:00 UTC
+
+    fn base() -> RuleState {
+        RuleState {
+            baseline_threshold: 4,
+            min_time_lock_secs: 3600,
+            ..Default::default()
+        }
+    }
+
+    fn healthy() -> Observation {
+        Observation {
+            threshold: 4,
+            time_lock_secs: 86_400,
+            member_count: 8,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn healthy_stays_green() {
+        let mut s = base();
+        step(&mut s, &healthy(), T0);
+        assert_eq!(s.flag, Flag::Green);
+        assert_eq!(s.reasons, 0);
+    }
+
+    #[test]
+    fn each_hard_reason_is_red() {
+        let cases: [(Observation, u32); 3] = [
+            (Observation { time_lock_secs: 0, ..healthy() }, reason::TIME_LOCK_BELOW_MIN),
+            (Observation { threshold: 3, ..healthy() }, reason::THRESHOLD_DROPPED),
+            (Observation { authority_moved: true, ..healthy() }, reason::UPGRADE_AUTHORITY_MOVED),
+        ];
+        for (o, bit) in cases {
+            let mut s = base();
+            step(&mut s, &o, T0);
+            assert_eq!(s.flag, Flag::Red);
+            assert_eq!(s.reasons, bit);
+            assert_eq!(s.red_since, T0);
+        }
+    }
+
+    #[test]
+    fn members_replaced_needs_more_than_a_third() {
+        let mut s = base();
+        // 8 members: 2 replaced is a quarter, 3 is more than a third.
+        step(&mut s, &Observation { newly_replaced: 2, ..healthy() }, T0);
+        assert_eq!(s.flag, Flag::Green);
+        step(&mut s, &Observation { newly_replaced: 1, ..healthy() }, T0 + DAY);
+        assert_eq!(s.flag, Flag::Red);
+        assert_eq!(s.reasons, reason::MEMBERS_REPLACED);
+    }
+
+    #[test]
+    fn members_window_expires_after_seven_days() {
+        let mut s = base();
+        step(&mut s, &Observation { newly_replaced: 2, ..healthy() }, T0);
+        step(&mut s, &Observation { newly_replaced: 1, ..healthy() }, T0 + 7 * DAY);
+        assert_eq!(s.flag, Flag::Green);
+        assert_eq!(s.replaced_7d, 1);
+    }
+
+    #[test]
+    fn presigning_is_amber_then_red_after_48h() {
+        let mut s = base();
+        let o = Observation { presigning: true, ..healthy() };
+        step(&mut s, &o, T0);
+        assert_eq!(s.flag, Flag::Amber);
+        step(&mut s, &o, T0 + 47 * 3600);
+        assert_eq!(s.flag, Flag::Amber);
+        step(&mut s, &o, T0 + 48 * 3600);
+        assert_eq!(s.flag, Flag::Red);
+        assert_eq!(s.reasons, reason::SIGNER_PRESIGNING | reason::AMBER_ESCALATED);
+    }
+
+    #[test]
+    fn amber_clears_only_after_cool_off() {
+        let mut s = base();
+        step(&mut s, &Observation { presigning: true, ..healthy() }, T0);
+        step(&mut s, &healthy(), T0 + DAY);
+        assert_eq!(s.flag, Flag::Amber);
+        assert_eq!(s.active_reasons, 0);
+        assert_eq!(s.reasons, reason::SIGNER_PRESIGNING);
+        step(&mut s, &healthy(), T0 + DAY + COOL_OFF_SECS - 1);
+        assert_eq!(s.flag, Flag::Amber);
+        step(&mut s, &healthy(), T0 + DAY + COOL_OFF_SECS);
+        assert_eq!(s.flag, Flag::Green);
+        assert_eq!(s.reasons, 0);
+    }
+
+    #[test]
+    fn red_never_steps_down_to_amber() {
+        let mut s = base();
+        step(&mut s, &Observation { time_lock_secs: 0, presigning: true, ..healthy() }, T0);
+        assert_eq!(s.flag, Flag::Red);
+        step(&mut s, &Observation { presigning: true, ..healthy() }, T0 + DAY);
+        assert_eq!(s.flag, Flag::Red);
+    }
+
+    #[test]
+    fn new_proof_resets_cool_off() {
+        let mut s = base();
+        step(&mut s, &Observation { time_lock_secs: 0, ..healthy() }, T0);
+        step(&mut s, &healthy(), T0 + DAY);
+        step(&mut s, &Observation { presigning: true, ..healthy() }, T0 + 5 * DAY);
+        step(&mut s, &healthy(), T0 + 9 * DAY);
+        assert_eq!(s.flag, Flag::Red);
+        step(&mut s, &healthy(), T0 + 9 * DAY + COOL_OFF_SECS);
+        assert_eq!(s.flag, Flag::Green);
+    }
+
+    #[test]
+    fn raised_threshold_becomes_baseline() {
+        let mut s = base();
+        step(&mut s, &Observation { threshold: 5, ..healthy() }, T0);
+        assert_eq!(s.baseline_threshold, 5);
+        step(&mut s, &Observation { threshold: 4, ..healthy() }, T0 + DAY);
+        assert_eq!(s.flag, Flag::Red);
+        assert_eq!(s.reasons, reason::THRESHOLD_DROPPED);
+    }
+
+    fn arb_obs() -> impl Strategy<Value = Observation> {
+        (1u16..8, prop_oneof![Just(0u32), Just(1800), Just(3600), Just(86_400)], 0u16..3, any::<bool>(), any::<bool>())
+            .prop_map(|(threshold, time_lock_secs, newly_replaced, authority_moved, presigning)| Observation {
+                threshold,
+                time_lock_secs,
+                member_count: 8,
+                newly_replaced,
+                authority_moved: authority_moved && threshold % 3 == 0,
+                presigning,
+            })
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(2000))]
+
+        /// Over any sequence of config changes: red always carries a reason,
+        /// green is reached from amber/red only after a full cool-off, and the
+        /// flag is never green while a condition holds.
+        #[test]
+        fn flag_invariants(seq in proptest::collection::vec((arb_obs(), 0i64..4 * DAY), 1..60)) {
+            let mut s = base();
+            let mut now = T0;
+            for (o, dt) in seq {
+                now += dt;
+                let clear_since = if s.active_reasons == 0 { s.clear_since } else { 0 };
+                let from = step(&mut s, &o, now);
+                if s.flag == Flag::Red {
+                    prop_assert!(s.reasons & (HARD_MASK | reason::AMBER_ESCALATED) != 0);
+                }
+                if s.flag != Flag::Green {
+                    prop_assert!(s.reasons != 0);
+                }
+                if s.flag == Flag::Green {
+                    prop_assert_eq!(s.active_reasons, 0);
+                    if from != Flag::Green {
+                        prop_assert!(clear_since != 0 && now - clear_since >= COOL_OFF_SECS);
+                    }
+                }
+                if s.flag == Flag::Amber {
+                    prop_assert_eq!(s.reasons & (HARD_MASK | reason::AMBER_ESCALATED), 0);
+                }
+            }
+        }
+    }
+}
