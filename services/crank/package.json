@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "main": "src/crank.ts",
+  "exports": { ".": "./src/crank.ts" },
   "scripts": { "start": "bun run src/index.ts" },
   "dependencies": {
     "@pexiz/sdk": "workspace:*",

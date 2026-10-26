@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "services/*"
+    "services/*",
+    "scripts/devnet"
   ],
   "scripts": {
     "build:programs": "anchor build && bun run sync-idl",
