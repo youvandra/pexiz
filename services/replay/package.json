@@ -2,9 +2,12 @@
   "name": "@pexiz/replay",
   "private": true,
   "type": "module",
+  "main": "src/replay.ts",
   "scripts": { "start": "bun run src/index.ts" },
   "dependencies": {
+    "@pexiz/localnet": "workspace:*",
     "@pexiz/sdk": "workspace:*",
-    "@solana/web3.js": "^1.98.0"
+    "@solana/web3.js": "^1.98.0",
+    "litesvm": "0.3.3"
   }
 }
