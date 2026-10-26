@@ -6,3 +6,4 @@ export * from "./reasons";
 export * from "./oracle";
 export * from "./canary";
 export * from "./vault";
+export * from "./rpc";

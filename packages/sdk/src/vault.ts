@@ -91,6 +91,7 @@ export function reenterIx(v: VaultAddresses, minLpOut = 0n): Promise<Transaction
 export interface VaultState {
   venue: PublicKey;
   pool: PublicKey;
+  usdcMint: PublicKey;
   exited: boolean;
   exitedAtSlot: bigint;
   exits: number;
@@ -100,7 +101,7 @@ export interface VaultState {
 export function decodeVault(data: Buffer): VaultState {
   const v = vaultCoder.accounts.decode("Vault", data);
   return {
-    venue: v.venue, pool: v.pool, exited: v.exited, exitedAtSlot: BigInt(v.exited_at_slot.toString()),
+    venue: v.venue, pool: v.pool, usdcMint: v.usdc_mint, exited: v.exited, exitedAtSlot: BigInt(v.exited_at_slot.toString()),
     exits: v.exits, reentryVotes: BigInt(v.reentry_votes.toString()),
   };
 }
