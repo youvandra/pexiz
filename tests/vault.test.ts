@@ -5,7 +5,7 @@ import {
   registerVenueIx, unvoteIx, vaultAddresses, vaultPda, venuePda, voteReenterIx, withdrawIx,
 } from "@pexiz/sdk";
 import { DAY, Env, members, multisigOf } from "./helpers";
-import { USDC, World, type User } from "./world";
+import { USDC, World, type User } from "@pexiz/localnet";
 
 const withdraw = async (w: World, u: User, shares: bigint) =>
   w.env.send([await withdrawIx(w.v, u.kp.publicKey, { userShares: u.shares, userUsdc: u.usdc, userLp: u.lp }, shares)], [u.kp]);

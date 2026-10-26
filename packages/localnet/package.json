@@ -1,0 +1,12 @@
+{
+  "name": "@pexiz/localnet",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@pexiz/sdk": "workspace:*",
+    "@solana/spl-token": "0.4.13",
+    "@solana/web3.js": "^1.98.0",
+    "litesvm": "0.3.3"
+  }
+}

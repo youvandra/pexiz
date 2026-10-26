@@ -7,6 +7,7 @@
       "devDependencies": {
         "@coral-xyz/anchor": "0.31.1",
         "@pexiz/crank": "workspace:*",
+        "@pexiz/localnet": "workspace:*",
         "@pexiz/sdk": "workspace:*",
         "@solana/spl-token": "0.4.13",
         "@solana/web3.js": "^1.98.0",
@@ -14,6 +15,15 @@
         "@types/node": "22",
         "litesvm": "0.3.3",
         "typescript": "^5.6.0",
+      },
+    },
+    "packages/localnet": {
+      "name": "@pexiz/localnet",
+      "dependencies": {
+        "@pexiz/sdk": "workspace:*",
+        "@solana/spl-token": "0.4.13",
+        "@solana/web3.js": "^1.98.0",
+        "litesvm": "0.3.3",
       },
     },
     "packages/sdk": {
@@ -41,8 +51,10 @@
     "services/replay": {
       "name": "@pexiz/replay",
       "dependencies": {
+        "@pexiz/localnet": "workspace:*",
         "@pexiz/sdk": "workspace:*",
         "@solana/web3.js": "^1.98.0",
+        "litesvm": "0.3.3",
       },
     },
   },
@@ -62,6 +74,8 @@
     "@pexiz/alerts": ["@pexiz/alerts@workspace:services/alerts"],
 
     "@pexiz/crank": ["@pexiz/crank@workspace:services/crank"],
+
+    "@pexiz/localnet": ["@pexiz/localnet@workspace:packages/localnet"],
 
     "@pexiz/replay": ["@pexiz/replay@workspace:services/replay"],
 

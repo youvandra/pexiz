@@ -6,7 +6,7 @@ import {
   CANARY_PROGRAM_ID, canaryPool, depositIx, initPoolIx, initVaultIx, registerVenueIx, updateIx, vaultAddresses,
   vaultPda, venuePda, decodeVault, type VaultAddresses,
 } from "@pexiz/sdk";
-import { Env, members, multisigOf } from "./helpers";
+import { Env, members, multisigOf } from "./env";
 
 export const USDC = (n: number) => BigInt(Math.round(n * 1_000_000));
 
@@ -24,13 +24,15 @@ export class World {
   usdcMint!: PublicKey;
   v!: VaultAddresses;
 
-  static async create(opts: { minTimeLockSecs?: number; exitTimeSecs?: number } = {}): Promise<World> {
+  static async create(opts: { threshold?: number; timeLock?: number; members?: number; minTimeLockSecs?: number; exitTimeSecs?: number; start?: number } = {}): Promise<World> {
     const w = new World();
+    w.signers = members(opts.members ?? 5);
     const { env } = w;
+    if (opts.start) env.setTime(opts.start);
     w.usdcMint = env.createMint(6);
     const pool = canaryPool(w.usdcMint);
     env.send([await initPoolIx(env.payer.publicKey, pool)]);
-    env.setMultisig(w.multisig, multisigOf(3, 86_400, w.signers.map((k) => k.publicKey)));
+    env.setMultisig(w.multisig, multisigOf(opts.threshold ?? 3, opts.timeLock ?? 86_400, w.signers.map((k) => k.publicKey)));
     env.setWatchedProgram(CANARY_PROGRAM_ID, vaultPda(w.multisig)[0]);
     env.send([await registerVenueIx(env.payer.publicKey, {
       program: CANARY_PROGRAM_ID, multisig: w.multisig, minTimeLockSecs: opts.minTimeLockSecs ?? 3600, exitTimeSecs: opts.exitTimeSecs ?? 600,
