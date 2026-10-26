@@ -25,15 +25,16 @@ bun install
 ## Tests
 
 ```sh
-cargo test --workspace        # host: rules, share math, Squads decoding (21 tests)
-bun test tests/*.test.ts      # programs in LiteSVM, replay, alerts, JLP encoding (64 tests)
+cargo test --workspace        # host: rules, share math, Squads decoding (24 tests)
+bun test tests/*.test.ts      # programs in LiteSVM, replay, alerts, JLP encoding (68 tests)
 bun run build:stub            # once: the Squads test double for the validator test
 bun run test:validator        # crank + alerts on solana-test-validator (1 test)
 bun run typecheck
 ```
 
-Results on 26 Oct 2026: 21/21 host tests, 64/64 LiteSVM tests and 1/1
-validator test pass, with nothing skipped.
+Results on 26 Oct 2026, run locally with the real Jupiter Perps and Drift
+multisig accounts as fixtures: 24/24 host tests, 68/68 LiteSVM tests and
+1/1 validator test pass, with nothing skipped.
 
 The validator test loads `tests/squads-stub` at the Squads v4 address. It is
 a local test double that owns Squads-layout accounts and lets the test
