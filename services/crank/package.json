@@ -2,6 +2,7 @@
   "name": "@pexiz/crank",
   "private": true,
   "type": "module",
+  "main": "src/crank.ts",
   "scripts": { "start": "bun run src/index.ts" },
   "dependencies": {
     "@pexiz/sdk": "workspace:*",
