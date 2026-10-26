@@ -1,0 +1,13 @@
+{
+  "name": "pexiz",
+  "private": true,
+  "workspaces": ["packages/*", "services/*"],
+  "scripts": {
+    "build:programs": "anchor build",
+    "test": "anchor test"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/bun": "latest"
+  }
+}

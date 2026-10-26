@@ -1,0 +1,21 @@
+# build
+target/
+.anchor/
+test-ledger/
+node_modules/
+dist/
+*.tsbuildinfo
+
+# secrets
+.env
+.env.*
+!.env.example
+*-keypair.json
+keys/
+
+# local tooling
+CLAUDE.md
+.claude/
+.DS_Store
+__pycache__/
+.venv/
