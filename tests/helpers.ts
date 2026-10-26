@@ -2,6 +2,10 @@
 // accounts the oracle reads (program data, Squads multisig, nonce accounts).
 import { Clock, FailedTransactionMetadata, LiteSVM, TransactionMetadata } from "litesvm";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, type TransactionInstruction } from "@solana/web3.js";
+import {
+  MINT_SIZE, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createInitializeMint2Instruction,
+  createMintToInstruction, getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -106,6 +110,39 @@ export class Env {
     const m = this.multisig(address);
     f(m);
     this.setMultisig(address, m);
+  }
+
+  createMint(decimals = 6, authority = this.payer.publicKey): PublicKey {
+    const mint = Keypair.generate();
+    const lamports = Number(this.svm.minimumBalanceForRentExemption(BigInt(MINT_SIZE)));
+    this.send([
+      SystemProgram.createAccount({ fromPubkey: this.payer.publicKey, newAccountPubkey: mint.publicKey, lamports, space: MINT_SIZE, programId: TOKEN_PROGRAM_ID }),
+      createInitializeMint2Instruction(mint.publicKey, decimals, authority, null),
+    ], [mint]);
+    return mint.publicKey;
+  }
+
+  ata(owner: PublicKey, mint: PublicKey): PublicKey {
+    const a = getAssociatedTokenAddressSync(mint, owner, true);
+    if (!this.svm.getAccount(a)) {
+      this.send([createAssociatedTokenAccountIdempotentInstruction(this.payer.publicKey, a, owner, mint)]);
+    }
+    return a;
+  }
+
+  mintTo(mint: PublicKey, owner: PublicKey, amount: bigint): PublicKey {
+    const a = this.ata(owner, mint);
+    this.send([createMintToInstruction(mint, a, this.payer.publicKey, amount)]);
+    return a;
+  }
+
+  balance(tokenAccount: PublicKey): bigint {
+    const a = this.svm.getAccount(tokenAccount);
+    return a ? Buffer.from(a.data).readBigUInt64LE(64) : 0n;
+  }
+
+  supply(mint: PublicKey): bigint {
+    return this.data(mint).readBigUInt64LE(36);
   }
 
   /** A System durable-nonce account controlled by `authority`. */

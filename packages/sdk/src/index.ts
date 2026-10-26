@@ -4,3 +4,4 @@ export * from "./squads";
 export * from "./nonce";
 export * from "./reasons";
 export * from "./oracle";
+export * from "./canary";
