@@ -1,0 +1,16 @@
+[package]
+name = "squads_stub"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+publish = false
+
+# Local test double for the Squads v4 program. Never deployed anywhere but a
+# local solana-test-validator. Kept out of the program workspace on purpose.
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "2.2"

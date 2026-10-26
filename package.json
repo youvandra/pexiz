@@ -8,17 +8,22 @@
   "scripts": {
     "build:programs": "anchor build && bun run sync-idl",
     "sync-idl": "cp target/idl/*.json packages/sdk/idl/",
-    "test": "cargo test --workspace && bun test tests/",
-    "test:programs": "bun test tests/",
-    "replay": "bun run services/replay/src/index.ts"
+    "test": "cargo test --workspace && bun test tests/*.test.ts",
+    "test:programs": "bun test tests/*.test.ts",
+    "replay": "bun run services/replay/src/index.ts",
+    "build:stub": "cd tests/squads-stub && cargo build-sbf",
+    "test:validator": "bun test tests/validator --timeout 180000",
+    "typecheck": "tsc --noEmit -p ."
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "@types/bun": "latest",
-    "litesvm": "0.3.3",
-    "@pexiz/sdk": "workspace:*",
-    "@solana/web3.js": "^1.98.0",
     "@coral-xyz/anchor": "0.31.1",
-    "@solana/spl-token": "0.4.13"
+    "@pexiz/crank": "workspace:*",
+    "@pexiz/sdk": "workspace:*",
+    "@solana/spl-token": "0.4.13",
+    "@solana/web3.js": "^1.98.0",
+    "@types/bun": "latest",
+    "@types/node": "22",
+    "litesvm": "0.3.3",
+    "typescript": "^5.6.0"
   }
 }
