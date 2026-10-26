@@ -4,7 +4,8 @@
   "workspaces": [
     "packages/*",
     "services/*",
-    "scripts/devnet"
+    "scripts/devnet",
+    "app"
   ],
   "scripts": {
     "build:programs": "anchor build && bun run sync-idl",

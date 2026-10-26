@@ -7,6 +7,13 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "types": ["bun"]
-  }
+    "types": [
+      "bun"
+    ]
+  },
+  "exclude": [
+    "app",
+    "node_modules",
+    "target"
+  ]
 }
