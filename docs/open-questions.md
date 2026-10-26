@@ -21,25 +21,21 @@ the PDA on chain.
 
 ## Open
 
-**No Solana RPC from the build environment.** The cloud session that built
-M0–M6 cannot reach any Solana RPC host (`api.mainnet-beta.solana.com`,
-`api.devnet.solana.com` and the public alternatives are denied by its network
-policy). Consequences:
-
-- Oracle tests use synthetic Squads multisigs with the measured mainnet
-  parameters (Jupiter Perps 4 of 8, 86400 s; Drift 4 of 7, 3600 s) and
-  generated member keys. `scripts/measure/fixtures.py` dumps the real
-  accounts into `tests/fixtures/`, and the tests use them when present.
-- M7 (devnet deploy) and M8 (mainnet fork) need a machine with RPC access.
+**Resolved: RPC access and fixtures (26 Oct 2026).** The oracle tests now
+load the real Jupiter Perps and Drift multisig accounts from
+`tests/fixtures/` (dumped by `scripts/measure/fixtures.py`). Their Squads
+vault PDA at index 0 matches each program's upgrade authority on mainnet.
+M7 has run on devnet; see `docs/devnet.md`.
 
 **Squads program binary for local runs.** The Squads v4 program is not
 built or cloned locally, so local tests write Squads-layout accounts
 directly instead of calling Squads instructions. The devnet demo scripts
 call the real Squads program through `@sqds/multisig`.
 
-**M8: JLP path on a mainnet fork (blocked).** A fork needs mainnet RPC
-(`solana-test-validator --url mainnet-beta --clone …` or surfpool), which this
-environment does not have. What is known, and what the fork test must settle:
+**M8: JLP path on a mainnet fork (blocked).** A fork
+(`solana-test-validator --url mainnet-beta --clone …` or surfpool) needs a
+mainnet RPC that allows heavy account cloning; the public endpoint
+rate-limits it. What is known, and what the fork test must settle:
 
 - Account list, from the Jupiter Perps IDL as published in
   `@exponent-labs/jupiter-perps-idl` 0.9.30 (third party, AGPL, not vendored;
@@ -74,4 +70,4 @@ entry when it is.
 
 **Measured numbers to re-check before release.** Everything in PLAN §2 was
 measured on 26 Oct 2026 from mainnet and is quoted in `docs/facts.md`
-with that date. None of it could be re-measured from this environment.
+with that date. Re-measure before release.
