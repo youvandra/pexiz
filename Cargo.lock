@@ -1113,6 +1113,9 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "canary_venue",
+ "pexiz_oracle",
+ "proptest",
 ]
 
 [[package]]
