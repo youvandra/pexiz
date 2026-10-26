@@ -77,9 +77,15 @@
       "name": "update",
       "docs": [
         "Permissionless update. Recomputes every signal from the accounts passed",
-        "in and moves the flag. Optional remaining accounts are signer",
-        "pre-signing accounts (System nonce accounts or offline-signer program",
-        "nonces), each proven to be controlled by a current multisig member."
+        "in and moves the flag.",
+        "",
+        "Remaining accounts are pre-signing accounts (System nonce accounts or",
+        "offline-signer program nonces). A new account must prove it is live and",
+        "controlled by a current member; it is then remembered. A remembered",
+        "account is dropped only when it is passed again and no longer proves",
+        "itself (closed, uninitialized, or controlled by a non-member). Absence",
+        "cannot be proven, so leaving proofs out changes nothing: amber holds and",
+        "keeps escalating while any remembered account is live."
       ],
       "discriminator": [
         219,
@@ -346,6 +352,15 @@
             }
           },
           {
+            "name": "presigners",
+            "docs": [
+              "Pre-signing accounts proven live and not yet shown dead."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
             "name": "flag",
             "type": {
               "defined": {
@@ -393,6 +408,10 @@
           {
             "name": "replaced_window_base",
             "type": "u16"
+          },
+          {
+            "name": "low_threshold_since",
+            "type": "i64"
           },
           {
             "name": "last_update_slot",

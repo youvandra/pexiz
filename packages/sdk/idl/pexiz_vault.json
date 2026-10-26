@@ -983,6 +983,15 @@
             }
           },
           {
+            "name": "presigners",
+            "docs": [
+              "Pre-signing accounts proven live and not yet shown dead."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
             "name": "flag",
             "type": {
               "defined": {
@@ -1030,6 +1039,10 @@
           {
             "name": "replaced_window_base",
             "type": "u16"
+          },
+          {
+            "name": "low_threshold_since",
+            "type": "i64"
           },
           {
             "name": "last_update_slot",

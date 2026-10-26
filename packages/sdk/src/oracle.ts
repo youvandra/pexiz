@@ -64,6 +64,10 @@ export interface Venue {
   threshold: number;
   timeLockSecs: number;
   members: PublicKey[];
+  /** Pre-signing accounts proven live and not yet shown dead. */
+  presigners: PublicKey[];
+  baselineThreshold: number;
+  lowThresholdSince: number;
   flag: FlagName;
   reasons: number;
   activeReasons: number;
@@ -90,6 +94,9 @@ export function decodeVenue(data: Buffer, address?: PublicKey): Venue {
     threshold: v.snapshot.threshold,
     timeLockSecs: v.snapshot.time_lock_secs,
     members: v.members,
+    presigners: v.presigners,
+    baselineThreshold: v.baseline_threshold,
+    lowThresholdSince: num(v.low_threshold_since),
     flag: flagName(v.flag),
     reasons: v.reasons,
     activeReasons: v.active_reasons,

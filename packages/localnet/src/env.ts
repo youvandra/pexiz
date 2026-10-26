@@ -146,6 +146,11 @@ export class Env {
     return this.data(mint).readBigUInt64LE(36);
   }
 
+  /** Close an account: no lamports, no data, owned by System. */
+  closeAccount(address: PublicKey) {
+    this.svm.setAccount(address, { lamports: 0, data: Buffer.alloc(0), owner: SystemProgram.programId, executable: false, rentEpoch: 0 } as any);
+  }
+
   /** A System durable-nonce account controlled by `authority`. */
   addNonce(authority: PublicKey, state = 1): PublicKey {
     const k = Keypair.generate().publicKey;

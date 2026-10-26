@@ -60,7 +60,10 @@ export class Crank {
     if (!ms) throw new Error("multisig account missing");
     const members = decodeMultisig(ms.data).members.map((m) => m.key);
     const presigning = await withBackoff(() => findPresigningAccounts(this.conn, members, { delayMs: this.opts.memberDelayMs }));
-    const proofs = presigning.map((p) => p.address);
+    // Live accounts found now, plus every remembered one: passing a remembered
+    // account that has since closed or left member control is what clears it.
+    const proofs = [...presigning.map((p) => p.address)];
+    for (const k of v.presigners) if (!proofs.some((p) => p.equals(k))) proofs.push(k);
     const update = await updateIx(v.program, v.multisig, proofs);
 
     const sim = await this.simulate([update], v.address!);

@@ -232,7 +232,8 @@ describe("escalation timeline and cool-off with clock warps", () => {
     await step(0, [nonce]);           // day 0: amber
     await step(DAY, [nonce]);         // day 1: amber
     await step(DAY, [nonce]);         // day 2: escalated red
-    await step(DAY, []);              // day 3: clear, cool-off starts
+    env.closeAccount(nonce);
+    await step(DAY, [nonce]);         // day 3: nonce shown closed, cool-off starts
     await step(6 * DAY, []);          // day 9: still in cool-off
     await step(DAY - 1, []);          // 1 s short of 7 days
     await step(1, []);                // day 10: green
@@ -249,13 +250,87 @@ describe("escalation timeline and cool-off with clock warps", () => {
     env.warp(DAY);
     await update(env, f);
     env.warp(5 * DAY);
-    await update(env, f, [env.addNonce(f.memberKeys[1])]);
+    const nonce = env.addNonce(f.memberKeys[1]);
+    await update(env, f, [nonce]);
     env.warp(5 * DAY);
-    await update(env, f);
+    env.closeAccount(nonce);
+    await update(env, f, [nonce]);
     expect(env.venue(f.program).flag).toBe("red");
     env.warp(7 * DAY);
     await update(env, f);
     expect(env.venue(f.program).flag).toBe("green");
+  });
+
+  test("proof-less updates cannot stop escalation or clear amber", async () => {
+    const { env, f } = setup("drift");
+    await register(env, f);
+    const nonce = env.addNonce(f.memberKeys[0]);
+    await update(env, f, [nonce]);
+    expect(env.venue(f.program).flag).toBe("amber");
+    // An attacker who controls the nonce spams updates without it.
+    for (let h = 0; h < 48; h += 6) {
+      env.warp(6 * 3600);
+      await update(env, f);
+    }
+    const v = env.venue(f.program);
+    expect(v.flag).toBe("red");
+    expect(v.reasons).toBe(Reason.SIGNER_PRESIGNING | Reason.AMBER_ESCALATED);
+    expect(v.presigners.map((k) => k.toBase58())).toEqual([nonce.toBase58()]);
+    // Weeks of proof-less updates never bring it back to green.
+    for (let d = 0; d < 21; d++) {
+      env.warp(DAY);
+      await update(env, f);
+    }
+    expect(env.venue(f.program).flag).toBe("red");
+  });
+
+  test("a remembered nonce clears only when shown dead", async () => {
+    const { env, f } = setup();
+    await register(env, f);
+    const nonce = env.addNonce(f.memberKeys[3]);
+    await update(env, f, [nonce]);
+    expect(env.venue(f.program).presigners.length).toBe(1);
+    // Still live: passing it again keeps it.
+    env.warp(DAY);
+    await update(env, f, [nonce]);
+    expect(env.venue(f.program).presigners.length).toBe(1);
+    // Authority moved to a non-member: passing it now drops it.
+    env.setRaw(nonce, SystemProgram.programId, encodeNonce(Keypair.generate().publicKey));
+    await update(env, f, [nonce]);
+    const v = env.venue(f.program);
+    expect(v.presigners.length).toBe(0);
+    expect(v.activeReasons).toBe(0);
+    expect(v.flag).toBe("amber");
+    env.warp(7 * DAY);
+    await update(env, f);
+    expect(env.venue(f.program).flag).toBe("green");
+  });
+
+  test("a remembered nonce whose member was removed is dropped when passed", async () => {
+    const { env, f } = setup();
+    await register(env, f);
+    const nonce = env.addNonce(f.memberKeys[0]);
+    await update(env, f, [nonce]);
+    env.editMultisig(f.multisig, (m) => { m.members = m.members.slice(1); });
+    await update(env, f, [nonce]);
+    expect(env.venue(f.program).presigners.length).toBe(0);
+  });
+
+  test("a lowered threshold is accepted after a week, green after another", async () => {
+    const { env, f } = setup();
+    await register(env, f);
+    env.editMultisig(f.multisig, (m) => { m.threshold = 3; });
+    await update(env, f);
+    expect(env.venue(f.program).flag).toBe("red");
+    env.warp(7 * DAY);
+    await update(env, f);
+    let v = env.venue(f.program);
+    expect(v.baselineThreshold).toBe(3);
+    expect(v.flag).toBe("red");
+    env.warp(7 * DAY);
+    await update(env, f);
+    v = env.venue(f.program);
+    expect(v.flag).toBe("green");
   });
 
   test("red clock fields use unix time, not slots", async () => {

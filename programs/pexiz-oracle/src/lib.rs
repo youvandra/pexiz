@@ -14,6 +14,9 @@ pub const AMBER_ESCALATION_SECS: i64 = 48 * 3600;
 pub const MEMBERS_WINDOW_SECS: i64 = 7 * 24 * 3600;
 /// Largest multisig the oracle tracks. Measured venues have 7 or 8 members.
 pub const MAX_MEMBERS: usize = 16;
+/// Pre-signing accounts remembered per venue. Amber holds while any of them
+/// is live, so a proof-less update cannot clear it.
+pub const MAX_PRESIGNERS: usize = 8;
 
 #[program]
 pub mod pexiz_oracle {
@@ -54,6 +57,7 @@ pub mod pexiz_oracle {
             taken_at: clock.unix_timestamp,
         };
         v.members = ms.members;
+        v.presigners = Vec::new();
         v.flag = Flag::Green;
         v.baseline_threshold = ms.threshold;
         v.last_update_slot = clock.slot;
@@ -62,20 +66,36 @@ pub mod pexiz_oracle {
     }
 
     /// Permissionless update. Recomputes every signal from the accounts passed
-    /// in and moves the flag. Optional remaining accounts are signer
-    /// pre-signing accounts (System nonce accounts or offline-signer program
-    /// nonces), each proven to be controlled by a current multisig member.
+    /// in and moves the flag.
+    ///
+    /// Remaining accounts are pre-signing accounts (System nonce accounts or
+    /// offline-signer program nonces). A new account must prove it is live and
+    /// controlled by a current member; it is then remembered. A remembered
+    /// account is dropped only when it is passed again and no longer proves
+    /// itself (closed, uninitialized, or controlled by a non-member). Absence
+    /// cannot be proven, so leaving proofs out changes nothing: amber holds and
+    /// keeps escalating while any remembered account is live.
     pub fn update(ctx: Context<Update>) -> Result<()> {
         let ms = squads::parse_multisig(&ctx.accounts.multisig, MAX_MEMBERS)?;
         let authority = squads::upgrade_authority(&ctx.accounts.program_data);
-        let mut presigning = false;
-        for acc in ctx.remaining_accounts {
-            require!(proofs::proves_presigning(acc, &ms.members), OracleError::BadPresigningProof);
-            presigning = true;
-        }
 
         let clock = Clock::get()?;
         let v = &mut ctx.accounts.venue;
+        let mut unrecorded_live = false;
+        for acc in ctx.remaining_accounts {
+            let live = proofs::proves_presigning(acc, &ms.members);
+            let known = v.presigners.iter().position(|k| k == acc.key);
+            match (live, known) {
+                (true, Some(_)) => {}
+                (true, None) if v.presigners.len() < MAX_PRESIGNERS => v.presigners.push(*acc.key),
+                (true, None) => unrecorded_live = true,
+                (false, Some(i)) => {
+                    v.presigners.swap_remove(i);
+                }
+                (false, None) => return err!(OracleError::BadPresigningProof),
+            }
+        }
+        let presigning = unrecorded_live || !v.presigners.is_empty();
         let newly_replaced = ms.members.iter().filter(|m| !v.members.contains(m)).count() as u16;
         let obs = rules::Observation {
             threshold: ms.threshold,
@@ -147,6 +167,9 @@ pub struct Venue {
     /// Members seen at the latest update, to count replacements.
     #[max_len(MAX_MEMBERS)]
     pub members: Vec<Pubkey>,
+    /// Pre-signing accounts proven live and not yet shown dead.
+    #[max_len(MAX_PRESIGNERS)]
+    pub presigners: Vec<Pubkey>,
     pub flag: Flag,
     /// Reasons latched since the flag last left green.
     pub reasons: u32,

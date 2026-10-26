@@ -14,7 +14,7 @@ Each `update` recomputes these from the accounts passed in.
 | `1 << 1` | `THRESHOLD_DROPPED` | the threshold is below the baseline: the threshold last accepted while green |
 | `1 << 2` | `MEMBERS_REPLACED` | more than a third of members were replaced within a rolling 7-day window |
 | `1 << 3` | `UPGRADE_AUTHORITY_MOVED` | the program-data authority is not the registered Squads vault, or is None |
-| `1 << 4` | `SIGNER_PRESIGNING` | a proof account passes: a System nonce account (owner System, 80 bytes, `state == 1`) whose authority is a current member |
+| `1 << 4` | `SIGNER_PRESIGNING` | the venue remembers at least one live pre-signing account: a System nonce account (owner System, 80 bytes, `state == 1`) whose authority is a current member |
 | `1 << 5` | `AMBER_ESCALATED` | `SIGNER_PRESIGNING` has held continuously for 48 h |
 
 Member replacement counts members present now that were absent at the
@@ -36,8 +36,11 @@ to 16; measured venues have 7 or 8) to make this count.
 flag always carries the reason that raised it, even during the cool-off.
 `active_reasons` holds the bits of the latest update. When the flag is
 green, the current threshold becomes the baseline, so a raised threshold
-is accepted at once and a lowered one keeps the flag red until it is
-restored.
+is accepted at once. A lowered threshold keeps the flag red. If it stays
+lowered for a full 7 days (`low_threshold_since`), it becomes the new
+baseline: depositors have had that week to leave, and the flag still needs
+another 7-day cool-off before it turns green. An unrelated earlier red does
+not shorten that week.
 
 ## What a proof can and cannot do
 
@@ -46,11 +49,20 @@ account either passes the verifier or fails the whole transaction
 (`BadPresigningProof`), so a forged proof cannot be slipped in alongside a
 real one.
 
-The absence of a pre-signing account cannot be proven. An update without
-proofs can only start the cool-off; amber clears after 7 days of such
-updates. A cranker who misses a proof can delay amber. No input can
-produce a false red: every red bit is computed from the multisig, the
-program data and the clock.
+The absence of a pre-signing account cannot be proven, so the oracle never
+treats a missing proof as evidence. A pre-signing account that proves
+itself is remembered in `presigners` (up to 8). It is dropped only when it
+is passed again and fails the verifier: closed, uninitialized, or
+controlled by a key that is no longer a member. Until then
+`SIGNER_PRESIGNING` holds on every update, with or without proofs, so
+amber keeps escalating to red after 48 h and cannot clear. Someone who
+controls the nonce, and spams updates without it, changes nothing. The
+crank passes every remembered account each cycle, which is how dead ones
+are cleared.
+
+A cranker who misses a new proof can delay amber. No input can produce a
+false red: every red bit is computed from the multisig, the program data,
+the remembered proof accounts and the clock.
 
 ## Tested properties
 
