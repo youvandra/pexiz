@@ -1,0 +1,459 @@
+{
+  "address": "C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC",
+  "metadata": {
+    "name": "pexiz_oracle",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "register_venue",
+      "docs": [
+        "Registers a venue: the program whose admin path is watched, the Squads",
+        "multisig expected to hold its upgrade authority, and the vault-facing",
+        "thresholds. The first snapshot is taken from the accounts passed in."
+      ],
+      "discriminator": [
+        116,
+        155,
+        199,
+        243,
+        228,
+        180,
+        176,
+        173
+      ],
+      "accounts": [
+        {
+          "name": "venue",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "params.program"
+              }
+            ]
+          }
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "multisig"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "VenueParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update",
+      "docs": [
+        "Permissionless update. Recomputes every signal from the accounts passed",
+        "in and moves the flag. Optional remaining accounts are signer",
+        "pre-signing accounts (System nonce accounts or offline-signer program",
+        "nonces), each proven to be controlled by a current multisig member."
+      ],
+      "discriminator": [
+        219,
+        200,
+        88,
+        176,
+        158,
+        63,
+        253,
+        127
+      ],
+      "accounts": [
+        {
+          "name": "venue",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue.params_program",
+                "account": "Venue"
+              }
+            ]
+          }
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "multisig"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Venue",
+      "discriminator": [
+        8,
+        155,
+        85,
+        226,
+        234,
+        173,
+        42,
+        242
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "FlagChanged",
+      "discriminator": [
+        249,
+        41,
+        21,
+        185,
+        210,
+        216,
+        132,
+        74
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "WrongProgramData",
+      "msg": "program data account does not belong to the registered program"
+    },
+    {
+      "code": 6001,
+      "name": "WrongMultisig",
+      "msg": "multisig account does not match the registered multisig"
+    },
+    {
+      "code": 6002,
+      "name": "NotSquadsMultisig",
+      "msg": "account is not a Squads v4 multisig"
+    },
+    {
+      "code": 6003,
+      "name": "BadPresigningProof",
+      "msg": "pre-signing proof account is invalid or not controlled by a member"
+    },
+    {
+      "code": 6004,
+      "name": "WrongUpgradeAuthority",
+      "msg": "upgrade authority does not match the program data or the multisig vault"
+    },
+    {
+      "code": 6005,
+      "name": "TooManyMembers",
+      "msg": "multisig has more members than the oracle tracks"
+    }
+  ],
+  "types": [
+    {
+      "name": "Flag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Green"
+          },
+          {
+            "name": "Amber"
+          },
+          {
+            "name": "Red"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FlagChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "venue",
+            "type": "pubkey"
+          },
+          {
+            "name": "program",
+            "type": "pubkey"
+          },
+          {
+            "name": "from",
+            "type": {
+              "defined": {
+                "name": "Flag"
+              }
+            }
+          },
+          {
+            "name": "to",
+            "type": {
+              "defined": {
+                "name": "Flag"
+              }
+            }
+          },
+          {
+            "name": "reasons",
+            "type": "u32"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "unix_timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Snapshot",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "threshold",
+            "type": "u16"
+          },
+          {
+            "name": "time_lock_secs",
+            "type": "u32"
+          },
+          {
+            "name": "member_count",
+            "type": "u16"
+          },
+          {
+            "name": "members_hash",
+            "docs": [
+              "Hash of the sorted member keys, to detect replacement."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "replaced_7d",
+            "docs": [
+              "Members replaced within the trailing 7 days."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "taken_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Venue",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "params_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "program_data",
+            "type": "pubkey"
+          },
+          {
+            "name": "multisig",
+            "type": "pubkey"
+          },
+          {
+            "name": "upgrade_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_index",
+            "type": "u8"
+          },
+          {
+            "name": "min_time_lock_secs",
+            "type": "u32"
+          },
+          {
+            "name": "exit_time_secs",
+            "type": "u32"
+          },
+          {
+            "name": "snapshot",
+            "docs": [
+              "Config seen at the latest update."
+            ],
+            "type": {
+              "defined": {
+                "name": "Snapshot"
+              }
+            }
+          },
+          {
+            "name": "members",
+            "docs": [
+              "Members seen at the latest update, to count replacements."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "flag",
+            "type": {
+              "defined": {
+                "name": "Flag"
+              }
+            }
+          },
+          {
+            "name": "reasons",
+            "docs": [
+              "Reasons latched since the flag last left green."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "active_reasons",
+            "docs": [
+              "Reasons that held at the latest update."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "amber_since",
+            "type": "i64"
+          },
+          {
+            "name": "red_since",
+            "type": "i64"
+          },
+          {
+            "name": "clear_since",
+            "type": "i64"
+          },
+          {
+            "name": "baseline_threshold",
+            "docs": [
+              "Threshold accepted while green."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "replaced_window_start",
+            "type": "i64"
+          },
+          {
+            "name": "replaced_window_base",
+            "type": "u16"
+          },
+          {
+            "name": "last_update_slot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VenueParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "program",
+            "docs": [
+              "Program whose upgrade authority is watched."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "multisig",
+            "docs": [
+              "Squads v4 multisig account expected to own the upgrade authority vault."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "upgrade_authority",
+            "docs": [
+              "Squads vault PDA that should be the program's upgrade authority."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_index",
+            "docs": [
+              "Squads vault index of `upgrade_authority`."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "min_time_lock_secs",
+            "docs": [
+              "Minimum timelock (seconds) below which the flag goes red."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "exit_time_secs",
+            "docs": [
+              "Seconds a user needs to withdraw at current exit capacity."
+            ],
+            "type": "u32"
+          }
+        ]
+      }
+    }
+  ]
+}

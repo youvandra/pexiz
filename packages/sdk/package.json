@@ -3,5 +3,9 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
-  "dependencies": { "@solana/web3.js": "^1.98.0", "@coral-xyz/anchor": "^0.31.1" }
+  "dependencies": {
+    "@coral-xyz/anchor": "0.31.1",
+    "@solana/spl-token": "0.4.13",
+    "@solana/web3.js": "^1.98.0"
+  }
 }

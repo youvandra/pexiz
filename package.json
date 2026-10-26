@@ -1,13 +1,24 @@
 {
   "name": "pexiz",
   "private": true,
-  "workspaces": ["packages/*", "services/*"],
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
   "scripts": {
-    "build:programs": "anchor build",
-    "test": "anchor test"
+    "build:programs": "anchor build && bun run sync-idl",
+    "sync-idl": "cp target/idl/*.json packages/sdk/idl/",
+    "test": "cargo test --workspace && bun test tests/",
+    "test:programs": "bun test tests/",
+    "replay": "bun run services/replay/src/index.ts"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "litesvm": "0.3.3",
+    "@pexiz/sdk": "workspace:*",
+    "@solana/web3.js": "^1.98.0",
+    "@coral-xyz/anchor": "0.31.1",
+    "@solana/spl-token": "0.4.13"
   }
 }
