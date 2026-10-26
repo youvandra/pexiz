@@ -7,3 +7,4 @@ export * from "./oracle";
 export * from "./canary";
 export * from "./vault";
 export * from "./rpc";
+export * from "./jlp";
