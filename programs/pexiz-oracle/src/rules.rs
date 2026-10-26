@@ -39,6 +39,8 @@ pub struct RuleState {
     pub replaced_window_start: i64,
     /// Member count when the replacement window opened.
     pub replaced_window_base: u16,
+    /// When the threshold first fell below the baseline; 0 while it is not.
+    pub low_threshold_since: i64,
 }
 
 /// Applies one observation at time `now`. Returns the previous flag.
@@ -55,6 +57,20 @@ pub fn step(s: &mut RuleState, o: &Observation, now: i64) -> Flag {
             s.replaced_window_base = o.member_count.max(1);
         }
         s.replaced_7d = s.replaced_7d.saturating_add(o.newly_replaced);
+    }
+
+    // A threshold that has stayed below the baseline for a full cool-off is
+    // accepted as the new baseline. Depositors have had that week to leave;
+    // the flag still needs another clear cool-off before it turns green.
+    if o.threshold < s.baseline_threshold {
+        if s.low_threshold_since == 0 {
+            s.low_threshold_since = now;
+        } else if now - s.low_threshold_since >= COOL_OFF_SECS {
+            s.baseline_threshold = o.threshold;
+            s.low_threshold_since = 0;
+        }
+    } else {
+        s.low_threshold_since = 0;
     }
 
     let mut active = 0u32;
@@ -250,6 +266,51 @@ mod tests {
         step(&mut s, &Observation { threshold: 4, ..healthy() }, T0 + DAY);
         assert_eq!(s.flag, Flag::Red);
         assert_eq!(s.reasons, reason::THRESHOLD_DROPPED);
+    }
+
+    #[test]
+    fn lowered_threshold_is_accepted_after_a_red_week() {
+        let mut s = base();
+        let low = Observation { threshold: 3, ..healthy() };
+        step(&mut s, &low, T0);
+        assert_eq!(s.flag, Flag::Red);
+        step(&mut s, &low, T0 + COOL_OFF_SECS - 1);
+        assert_eq!(s.flag, Flag::Red);
+        assert_eq!(s.active_reasons, reason::THRESHOLD_DROPPED);
+        // After a week red, the lower threshold becomes the baseline and the
+        // cool-off starts.
+        step(&mut s, &low, T0 + COOL_OFF_SECS);
+        assert_eq!(s.baseline_threshold, 3);
+        assert_eq!(s.active_reasons, 0);
+        assert_eq!(s.flag, Flag::Red);
+        step(&mut s, &low, T0 + 2 * COOL_OFF_SECS);
+        assert_eq!(s.flag, Flag::Green);
+        // A further drop is red again.
+        step(&mut s, &Observation { threshold: 2, ..healthy() }, T0 + 2 * COOL_OFF_SECS + DAY);
+        assert_eq!(s.flag, Flag::Red);
+    }
+
+    #[test]
+    fn an_old_red_does_not_shorten_the_threshold_week() {
+        let mut s = base();
+        step(&mut s, &Observation { time_lock_secs: 0, ..healthy() }, T0);
+        // The threshold drops eight days into an unrelated red.
+        let low = Observation { threshold: 3, time_lock_secs: 0, ..healthy() };
+        step(&mut s, &low, T0 + 8 * DAY);
+        assert_eq!(s.baseline_threshold, 4);
+        assert!(s.active_reasons & reason::THRESHOLD_DROPPED != 0);
+        step(&mut s, &low, T0 + 8 * DAY + COOL_OFF_SECS);
+        assert_eq!(s.baseline_threshold, 3);
+    }
+
+    #[test]
+    fn other_reasons_keep_a_lowered_threshold_red() {
+        let mut s = base();
+        let bad = Observation { threshold: 3, time_lock_secs: 0, ..healthy() };
+        step(&mut s, &bad, T0);
+        step(&mut s, &bad, T0 + COOL_OFF_SECS);
+        assert_eq!(s.flag, Flag::Red);
+        assert_eq!(s.active_reasons, reason::TIME_LOCK_BELOW_MIN);
     }
 
     fn arb_obs() -> impl Strategy<Value = Observation> {

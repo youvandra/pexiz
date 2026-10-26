@@ -159,6 +159,7 @@ pub struct Venue {
     pub baseline_threshold: u16,
     pub replaced_window_start: i64,
     pub replaced_window_base: u16,
+    pub low_threshold_since: i64,
     pub last_update_slot: u64,
     pub bump: u8,
 }
@@ -183,6 +184,7 @@ impl Venue {
             replaced_7d: self.snapshot.replaced_7d,
             replaced_window_start: self.replaced_window_start,
             replaced_window_base: self.replaced_window_base,
+            low_threshold_since: self.low_threshold_since,
         }
     }
 
@@ -196,6 +198,7 @@ impl Venue {
         self.baseline_threshold = s.baseline_threshold;
         self.replaced_window_start = s.replaced_window_start;
         self.replaced_window_base = s.replaced_window_base;
+        self.low_threshold_since = s.low_threshold_since;
     }
 }
 
