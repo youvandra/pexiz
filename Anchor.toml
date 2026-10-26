@@ -6,9 +6,17 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-pexiz_oracle = "11111111111111111111111111111111"
-pexiz_vault = "11111111111111111111111111111111"
-canary_venue = "11111111111111111111111111111111"
+canary_venue = "gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38"
+pexiz_oracle = "C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC"
+pexiz_vault = "JCYqZ5AdPyJHiRbnLdawunTassWwVZX5dCisasBq6q2p"
+
+[registry]
+url = "https://api.apr.dev"
+
+[programs.devnet]
+canary_venue = "gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38"
+pexiz_oracle = "C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC"
+pexiz_vault = "JCYqZ5AdPyJHiRbnLdawunTassWwVZX5dCisasBq6q2p"
 
 [provider]
 cluster = "localnet"

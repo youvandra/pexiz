@@ -1,0 +1,3 @@
+[resolver]
+# The SBF toolchain ships rustc 1.84; keep dependency picks compatible.
+incompatible-rust-versions = "fallback"

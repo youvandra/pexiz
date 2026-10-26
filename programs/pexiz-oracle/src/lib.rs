@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("11111111111111111111111111111111");
+declare_id!("C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC");
 
 /// Seconds a venue must stay clear before a red or amber flag returns to green.
 pub const COOL_OFF_SECS: i64 = 7 * 24 * 3600;

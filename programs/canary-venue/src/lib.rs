@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("11111111111111111111111111111111");
+declare_id!("gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38");
 
 /// A minimal venue we control end to end, so a live demo can weaken a real
 /// admin setup on-chain (cut the multisig timelock, add a pre-signing
