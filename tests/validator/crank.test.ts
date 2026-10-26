@@ -11,6 +11,8 @@ import {
   initPoolIx, initVaultIx, registerVenueIx, vaultAddresses, vaultPda, venuePda, encodeMultisig, type Multisig,
 } from "@pexiz/sdk";
 import { Crank, type CycleResult } from "../../services/crank/src/crank";
+import { poll } from "../../services/alerts/src/sources";
+import { formatAlert } from "../../services/alerts/src/format";
 import { send, setMultisigIx, startValidator, type Validator } from "./harness";
 
 let v: Validator;
@@ -52,6 +54,11 @@ test("crank: green no-op, nonce → amber, timelock cut → update+exit in one t
   await mintTo(conn, payer, usdc, userUsdc, payer, 5_000_000_000n);
   await send(v, [await depositIx(va, payer.publicKey, userUsdc, userShares, 5_000_000_000n)]);
 
+  // The alerts service polls the oracle in the background.
+  const alerts: string[] = [];
+  const stopAlerts = new AbortController();
+  const polling = poll(conn, (e) => { alerts.push(formatAlert(e)); }, 300, stopAlerts.signal);
+
   // Cycle 1: healthy, nothing to send.
   let r: CycleResult[] = await crank.cycle();
   expect(r.length).toBe(1);
@@ -85,6 +92,13 @@ test("crank: green no-op, nonce → amber, timelock cut → update+exit in one t
   // Cycle 4: already red and exited; nothing to send.
   r = await crank.cycle();
   expect(r[0]).toMatchObject({ from: "red", to: "red", action: "none" });
+
+  await Bun.sleep(1500);
+  stopAlerts.abort();
+  await polling;
+  expect(alerts.length).toBe(2);
+  expect(alerts[0]).toContain("AMBER");
+  expect(alerts[1]).toContain("RED");
 
   expect(lines.length).toBe(4);
   for (const l of lines) expect(l).toMatch(/venue=gSmMMRDG.* flag=\S+ reasons=\S+ proofs=\d action=\S+/);
