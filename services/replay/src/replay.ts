@@ -4,7 +4,7 @@
 // in for the drained venue's program.
 import { FailedTransactionMetadata } from "litesvm";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { CANARY_PROGRAM_ID, exitIx, parseFlagChanged, parseVaultExited, reasonNames } from "@pexiz/sdk";
+import { CANARY_PROGRAM_ID, exitIx, parseFlagChanged, parseVaultExited, reasonNames, type FlagChanged } from "@pexiz/sdk";
 import { USDC, World } from "@pexiz/localnet";
 
 const utc = (s: string) => Math.floor(Date.parse(`${s}Z`) / 1000);
@@ -39,6 +39,7 @@ export interface ReplayResult {
   exitAt: number | null;
   exitReasons: string[];
   usdcOut: bigint;
+  events: FlagChanged[];
 }
 
 type Step = { at: string; event: string; apply?: (w: World, s: State) => void };
@@ -82,6 +83,7 @@ export async function runReplay(opts: { presigning?: boolean } = {}): Promise<Re
 
   const s: State = { nonces: [] };
   const rows: Row[] = [];
+  const events: FlagChanged[] = [];
   let exitAt: number | null = null;
   let exitReasons: string[] = [];
   let usdcOut = 0n;
@@ -112,6 +114,7 @@ export async function runReplay(opts: { presigning?: boolean } = {}): Promise<Re
     const v = w.env.venue(CANARY_PROGRAM_ID);
     if (action === "update+exit") exitReasons = reasonNames(v.reasons);
     const changed = parseFlagChanged(logs)[0];
+    if (changed) events.push(changed);
     rows.push({
       when: utc(step.at),
       event: step.event,
@@ -122,7 +125,7 @@ export async function runReplay(opts: { presigning?: boolean } = {}): Promise<Re
       action,
     });
   }
-  return { rows, exitAt, exitReasons, usdcOut };
+  return { rows, exitAt, exitReasons, usdcOut, events };
 }
 
 export function formatReplay(r: ReplayResult, timelockOnly?: ReplayResult): string {

@@ -2,7 +2,11 @@
   "name": "@pexiz/alerts",
   "private": true,
   "type": "module",
-  "scripts": { "start": "bun run src/index.ts" },
+  "main": "src/format.ts",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dry-run": "bun run src/index.ts --dry-run --from-replay"
+  },
   "dependencies": {
     "@pexiz/sdk": "workspace:*",
     "@solana/web3.js": "^1.98.0"
