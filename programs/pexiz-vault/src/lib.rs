@@ -6,7 +6,7 @@ use pexiz_oracle::{Flag, Venue};
 
 pub mod math;
 
-declare_id!("JCYqZ5AdPyJHiRbnLdawunTassWwVZX5dCisasBq6q2p");
+declare_id!("3WXGqGargd6Wig3czzD45kstziZGhQdQ5HYYdNJkJGnz");
 
 /// Hard cap on assets under management in v1, set by measured exit capacity
 /// (JLP sells at 0.64% impact for $10M and 6.7% for $20M, 26 Oct 2026).

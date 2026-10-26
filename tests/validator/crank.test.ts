@@ -82,7 +82,7 @@ test("crank: green no-op, nonce → amber, timelock cut → update+exit in one t
 
   const tx = await conn.getTransaction(r[0].signature!, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
   const programs = tx!.transaction.message.compiledInstructions.map((ix) => tx!.transaction.message.staticAccountKeys[ix.programIdIndex].toBase58());
-  expect(programs).toContain("C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC");
+  expect(programs).toContain("68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n");
   expect(programs).toContain(VAULT_PROGRAM_ID.toBase58());
   const vault = decodeVault((await conn.getAccountInfo(va.vault))!.data);
   expect(vault.exited).toBe(true);
@@ -101,5 +101,5 @@ test("crank: green no-op, nonce → amber, timelock cut → update+exit in one t
   expect(alerts[1]).toContain("RED");
 
   expect(lines.length).toBe(4);
-  for (const l of lines) expect(l).toMatch(/venue=gSmMMRDG.* flag=\S+ reasons=\S+ proofs=\d action=\S+/);
+  for (const l of lines) expect(l).toMatch(/venue=CHpLfS2B.* flag=\S+ reasons=\S+ proofs=\d action=\S+/);
 }, 120_000);

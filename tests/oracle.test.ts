@@ -343,7 +343,7 @@ describe("escalation timeline and cool-off with clock warps", () => {
 });
 
 test("oracle program id matches the IDL", () => {
-  expect(ORACLE_PROGRAM_ID.toBase58()).toBe("C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC");
+  expect(ORACLE_PROGRAM_ID.toBase58()).toBe("68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n");
   expect(vaultPda(PublicKey.default)[0]).toBeInstanceOf(PublicKey);
 });
 

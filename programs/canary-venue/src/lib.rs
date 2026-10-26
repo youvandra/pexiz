@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
 
-declare_id!("gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38");
+declare_id!("CHpLfS2BA2knitoRmgeef2rULJy4dJ3PtBdL8R6ZTGjb");
 
 /// Redemption fee in basis points.
 pub const REDEEM_FEE_BPS: u64 = 10;

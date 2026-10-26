@@ -4,7 +4,7 @@ pub mod proofs;
 pub mod rules;
 pub mod squads;
 
-declare_id!("C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC");
+declare_id!("68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n");
 
 /// Seconds a venue must stay clear before a red or amber flag returns to green.
 pub const COOL_OFF_SECS: i64 = 7 * 24 * 3600;

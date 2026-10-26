@@ -28,9 +28,9 @@ you out when that answer changes.
 
 | Program | Id | Role |
 |---|---|---|
-| `pexiz-oracle` | `C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC` | One `Venue` account per watched program with a green/amber/red flag. Permissionless, proof-carrying updates. |
-| `pexiz-vault` | `JCYqZ5AdPyJHiRbnLdawunTassWwVZX5dCisasBq6q2p` | USDC vault holding the venue's LP token; exits to USDC on red. |
-| `canary-venue` | `gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38` | Minimal USDC pool with an LP token, upgradeable by a Squads vault we create. Used for the live demo. |
+| `pexiz-oracle` | `68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n` | One `Venue` account per watched program with a green/amber/red flag. Permissionless, proof-carrying updates. |
+| `pexiz-vault` | `3WXGqGargd6Wig3czzD45kstziZGhQdQ5HYYdNJkJGnz` | USDC vault holding the venue's LP token; exits to USDC on red. |
+| `canary-venue` | `CHpLfS2BA2knitoRmgeef2rULJy4dJ3PtBdL8R6ZTGjb` | Minimal USDC pool with an LP token, upgradeable by a Squads vault we create. Used for the live demo. |
 
 ### Accounts and PDAs
 

@@ -1,5 +1,5 @@
 {
-  "address": "JCYqZ5AdPyJHiRbnLdawunTassWwVZX5dCisasBq6q2p",
+  "address": "3WXGqGargd6Wig3czzD45kstziZGhQdQ5HYYdNJkJGnz",
   "metadata": {
     "name": "pexiz_vault",
     "version": "0.1.0",
@@ -85,7 +85,7 @@
         },
         {
           "name": "canary_program",
-          "address": "gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38"
+          "address": "CHpLfS2BA2knitoRmgeef2rULJy4dJ3PtBdL8R6ZTGjb"
         }
       ],
       "args": [
@@ -161,7 +161,7 @@
         },
         {
           "name": "canary_program",
-          "address": "gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38"
+          "address": "CHpLfS2BA2knitoRmgeef2rULJy4dJ3PtBdL8R6ZTGjb"
         }
       ],
       "args": [
@@ -391,7 +391,7 @@
         },
         {
           "name": "canary_program",
-          "address": "gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38"
+          "address": "CHpLfS2BA2knitoRmgeef2rULJy4dJ3PtBdL8R6ZTGjb"
         }
       ],
       "args": [

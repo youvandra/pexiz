@@ -9,9 +9,9 @@ someone runs them; the scripts append to it.
 
 | Program | Id |
 |---|---|
-| `pexiz-oracle` | `C6323nptw1LPxcp6VYjL4ezUcuBJQUKpzADztKYrMzEC` |
-| `pexiz-vault` | `JCYqZ5AdPyJHiRbnLdawunTassWwVZX5dCisasBq6q2p` |
-| `canary-venue` | `gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38` |
+| `pexiz-oracle` | `68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n` |
+| `pexiz-vault` | `3WXGqGargd6Wig3czzD45kstziZGhQdQ5HYYdNJkJGnz` |
+| `canary-venue` | `CHpLfS2BA2knitoRmgeef2rULJy4dJ3PtBdL8R6ZTGjb` |
 
 Deploying to these ids needs the program keypairs in `keys/` (gitignored).
 Without them, run `anchor keys sync`, rebuild, copy the new keypairs from
