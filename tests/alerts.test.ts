@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { CANARY_PROGRAM_ID, Reason } from "@pexiz/sdk";
 import { formatAlert, venueName } from "../services/alerts/src/format";
 import { dryRunSink } from "../services/alerts/src/telegram";
@@ -30,7 +30,7 @@ test("green alert says all clear and lists no reasons", () => {
 });
 
 test("unnamed venues are shown by program id only", () => {
-  const p = new PublicKey("FLASH6Lo6h3iasJKWDs2F8TkW2UKf3s15C8PMGuVfgBn");
+  const p = Keypair.generate().publicKey;
   expect(venueName(p)).toBe(`program ${p.toBase58()}`);
 });
 
