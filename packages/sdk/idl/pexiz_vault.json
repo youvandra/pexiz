@@ -1,0 +1,1084 @@
+{
+  "address": "JCYqZ5AdPyJHiRbnLdawunTassWwVZX5dCisasBq6q2p",
+  "metadata": {
+    "name": "pexiz_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "deposit",
+      "docs": [
+        "Deposit USDC; the vault buys the venue LP token. Refused unless the",
+        "venue flag is green and the AUM cap holds."
+      ],
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "vault"
+        },
+        {
+          "name": "venue",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "pool",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "pool_lp_mint",
+          "writable": true
+        },
+        {
+          "name": "pool_reserve",
+          "writable": true
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_lp",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_usdc",
+          "writable": true
+        },
+        {
+          "name": "user_shares",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "canary_program",
+          "address": "gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38"
+        }
+      ],
+      "args": [
+        {
+          "name": "usdc_amount",
+          "type": "u64"
+        },
+        {
+          "name": "min_lp_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "exit",
+      "docs": [
+        "Permissionless. Reads the oracle venue account; if the flag is red,",
+        "redeems all LP tokens to USDC and marks the vault exited. Designed to be",
+        "called in the same transaction as the oracle update that turns it red."
+      ],
+      "discriminator": [
+        234,
+        32,
+        12,
+        71,
+        126,
+        5,
+        219,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "venue",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "pool",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "pool_lp_mint",
+          "writable": true
+        },
+        {
+          "name": "pool_reserve",
+          "writable": true
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_lp",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "canary_program",
+          "address": "gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38"
+        }
+      ],
+      "args": [
+        {
+          "name": "min_usdc_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "init_vault",
+      "docs": [
+        "Creates a vault bound to one oracle venue and one canary pool. One",
+        "vault per venue; the first caller wins."
+      ],
+      "discriminator": [
+        77,
+        79,
+        85,
+        150,
+        33,
+        217,
+        52,
+        106
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue"
+        },
+        {
+          "name": "pool"
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "lp_mint"
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_lp",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "reenter",
+      "docs": [
+        "Re-enter after the venue is green again (which implies the oracle",
+        "cool-off) and at least half of all shares voted for it."
+      ],
+      "discriminator": [
+        146,
+        155,
+        128,
+        89,
+        62,
+        154,
+        196,
+        142
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "venue",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "pool",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "pool_lp_mint",
+          "writable": true
+        },
+        {
+          "name": "pool_reserve",
+          "writable": true
+        },
+        {
+          "name": "share_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_lp",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "canary_program",
+          "address": "gSmMMRDG25iC1CgG5eH4QvyPXSWb9fDU1jKMcMX3J38"
+        }
+      ],
+      "args": [
+        {
+          "name": "min_lp_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "unvote",
+      "docs": [
+        "Returns escrowed shares; withdraws the vote if it still counts."
+      ],
+      "discriminator": [
+        181,
+        169,
+        220,
+        24,
+        207,
+        114,
+        148,
+        223
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "share_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  111,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_escrow",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_shares",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "vote_reenter",
+      "docs": [
+        "Escrows the caller's shares as a vote to re-enter after an exit."
+      ],
+      "discriminator": [
+        255,
+        2,
+        43,
+        39,
+        174,
+        176,
+        87,
+        75
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "share_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  111,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_escrow",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_shares",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "docs": [
+        "Withdraw pro-rata: the share of every token the vault holds (LP",
+        "before an exit, USDC after). Always open, whatever the flag."
+      ],
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "vault"
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_lp",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_shares",
+          "writable": true
+        },
+        {
+          "name": "user_usdc",
+          "writable": true
+        },
+        {
+          "name": "user_lp",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Pool",
+      "discriminator": [
+        241,
+        154,
+        109,
+        4,
+        17,
+        177,
+        109,
+        188
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    },
+    {
+      "name": "Venue",
+      "discriminator": [
+        8,
+        155,
+        85,
+        226,
+        234,
+        173,
+        42,
+        242
+      ]
+    },
+    {
+      "name": "VoteRecord",
+      "discriminator": [
+        112,
+        9,
+        123,
+        165,
+        234,
+        9,
+        157,
+        167
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "VaultExited",
+      "discriminator": [
+        14,
+        154,
+        86,
+        27,
+        74,
+        53,
+        242,
+        207
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "VenueNotGreen",
+      "msg": "venue flag is not green"
+    },
+    {
+      "code": 6001,
+      "name": "VenueNotRed",
+      "msg": "venue flag is not red"
+    },
+    {
+      "code": 6002,
+      "name": "AumCap",
+      "msg": "deposit would exceed the AUM cap"
+    },
+    {
+      "code": 6003,
+      "name": "AlreadyExited",
+      "msg": "vault already exited"
+    },
+    {
+      "code": 6004,
+      "name": "ReentryNotAllowed",
+      "msg": "cool-off or re-entry vote not satisfied"
+    },
+    {
+      "code": 6005,
+      "name": "NotExited",
+      "msg": "vault has not exited"
+    },
+    {
+      "code": 6006,
+      "name": "ZeroAmount",
+      "msg": "amount must be positive"
+    },
+    {
+      "code": 6007,
+      "name": "Slippage",
+      "msg": "output below the minimum"
+    },
+    {
+      "code": 6008,
+      "name": "EmptyVault",
+      "msg": "vault holds shares but no assets"
+    },
+    {
+      "code": 6009,
+      "name": "Overflow",
+      "msg": "arithmetic overflow"
+    },
+    {
+      "code": 6010,
+      "name": "VenueMismatch",
+      "msg": "venue does not watch the canary venue program"
+    }
+  ],
+  "types": [
+    {
+      "name": "Flag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Green"
+          },
+          {
+            "name": "Amber"
+          },
+          {
+            "name": "Red"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Pool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "usdc_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "lp_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_reserve",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Snapshot",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "threshold",
+            "type": "u16"
+          },
+          {
+            "name": "time_lock_secs",
+            "type": "u32"
+          },
+          {
+            "name": "member_count",
+            "type": "u16"
+          },
+          {
+            "name": "members_hash",
+            "docs": [
+              "Hash of the sorted member keys, to detect replacement."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "replaced_7d",
+            "docs": [
+              "Members replaced within the trailing 7 days."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "taken_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "venue",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "lp_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "share_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_usdc",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_lp",
+            "type": "pubkey"
+          },
+          {
+            "name": "share_escrow",
+            "type": "pubkey"
+          },
+          {
+            "name": "exited",
+            "type": "bool"
+          },
+          {
+            "name": "exited_at_slot",
+            "type": "u64"
+          },
+          {
+            "name": "exits",
+            "docs": [
+              "Number of exits so far; also the current re-entry voting round."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "reentry_votes",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultExited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue",
+            "type": "pubkey"
+          },
+          {
+            "name": "lp_redeemed",
+            "type": "u64"
+          },
+          {
+            "name": "usdc_out",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Venue",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "params_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "program_data",
+            "type": "pubkey"
+          },
+          {
+            "name": "multisig",
+            "type": "pubkey"
+          },
+          {
+            "name": "upgrade_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_index",
+            "type": "u8"
+          },
+          {
+            "name": "min_time_lock_secs",
+            "type": "u32"
+          },
+          {
+            "name": "exit_time_secs",
+            "type": "u32"
+          },
+          {
+            "name": "snapshot",
+            "docs": [
+              "Config seen at the latest update."
+            ],
+            "type": {
+              "defined": {
+                "name": "Snapshot"
+              }
+            }
+          },
+          {
+            "name": "members",
+            "docs": [
+              "Members seen at the latest update, to count replacements."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "flag",
+            "type": {
+              "defined": {
+                "name": "Flag"
+              }
+            }
+          },
+          {
+            "name": "reasons",
+            "docs": [
+              "Reasons latched since the flag last left green."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "active_reasons",
+            "docs": [
+              "Reasons that held at the latest update."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "amber_since",
+            "type": "i64"
+          },
+          {
+            "name": "red_since",
+            "type": "i64"
+          },
+          {
+            "name": "clear_since",
+            "type": "i64"
+          },
+          {
+            "name": "baseline_threshold",
+            "docs": [
+              "Threshold accepted while green."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "replaced_window_start",
+            "type": "i64"
+          },
+          {
+            "name": "replaced_window_base",
+            "type": "u16"
+          },
+          {
+            "name": "last_update_slot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VoteRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "voter",
+            "type": "pubkey"
+          },
+          {
+            "name": "round",
+            "type": "u32"
+          },
+          {
+            "name": "shares",
+            "docs": [
+              "Shares held in escrow for this voter."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "counted",
+            "docs": [
+              "Shares counted toward the current round."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
