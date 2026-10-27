@@ -1,6 +1,9 @@
 import { cn } from "@/lib/cn"
+import { Link } from "wouter"
+import { ago } from "@/lib/format"
+import { useBoard } from "@/data/chain"
 import { VENUES } from "@/data/facts"
-import { FlagPill, LinkButton } from "@/components/ui/kit"
+import { FlagPill, LinkButton, Skeleton } from "@/components/ui/kit"
 import { DoorGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
 
@@ -30,27 +33,69 @@ export function Hero() {
         <HeroCard />
       </div>
 
-      <div className="border-t border-line bg-paper/60 py-7">
-        <p className="px-5 text-center text-sm text-ink-3">
-          Watching <span className="font-semibold text-ink-2">{VENUES.length} perps and prediction markets</span> on Solana, read live from chain
-        </p>
-        <div className="marquee-mask mt-5 overflow-hidden">
-          {/* Two copies side by side; the track slides by one copy and loops. */}
-          <div className="marquee flex w-max">
-            {[0, 1].map((copy) => (
-              <ul key={copy} className="flex shrink-0 items-center gap-12 pr-12" aria-hidden={copy === 1}>
-                {VENUES.map((v) => (
-                  <li key={v.id} className="flex items-center gap-3 text-[0.95rem] font-semibold text-ink-2">
-                    <img src={v.logo} alt="" className="size-8 rounded-lg object-contain" />
-                    {v.name}
-                  </li>
-                ))}
-              </ul>
-            ))}
+      <LiveStrip />
+    </section>
+  )
+}
+
+const GROUPS = [
+  { flag: "green", empty: "None right now" },
+  { flag: "amber", empty: "None right now" },
+  { flag: "exposed", empty: "None right now" },
+  { flag: "red", empty: "Nothing has changed for the worse" },
+] as const
+
+/**
+ * What Pexiz is watching, as it stands: every protocol sorted under its
+ * status, so the strip says something a logo wall cannot.
+ */
+function LiveStrip() {
+  const { rows, readAt } = useBoard()
+  // Before the live read lands, show the venues without a verdict.
+  const list = rows ?? []
+  const unrated = list.filter((r) => r.assessment === "unrated").length
+  return (
+    <div className="border-t border-line bg-paper/70">
+      <div className="mx-auto max-w-[1180px] px-5 py-8 md:px-8">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-sm font-semibold">
+            <span className="live-dot text-safe" />
+            Watching {VENUES.length} protocols right now
+          </div>
+          <div className="text-xs text-ink-3">
+            {readAt ? `Read from Solana mainnet ${ago(readAt)}` : "Reading Solana mainnet…"}
+            {unrated > 0 && ` · ${unrated} not rated`}
           </div>
         </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {GROUPS.map(({ flag, empty }) => {
+            const members = list.filter((r) => r.assessment === flag)
+            return (
+              <Link key={flag} href="/app/monitor" className="group rounded-[var(--radius-card)] border border-line bg-cream p-4 transition-colors hover:border-line-2">
+                <div className="flex items-center justify-between">
+                  <FlagPill flag={flag} />
+                  <span className="tabular text-2xl font-medium tracking-tight">{rows ? members.length : "–"}</span>
+                </div>
+                {!rows ? (
+                  <div className="mt-4 space-y-2"><Skeleton className="h-6 w-28" /><Skeleton className="h-6 w-20" /></div>
+                ) : members.length ? (
+                  <ul className="mt-4 space-y-2">
+                    {members.map((r) => (
+                      <li key={r.venue.id} className="flex items-center gap-2.5 text-sm font-medium">
+                        <img src={r.venue.logo} alt="" className="size-6 rounded-md object-contain" />
+                        <span className="truncate">{r.venue.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-4 text-sm text-ink-3">{empty}</p>
+                )}
+              </Link>
+            )
+          })}
+        </div>
       </div>
-    </section>
+    </div>
   )
 }
 

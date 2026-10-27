@@ -37,11 +37,12 @@ async function read(v: WatchedVenue): Promise<Verdict & { delay?: number }> {
     if (!info) return snapshot
     const m = decodeMultisig(info.data)
     const vaultIndex = [0, 1, 2, 3].find((i) => vaultPda(ms, i)[0].toBase58() === v.authority) ?? 0
-    const found = await findPendingUpgrades(conn, ms, m.transactionIndex, vaultIndex, programDataAddress(new PublicKey(v.program))).catch(() => [])
+    const found = await findPendingUpgrades(conn, ms, m.transactionIndex, vaultIndex, programDataAddress(new PublicKey(v.program)), 12)
     const pending = found.map((p) => ({ index: p.index, approvedAt: p.approvedAt, readyAt: p.approvedAt !== undefined ? p.approvedAt + m.timeLock : undefined }))
     return { ...assess(v, m.timeLock, pending, { threshold: m.threshold }), delay: m.timeLock }
   } catch {
-    return snapshot
+    // An unread multisig must not show its old snapshot as current.
+    return { assessment: "unrated", why: "Could not be read from chain just now.", delay: undefined }
   }
 }
 

@@ -49,7 +49,8 @@ async function readVenue(v: WatchedVenue): Promise<BoardRow> {
   const auth = decodeUpgradeAuthority(Buffer.from(pd.data))
   const multisig = new PublicKey(v.multisig)
   const vaultIndex = [0, 1, 2, 3].find((i) => vaultPda(multisig, i)[0].toBase58() === v.authority) ?? 0
-  const found = await findPendingUpgrades(mainnet, multisig, m.transactionIndex, vaultIndex, programDataAddress(new PublicKey(v.program))).catch(() => [])
+  // No catch: a failed lookup must not read as "no upgrade queued".
+  const found = await findPendingUpgrades(mainnet, multisig, m.transactionIndex, vaultIndex, programDataAddress(new PublicKey(v.program)), 12)
   const pendingUpgrades = found.map((p) => ({ index: p.index, approvedAt: p.approvedAt, readyAt: p.approvedAt !== undefined ? p.approvedAt + m.timeLock : undefined }))
   return {
     venue: v,
@@ -71,13 +72,35 @@ const BOARD_TTL_MS = 60_000
 let board: { rows: BoardRow[]; at: number } | null = null
 let boardInflight: Promise<{ rows: BoardRow[]; at: number }> | null = null
 
+/**
+ * A live read that failed or ran out of time. A multisig venue we could not
+ * read is shown as unread, never as its old snapshot: an old Safe would hide a
+ * change made since.
+ */
+function unreadRow(v: WatchedVenue): BoardRow {
+  if (v.admin !== "squads-v4") return snapshotRow(v)
+  return { ...snapshotRow(v), assessment: "unrated", why: "Could not be read from chain just now. Try again in a minute.", exitWindowSecs: undefined }
+}
+
 function loadBoard() {
   if (board && Date.now() - board.at < BOARD_TTL_MS) return Promise.resolve(board)
-  // A slow or rate-limited RPC never holds the page: after 8s a venue falls
-  // back to its measured snapshot.
+  // Two venues at a time keeps the public RPC under its rate limit; a venue
+  // that takes longer than 12s is shown as unread rather than holding the page.
   const timed = (v: WatchedVenue) =>
-    Promise.race([readVenue(v), new Promise<BoardRow>((ok) => setTimeout(() => ok(snapshotRow(v)), 8000))]).catch(() => snapshotRow(v))
-  boardInflight ??= Promise.all(VENUES.map(timed))
+    Promise.race([readVenue(v), new Promise<BoardRow>((ok) => setTimeout(() => ok(unreadRow(v)), 12_000))]).catch(() => unreadRow(v))
+  const run = async () => {
+    const rows: BoardRow[] = new Array(VENUES.length)
+    let next = 0
+    const worker = async () => {
+      while (next < VENUES.length) {
+        const i = next++
+        rows[i] = await timed(VENUES[i])
+      }
+    }
+    await Promise.all([worker(), worker()])
+    return rows
+  }
+  boardInflight ??= run()
     .then((rows) => (board = { rows, at: Date.now() }))
     .finally(() => { boardInflight = null })
   return boardInflight
