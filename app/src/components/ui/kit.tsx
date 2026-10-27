@@ -1,6 +1,7 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react"
 import { Link } from "wouter"
 import { cn } from "@/lib/cn"
+import { Mark } from "@/components/ui/mark"
 import type { Assessment } from "@/data/chain"
 
 type Variant = "ink" | "line" | "ghost"
@@ -105,11 +106,7 @@ export function Skeleton({ className }: { className?: string }) {
 export function Logo({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2 text-[1.15rem] font-semibold tracking-tight", className)}>
-      <svg viewBox="0 0 20 20" className="size-5" aria-hidden>
-        <rect x="1.5" y="1.5" width="17" height="17" rx="5" fill="var(--ink)" />
-        <path d="M8 6.2h4.6v7.4" stroke="var(--cream)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        <path d="M12.6 6.2 6.6 12.6" stroke="var(--lemon)" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+      <Mark className="size-[1.1rem]" />
       pexiz
     </span>
   )

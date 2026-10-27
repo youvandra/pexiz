@@ -89,10 +89,8 @@ export function cardSvg(v: WatchedVenue, r: Verdict & { delay?: number }, now = 
   <defs><linearGradient id="t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.bg}"/><stop offset=".55" stop-color="#fbf6ef"/></linearGradient></defs>
   <rect width="1200" height="630" fill="url(#t)"/>
   <g transform="translate(72 64)">
-    <rect width="34" height="34" rx="9" fill="#0d0d0c"/>
-    <path d="M13.6 10.5h7.8v12.6" stroke="#fbf6ef" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <path d="M21.4 10.5 11.2 21.4" stroke="#e9c22e" stroke-width="3.4" stroke-linecap="round"/>
-    <text x="48" y="26" font-size="30" font-weight="600" fill="#0d0d0c">pexiz</text>
+    <g transform="scale(0.0168)"><path fill="#0d0d0c" fill-rule="evenodd" d="M880 42h636a28 28 0 0 1 28 28v1399a28 28 0 0 1-28 28H779L130 2016a28 28 0 0 1-66-20V310a28 28 0 0 1 12-23L866 47a28 28 0 0 1 14-5ZM1477 90h-177c-320 0-549 90-549 480v830a26 26 0 0 0 26 26h674a26 26 0 0 0 26-26V90Z"/></g>
+    <text x="42" y="27" font-size="30" font-weight="600" fill="#0d0d0c">pexiz</text>
   </g>
   <text x="1128" y="90" font-size="24" fill="rgba(13,13,12,.46)" text-anchor="end">Protocol monitor</text>
   <g transform="translate(72 170)">
