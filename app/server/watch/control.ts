@@ -105,13 +105,14 @@ export interface Trace {
 /**
  * Who a PDA belongs to, from one pass over its recent transactions, a few at
  * a time. A Squads vault always appears beside its multisig, and is proven
- * by deriving it back. Otherwise the program whose instruction, directly or
- * through its inner calls, passes the key is taken as its owner; only
- * programs that are not infrastructure count.
+ * by deriving it back. Otherwise the program most often sent the key in an
+ * instruction, top-level or inner, is taken as its owner; only programs that
+ * are not infrastructure count.
  */
 export async function traceKey(conn: Connection, key: PublicKey, maxTx = 20): Promise<Trace> {
   const sigs = (await conn.getSignaturesForAddress(key, { limit: 40 })).filter((x) => !x.err).slice(0, maxTx)
   const votes = new Map<string, number>()
+  const deeper = new Set<string>()
   const seen = new Set<string>([key.toBase58()])
   let multisig: Trace["multisig"] = null
 
@@ -125,12 +126,24 @@ export async function traceKey(conn: Connection, key: PublicKey, maxTx = 20): Pr
       for (const k of keys) if (!seen.has(k.toBase58())) { seen.add(k.toBase58()); fresh.push(k) }
       const at = keys.findIndex((k) => k.equals(key))
       if (at < 0) continue
-      const inner = new Map((tx.meta?.innerInstructions ?? []).map((g) => [g.index, g.instructions]))
-      tx.transaction.message.compiledInstructions.forEach((ix, j) => {
-        const uses = ix.accountKeyIndexes.includes(at) || (inner.get(j) ?? []).some((x) => x.accounts.includes(at))
-        const program = keys[ix.programIdIndex]?.toBase58()
-        if (uses && program && !INFRA.has(program)) votes.set(program, (votes.get(program) ?? 0) + 1)
-      })
+      // The program an instruction is sent to, for every instruction that
+      // passes the key itself, top-level or inner: a router that calls the
+      // owner through CPI passes the key on, but never as its own.
+      // The owner is in every such transaction, a router only in some, so
+      // each program counts once per transaction; a tie goes to the program
+      // called deeper, through CPI.
+      const direct = [
+        ...tx.transaction.message.compiledInstructions.map((ix) => ({ program: ix.programIdIndex, accounts: ix.accountKeyIndexes, inner: false })),
+        ...(tx.meta?.innerInstructions ?? []).flatMap((g) => g.instructions.map((ix) => ({ program: ix.programIdIndex, accounts: ix.accounts, inner: true }))),
+      ]
+      const here = new Set<string>()
+      for (const ix of direct) {
+        const program = keys[ix.program]?.toBase58()
+        if (!ix.accounts.includes(at) || !program || INFRA.has(program)) continue
+        here.add(program)
+        if (ix.inner) deeper.add(program)
+      }
+      for (const program of here) votes.set(program, (votes.get(program) ?? 0) + 1)
     }
     for (let c = 0; c < fresh.length && !multisig; c += 100) {
       const chunk = fresh.slice(c, c + 100)
@@ -144,7 +157,9 @@ export async function traceKey(conn: Connection, key: PublicKey, maxTx = 20): Pr
       })
     }
   }
-  const best = [...votes].filter(([p]) => p !== SQUADS_V3).sort((a, b) => b[1] - a[1])[0]?.[0]
+  const best = [...votes]
+    .filter(([p]) => p !== SQUADS_V3)
+    .sort((a, b) => b[1] - a[1] || Number(deeper.has(b[0])) - Number(deeper.has(a[0])))[0]?.[0]
   return { multisig, program: best ? new PublicKey(best) : null }
 }
 
