@@ -1,5 +1,5 @@
-// Production server: the built app, the mainnet RPC relay, the devnet faucet
-// and protocol share cards.
+// Production server: the built app, the mainnet RPC relay, the devnet faucet,
+// the live attack on the fast canary and protocol share cards.
 //   PEXIZ_MAINNET_RPC_URL  mainnet RPC the board reads through (see relay.ts)
 //   PEXIZ_FAUCET_KEYPAIR   mint authority of the test USDC
 //   PEXIZ_PUBLIC_URL       public origin for link-preview image URLs (behind a proxy)
@@ -7,6 +7,7 @@
 //   PORT                   default 5261
 import { join } from "node:path"
 import { faucet } from "./faucet"
+import { demo } from "./demo"
 import { relay } from "./relay"
 import { ogCard, ogMeta } from "./og"
 
@@ -60,6 +61,7 @@ const server = Bun.serve({
     const ip = req.headers.get("x-real-ip") ?? srv.requestIP(req)?.address ?? "?"
     if (url.pathname === "/rpc/mainnet") return relay(req, ip)
     if (url.pathname === "/api/faucet") return faucet(req, ip)
+    if (url.pathname === "/api/demo") return demo(req, ip)
     if (url.pathname.startsWith("/api/venues") || url.pathname.startsWith("/api/check/") || url.pathname.startsWith("/api/v1")) return watcher(url, ip)
     const og = url.pathname.match(/^\/og\/([a-z0-9-]+)\.png$/)
     if (og) return ogCard(og[1])

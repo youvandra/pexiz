@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import type { Plugin } from "vite"
 
-/** Serves the mainnet relay, the devnet faucet and share cards from the dev server, same handlers as production. */
+/** Serves the mainnet relay, the devnet faucet, the live attack and share cards from the dev server, same handlers as production. */
 function faucetDev(): Plugin {
   return {
     name: "pexiz-faucet",
@@ -31,6 +31,17 @@ function faucetDev(): Plugin {
           res.statusCode = r.status
           res.setHeader("content-type", r.headers.get("content-type") ?? "image/png")
           res.end(Buffer.from(await r.arrayBuffer()))
+        } catch (e) {
+          next(e)
+        }
+      })
+      server.middlewares.use("/api/demo", async (req, res, next) => {
+        try {
+          const { demo } = await server.ssrLoadModule("/server/demo.ts")
+          const r: Response = await demo(new Request("http://dev/api/demo", { method: req.method }), req.socket.remoteAddress ?? "?")
+          res.statusCode = r.status
+          res.setHeader("content-type", "application/json")
+          res.end(await r.text())
         } catch (e) {
           next(e)
         }

@@ -11,7 +11,9 @@
     "watch": "bun server/watch/index.ts"
   },
   "dependencies": {
+    "@pexiz/crank": "workspace:*",
     "@pexiz/sdk": "workspace:*",
+    "@sqds/multisig": "2.1.4",
     "@resvg/resvg-js": "2.6.2",
     "@solana/spl-token": "0.4.13",
     "@solana/wallet-adapter-base": "0.9.27",

@@ -14,6 +14,7 @@ export { Icon, Svg }
 
 const NAV = [
   { href: "/", label: "Vaults", icon: Icon.vault, match: (l: string) => l === "/" || l.startsWith("/vault") },
+  { href: "/protect", label: "Protect", icon: Icon.door, match: (l: string) => l.startsWith("/protect") },
   { href: "/monitor", label: "Monitor", icon: Icon.monitor, match: (l: string) => l.startsWith("/monitor") },
   { href: "/check", label: "Check", icon: Icon.search, match: (l: string) => l.startsWith("/check") },
   { href: "/portfolio", label: "Portfolio", icon: Icon.portfolio, match: (l: string) => l.startsWith("/portfolio") },

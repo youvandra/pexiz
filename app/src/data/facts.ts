@@ -178,6 +178,11 @@ export const DEVNET = {
   escapeVault: "2UAGAGpCTsoVA3nsKTnWzUhWjRvd8L1dYie367dBeYPL",
   usdcMint: "6GCS4RCvHEZbLArUF4UwNguWww1vy4Z2uTPTxSMSDrqX",
   nonce: "HxyqLL79JWJTA6KbvNkRyxtjMUCCfiKj5JAKyEV4jF3m",
+  /** The venue the oracle times in minutes, and the program behind it. */
+  fastProgram: "432t9qKLgxBAZjy9LBuPSAuJBtPP52gM6ZW4o1r8fBqj",
+  fastMultisig: "EcjhTcso3AC73nCFj1mHzZCrHKBS4WfjoBki1cPmkVh7",
+  fastVenue: "2nsPaWreh4ca67e42NHrH2XSKkvgjBcacaDehvRRzxK5",
+  exit: "4GhBvwpJCaKgNuKZK4uXg3CKTZgXtJnY42BFX49qN2Nm",
 }
 
 export const explorer = (addr: string, cluster: "devnet" | "mainnet" = "mainnet", kind: "address" | "tx" = "address") =>

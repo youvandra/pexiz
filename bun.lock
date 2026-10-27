@@ -22,12 +22,14 @@
     "app": {
       "name": "@pexiz/app",
       "dependencies": {
+        "@pexiz/crank": "workspace:*",
         "@pexiz/sdk": "workspace:*",
         "@resvg/resvg-js": "2.6.2",
         "@solana/spl-token": "0.4.13",
         "@solana/wallet-adapter-base": "0.9.27",
         "@solana/wallet-adapter-react": "0.15.39",
         "@solana/web3.js": "^1.98.0",
+        "@sqds/multisig": "2.1.4",
         "buffer": "^6.0.3",
         "clsx": "^2.1.1",
         "motion": "^12.23.0",
@@ -84,6 +86,7 @@
       "name": "@pexiz/crank",
       "dependencies": {
         "@pexiz/sdk": "workspace:*",
+        "@solana/spl-token": "0.4.13",
         "@solana/web3.js": "^1.98.0",
       },
     },
