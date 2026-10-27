@@ -13,6 +13,9 @@ dist/
 *-keypair.json
 keys/
 
+# cloned mainnet program, 10MB; `scripts/measure/jlp.py --program` fetches it
+tests/fixtures/jlp/*.so
+
 # local tooling
 CLAUDE.md
 .claude/

@@ -1,0 +1,169 @@
+{
+ "measuredAt": "2026-10-27T16:53:16.690944+00:00",
+ "program": "PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu",
+ "lpMint": "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4",
+ "poolAuthority": "AVzP2GeRmqGphJsMxWoqjpUifPpCret7LqWhD8NWQK49",
+ "pool": {
+  "address": "5BUwFW4nRbftYTDMbgxykoFWqWHPzahFSNAaaaJtVKsq",
+  "name": "Pool"
+ },
+ "custodies": [
+  {
+   "address": "7xS2gz2bTp3fwCC7knJvUWTEU9Tycczu6VhJYKgi1wdz",
+   "mint": "So11111111111111111111111111111111111111112",
+   "tokenAccount": "BUvduFTd2sWFagCunBPLupG8fBTJqweLw9DuhruNFSCm",
+   "decimals": 9,
+   "priceAccounts": [
+    {
+     "offset": 106,
+     "address": "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE",
+     "owner": "rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ",
+     "size": 134
+    },
+    {
+     "offset": 320,
+     "address": "39cWjvHrpHNz2SbXv6ME4NPhqBDBd4KsjUYv5JkHEAJU",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 283
+    },
+    {
+     "offset": 384,
+     "address": "FYq2BWQ1V5P1WFBqr3qB2Kb5yHVvSv7upzKodgQE5zXh",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 394
+    }
+   ]
+  },
+  {
+   "address": "AQCGyheWPLeo6Qp9WpYS9m3Qj479t7R636N9ey1rEjEn",
+   "mint": "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+   "tokenAccount": "Bgarxg65CEjN3kosjCW5Du3wEqvV3dpCGDR3a2HRQsYJ",
+   "decimals": 8,
+   "priceAccounts": [
+    {
+     "offset": 106,
+     "address": "42amVS4KgzR9rA28tkVYqVXjq9Qa8dcZQMbH5EYFX6XC",
+     "owner": "rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ",
+     "size": 134
+    },
+    {
+     "offset": 320,
+     "address": "5URYohbPy32nxK1t3jAHVNfdWY2xTubHiFvLrE3VhXEp",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 283
+    },
+    {
+     "offset": 384,
+     "address": "AFZnHPzy4mvVCffrVwhewHbFc93uTHvDSFrVH7GtfXF1",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 394
+    }
+   ]
+  },
+  {
+   "address": "5Pv3gM9JrFFH883SWAhvJC9RPYmo8UNxuFtv5bMMALkm",
+   "mint": "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh",
+   "tokenAccount": "FgpXg2J3TzSs7w3WGYYE7aWePdrxBVLCXSxmAKnCZNtZ",
+   "decimals": 8,
+   "priceAccounts": [
+    {
+     "offset": 106,
+     "address": "4cSM2e6rvbGQUFiJbqytoVMi5GgghSMr8LwVrT9VPSPo",
+     "owner": "rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ",
+     "size": 134
+    },
+    {
+     "offset": 320,
+     "address": "4HBbPx9QJdjJ7GUe6bsiJjGybvfpDhQMMPXP1UEa7VT5",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 283
+    },
+    {
+     "offset": 384,
+     "address": "hUqAT1KQ7eW1i6Csp9CXYtpPfSAvi835V7wKi5fRfmC",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 394
+    }
+   ]
+  },
+  {
+   "address": "G18jKKXQwBbrHeiK3C9MRXhkHsLHf7XgCSisykV46EZa",
+   "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+   "tokenAccount": "WzWUoCmtVv7eqAbU3BfKPU3fhLP6CXR8NCJH78UK9VS",
+   "decimals": 6,
+   "priceAccounts": [
+    {
+     "offset": 106,
+     "address": "Dpw1EAVrSB1ibxiDQyTAW6Zip3J4Btk2x4SgApQCeFbX",
+     "owner": "rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ",
+     "size": 134
+    },
+    {
+     "offset": 320,
+     "address": "A28T5pKtscnhDo6C1Sz786Tup88aTjt8uyKewjVvPrGk",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 283
+    },
+    {
+     "offset": 384,
+     "address": "6Jp2xZUTWdDD2ZyUPRzeMdc6AFQ5K3pFgZxk2EijfjnM",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 394
+    }
+   ]
+  },
+  {
+   "address": "4vkNeXiYEUizLdrpdPS1eC2mccyM4NUPRtERrk6ZETkk",
+   "mint": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+   "tokenAccount": "Gex24YznvguMad1mBzTQ7a64U1CJy59gvsStQmNnnwAd",
+   "decimals": 6,
+   "priceAccounts": [
+    {
+     "offset": 106,
+     "address": "HT2PLQBcG5EiCcNSaMHAjSgd9F98ecpATbk4Sk5oYuM",
+     "owner": "rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ",
+     "size": 134
+    },
+    {
+     "offset": 320,
+     "address": "AGW7q2a3WxCzh5TB2Q6yNde1Nf41g3HLaaXdybz7cbBU",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 283
+    },
+    {
+     "offset": 384,
+     "address": "Fgc93D641F8N2d1xLjQ4jmShuD3GE3BsCXA56KBQbF5u",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 394
+    }
+   ]
+  },
+  {
+   "address": "DdwY1ELc9rRK7xNL3hTXabSFBmVrTPpfsUZSv2Y3LL1U",
+   "mint": "JuprjznTrTSp2UFa3ZBUFgwdAmtZCq4MQCwysN55USD",
+   "tokenAccount": "6p5mjdPVSYheaFV2bSxb3LvVBnuA6fNYKEXGXD7iTdsd",
+   "decimals": 6,
+   "priceAccounts": [
+    {
+     "offset": 106,
+     "address": "9DRrwc4hSMQouw3ptpHXtQXVNHoqwyqLaK6NWztWTDin",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 394
+    },
+    {
+     "offset": 320,
+     "address": "9DRrwc4hSMQouw3ptpHXtQXVNHoqwyqLaK6NWztWTDin",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 394
+    },
+    {
+     "offset": 384,
+     "address": "9DRrwc4hSMQouw3ptpHXtQXVNHoqwyqLaK6NWztWTDin",
+     "owner": "DoVEsk76QybCEHQGzkvYPWLQu9gzNoZZZt3TPiL597e",
+     "size": 394
+    }
+   ]
+  }
+ ],
+ "perpetuals": "H4ND9aYttUVLFmNypZqLjZ52FYiGvdEB45GmwNoKEjTj"
+}
