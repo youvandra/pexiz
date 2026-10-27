@@ -779,6 +779,100 @@
       ]
     },
     {
+      "name": "reenter_jlp",
+      "docs": [
+        "Buys JLP back with everything the vault holds in USDC, once the venue",
+        "is green again and a majority of shares has voted for it. The mirror of",
+        "`reenter` for a vault that holds JLP."
+      ],
+      "discriminator": [
+        78,
+        59,
+        11,
+        114,
+        202,
+        196,
+        120,
+        207
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "venue",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "share_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "jupiter",
+          "accounts": [
+            {
+              "name": "vault_usdc",
+              "writable": true
+            },
+            {
+              "name": "vault_lp",
+              "writable": true
+            },
+            {
+              "name": "jlp_pool",
+              "writable": true
+            },
+            {
+              "name": "jlp_mint",
+              "writable": true
+            },
+            {
+              "name": "transfer_authority"
+            },
+            {
+              "name": "perpetuals"
+            },
+            {
+              "name": "custody",
+              "writable": true
+            },
+            {
+              "name": "custody_doves_price_account"
+            },
+            {
+              "name": "custody_pythnet_price_account"
+            },
+            {
+              "name": "custody_token_account",
+              "writable": true
+            },
+            {
+              "name": "event_authority"
+            },
+            {
+              "name": "token_program",
+              "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+            },
+            {
+              "name": "jupiter_program",
+              "address": "PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu"
+            }
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "min_lp_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "unvote",
       "docs": [
         "Returns escrowed shares; withdraws the vote if it still counts."

@@ -2,14 +2,21 @@
 // and argument layout follow the Jupiter Perps IDL as published in
 // @exponent-labs/jupiter-perps-idl 0.9.30 (third party, not vendored here).
 // Exercised against the real program on a mainnet fork by tests/fork/jlp.test.ts.
-import { createHash } from "node:crypto";
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 export const JUPITER_PERPS_ID = new PublicKey("PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu");
 export const JLP_MINT = new PublicKey("27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4");
 
-const disc = (name: string) => createHash("sha256").update(`global:${name}`).digest().subarray(0, 8);
+/**
+ * Anchor discriminators, `sha256("global:<name>")[..8]`, written out so this
+ * module runs in a browser as well as in Node. `jlp.test.ts` recomputes them.
+ */
+export const DISCRIMINATORS = {
+  remove_liquidity2: Buffer.from([230, 215, 82, 127, 241, 101, 227, 146]),
+  add_liquidity2: Buffer.from([228, 162, 78, 28, 70, 219, 116, 115]),
+};
+const disc = (name: keyof typeof DISCRIMINATORS) => DISCRIMINATORS[name];
 const pda = (seed: string) => PublicKey.findProgramAddressSync([Buffer.from(seed)], JUPITER_PERPS_ID)[0];
 
 export const jupiterPerpsPdas = () => ({

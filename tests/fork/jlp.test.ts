@@ -14,15 +14,15 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
-  ACCOUNT_SIZE, AccountLayout, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction,
-  createTransferInstruction, getAssociatedTokenAddressSync,
+  ACCOUNT_SIZE, AccountLayout, MINT_SIZE, MintLayout, TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction, createTransferInstruction, getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import { JLP_MINT, JUPITER_PERPS_ID, jupiterPerpsPdas, removeLiquidity2Ix } from "@pexiz/sdk/src/jlp";
 import { bn } from "@pexiz/sdk/src/canary";
 import { ORACLE_PROGRAM_ID, oracleCoder } from "@pexiz/sdk/src/oracle";
 import {
-  decodeVault, depositJlpIx, exitFloor, exitJlpIx, initJlpVaultIx, jlpNav, jlpVaultAddresses, withdrawIx,
-  type JlpVaultAddresses,
+  VAULT_PROGRAM_ID, decodeVault, depositJlpIx, exitFloor, exitJlpIx, initJlpVaultIx, jlpNav, jlpVaultAddresses,
+  reenterJlpIx, vaultCoder, withdrawIx, type JlpVaultAddresses,
 } from "@pexiz/sdk/src/vault";
 import { startValidator, send, type PreloadedAccount, type Validator } from "../validator/harness";
 
@@ -60,8 +60,14 @@ const DEPOSIT_USDC = 5_000_000_000n; // $5,000
  */
 const greenVenue = Keypair.generate().publicKey;
 const redVenue = Keypair.generate().publicKey;
+/** A third venue, green again, for the vault that is coming back. */
+const returningVenue = Keypair.generate().publicKey;
 let open: JlpVaultAddresses;
 let leaving: JlpVaultAddresses;
+let returning: JlpVaultAddresses;
+/** What the returning vault holds in USDC, and the shares that voted it back. */
+const RETURNING_USDC = 2_000_000_000n;
+const RETURNING_SHARES = 1_000_000_000n;
 
 async function poolAum(): Promise<bigint> {
   const acc = await v.conn.getAccountInfo(new PublicKey(dump.pool.address));
@@ -75,6 +81,31 @@ async function mintSupply(mint: PublicKey): Promise<bigint> {
 
 /** Mirrors JLP_POOL_AUM_OFFSET in the vault program. */
 const JLP_POOL_AUM_OFFSET = 212;
+
+/**
+ * A vault already out and already voted back in, as a crank and its holders
+ * would have left it. It is preloaded because a flag cannot be moved on this
+ * validator: Jupiter's Squads multisig is not here for the oracle to read, so
+ * the same vault cannot be walked from green to red and back.
+ */
+async function returningVault(): Promise<PreloadedAccount[]> {
+  returning = jlpVaultAddresses(returningVenue, USDC_MINT, new PublicKey(dump.pool.address));
+  const data = await vaultCoder.accounts.encode("Vault", {
+    venue: returningVenue, pool: new PublicKey(dump.pool.address), lp_mint: JLP_MINT, usdc_mint: USDC_MINT,
+    share_mint: returning.shareMint, vault_usdc: returning.vaultUsdc, vault_lp: returning.vaultLp,
+    share_escrow: returning.shareEscrow, exited: true, exited_at_slot: bn(0n), exits: 1,
+    reentry_votes: bn(RETURNING_SHARES), bump: PublicKey.findProgramAddressSync([Buffer.from("vault"), returningVenue.toBuffer()], VAULT_PROGRAM_ID)[1],
+  });
+  const mint = Buffer.alloc(MINT_SIZE);
+  MintLayout.encode({
+    mintAuthorityOption: 1, mintAuthority: returning.vault, supply: RETURNING_SHARES, decimals: 6,
+    isInitialized: true, freezeAuthorityOption: 0, freezeAuthority: PublicKey.default,
+  }, mint);
+  return [
+    { address: returning.vault, owner: VAULT_PROGRAM_ID, data },
+    { address: returning.shareMint, owner: TOKEN_PROGRAM_ID, data: mint },
+  ];
+}
 
 /** A venue account as the oracle would have left it, at the flag given. */
 async function venueAccount(address: PublicKey, flag: "Green" | "Red"): Promise<PreloadedAccount> {
@@ -135,7 +166,11 @@ beforeAll(async () => {
       // The venues the two vaults watch, and the USDC a depositor brings.
       await venueAccount(greenVenue, "Green"),
       await venueAccount(redVenue, "Red"),
+      await venueAccount(returningVenue, "Green"),
+      ...(await returningVault()),
       { address: getAssociatedTokenAddressSync(USDC_MINT, owner.publicKey, true), owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, owner.publicKey, DEPOSIT_USDC) },
+      { address: returning.vaultUsdc, owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, returning.vault, RETURNING_USDC) },
+      { address: returning.vaultLp, owner: TOKEN_PROGRAM_ID, data: tokenAccount(JLP_MINT, returning.vault, 0n) },
       ...restamped,
     ],
   });
@@ -276,4 +311,18 @@ test.skipIf(!ready)("and a holder withdraws their share of the JLP vault", async
   // Half the shares, half the JLP, with the rounding in the vault's favour.
   expect(got).toBeGreaterThan((heldBefore / 2n) - 2n);
   expect(got).toBeLessThanOrEqual(heldBefore / 2n);
+}, 120_000);
+
+test.skipIf(!ready)("and a vault that was voted back buys its JLP again", async () => {
+  const { liquidity } = usdcCustody();
+  await send(v, [await reenterJlpIx(returning, liquidity)]);
+
+  const bought = await balance(returning.vaultLp);
+  const worth = jlpNav(0n, bought, await poolAum(), await mintSupply(JLP_MINT));
+  const after = decodeVault((await v.conn.getAccountInfo(returning.vault))!.data);
+  console.log(`vault returned: ${RETURNING_USDC} USDC in, ${bought} JLP held, worth ${worth}`);
+  expect(await balance(returning.vaultUsdc)).toBe(0n);
+  expect(worth).toBeGreaterThan((RETURNING_USDC * 97n) / 100n);
+  expect(after.exited).toBe(false);
+  expect(after.reentryVotes).toBe(0n);
 }, 120_000);

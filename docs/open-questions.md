@@ -77,10 +77,13 @@ test now runs the whole life of a vault against the real program: open,
 deposit $5,000 for 1,115.89 JLP, exit 1,000 JLP for 4,461.37 USDC against a
 floor of 4,426.83, and withdraw a holder's half.
 
-Left for a venue other than Jupiter: `deposit`, `reenter` and `exit` still
-speak to the canary program, so re-entry after an exit is canary-only. A JLP
-vault that has exited holds USDC its holders can withdraw, and cannot buy
-back in.
+`reenter_jlp` closes the loop: once the venue is green again and a majority
+of shares has voted, the vault spends all of its USDC on JLP through Jupiter.
+On the fork, $2,000 bought 446.36 JLP worth $1,995.90, and the vault came out
+of its exited state with the votes cleared.
+
+Left: `deposit`, `reenter` and `exit` still speak to the canary program, so a
+venue that is neither the canary nor Jupiter has no path yet.
 
 **Anza Programmatic Signer.** The nonce account layout (72 bytes) is not
 published in a form we could check. `proofs.rs` takes one more verifier

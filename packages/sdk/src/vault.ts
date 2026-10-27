@@ -153,19 +153,27 @@ export function exitJlpIx(v: JlpVaultAddresses, j: JlpLiquidityAccounts, lp: big
     .instruction();
 }
 
+/** Buys JLP back with the vault's USDC, once the venue is green and the vote carried. */
+export function reenterJlpIx(v: JlpVaultAddresses, j: JlpLiquidityAccounts, minLpOut = 0n): Promise<TransactionInstruction> {
+  return vaultProgram.methods.reenterJlp(bn(minLpOut))
+    .accountsStrict({ vault: v.vault, venue: v.venue, shareMint: v.shareMint, jupiter: jupiterAccounts(v, j) })
+    .remainingAccounts(aumRemaining(j))
+    .instruction();
+}
+
 /** What the vault is worth in USDC, mirrored from the program's own `jlp_nav`. */
 export function jlpNav(usdc: bigint, lp: bigint, aum: bigint, lpSupply: bigint): bigint {
   return usdc + (lpSupply === 0n ? 0n : (lp * aum) / lpSupply);
 }
 
-export function voteReenterIx(v: VaultAddresses, user: PublicKey, userShares: PublicKey, shares: bigint) {
+export function voteReenterIx(v: VaultAddresses | JlpVaultAddresses, user: PublicKey, userShares: PublicKey, shares: bigint) {
   return vaultProgram.methods.voteReenter(bn(shares)).accountsStrict({
     vault: v.vault, shareMint: v.shareMint, vote: votePda(v.vault, user), shareEscrow: v.shareEscrow, userShares, user,
     tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
   }).instruction();
 }
 
-export function unvoteIx(v: VaultAddresses, user: PublicKey, userShares: PublicKey) {
+export function unvoteIx(v: VaultAddresses | JlpVaultAddresses, user: PublicKey, userShares: PublicKey) {
   return vaultProgram.methods.unvote().accountsStrict({
     vault: v.vault, shareMint: v.shareMint, vote: votePda(v.vault, user), shareEscrow: v.shareEscrow, userShares, user,
     tokenProgram: TOKEN_PROGRAM_ID,

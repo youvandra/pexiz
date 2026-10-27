@@ -1,8 +1,8 @@
-// Offline checks of the JLP instruction encoding. The fork test that would
-// run these against Jupiter Perps is blocked; see docs/open-questions.md.
+// Offline checks of the JLP instruction encoding. `tests/fork/jlp.test.ts`
+// runs the same instructions against the real Jupiter Perps program.
 import { expect, test } from "bun:test";
 import { Keypair } from "@solana/web3.js";
-import { JLP_MINT, JUPITER_PERPS_ID, addLiquidity2Ix, removeLiquidity2Ix } from "@pexiz/sdk";
+import { DISCRIMINATORS, JLP_MINT, JUPITER_PERPS_ID, addLiquidity2Ix, removeLiquidity2Ix } from "@pexiz/sdk";
 
 const acc = () => {
   const k = () => Keypair.generate().publicKey;
@@ -25,4 +25,12 @@ test("addLiquidity2 encodes token_amount_pre_swap as None", () => {
   expect(ix.data.length).toBe(25);
   expect(ix.data[24]).toBe(0);
   expect(ix.data.subarray(0, 8).equals(removeLiquidity2Ix(acc(), 0n, 0n).data.subarray(0, 8))).toBe(false);
+});
+
+test("the discriminators written into jlp.ts are the ones Anchor computes", async () => {
+  const sha = await import("node:crypto");
+  for (const name of ["remove_liquidity2", "add_liquidity2"] as const) {
+    const computed = sha.createHash("sha256").update(`global:${name}`).digest().subarray(0, 8);
+    expect(DISCRIMINATORS[name]).toEqual(computed);
+  }
 });

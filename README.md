@@ -34,16 +34,16 @@ app/              web app: landing, docs, replay, and the vault console
 ## Status (28 Oct 2026)
 
 - All three programs build with `anchor build`.
-- Tests pass: 33 host tests, 80 program and service tests in LiteSVM, 1 crank
-  and alerts test on `solana-test-validator`, and 5 fork tests against the
+- Tests pass: 33 host tests, 81 program and service tests in LiteSVM, 1 crank
+  and alerts test on `solana-test-validator`, and 6 fork tests against the
   real Jupiter Perps program.
 - `bun run replay` replays the April 2026 Drift admin takeover. The vault
   exits 7 days 16 hours before `UpdateAdmin`.
 - The three programs are live on devnet, with a canary venue under a real
   Squads 3/5 multisig; both demos have run. See [docs/devnet.md](docs/devnet.md).
 - A vault can hold JLP: `init_jlp_vault` opens one against the real Jupiter
-  pool, `deposit_jlp` buys JLP, `exit_jlp` sells it, and `withdraw` pays a
-  holder out. `bun run test:fork` runs all of that against the real Jupiter
+  pool, `deposit_jlp` buys JLP, `exit_jlp` sells it, `reenter_jlp` buys back in after a
+  vote, and `withdraw` pays a holder out. `bun run test:fork` runs all of that against the real Jupiter
   Perps program on a mainnet fork.
 - Left open: re-entry after an exit is canary-only. See
   [docs/open-questions.md](docs/open-questions.md).

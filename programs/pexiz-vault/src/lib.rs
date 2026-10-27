@@ -148,6 +148,34 @@ pub mod pexiz_vault {
         Ok(())
     }
 
+    /// Buys JLP back with everything the vault holds in USDC, once the venue
+    /// is green again and a majority of shares has voted for it. The mirror of
+    /// `reenter` for a vault that holds JLP.
+    pub fn reenter_jlp<'info>(ctx: Context<'_, '_, 'info, 'info, ReenterJlp<'info>>, min_lp_out: u64) -> Result<()> {
+        let a = &ctx.accounts;
+        a.jupiter.bound_to(&a.vault)?;
+        require!(a.vault.exited, VaultError::NotExited);
+        require!(a.venue.flag == Flag::Green, VaultError::VenueNotGreen);
+        require!(math::majority(a.vault.reentry_votes, a.share_mint.supply), VaultError::ReentryNotAllowed);
+
+        let usdc = a.jupiter.vault_usdc.amount;
+        require!(usdc > 0, VaultError::ZeroAmount);
+        let lp_before = a.jupiter.vault_lp.amount;
+        let mut data = Vec::with_capacity(25);
+        data.extend_from_slice(&ADD_LIQUIDITY2);
+        data.extend_from_slice(&usdc.to_le_bytes());
+        data.extend_from_slice(&min_lp_out.to_le_bytes());
+        data.push(0); // token_amount_pre_swap: None
+        jupiter_liquidity_cpi(&a.jupiter, &a.vault, ctx.remaining_accounts, data)?;
+
+        ctx.accounts.jupiter.vault_lp.reload()?;
+        require!(ctx.accounts.jupiter.vault_lp.amount - lp_before >= min_lp_out, VaultError::Slippage);
+        let v = &mut ctx.accounts.vault;
+        v.exited = false;
+        v.reentry_votes = 0;
+        Ok(())
+    }
+
     /// Deposit USDC; the vault buys the venue LP token. Refused unless the
     /// venue flag is green and the AUM cap holds.
     pub fn deposit(ctx: Context<Deposit>, usdc_amount: u64, min_lp_out: u64) -> Result<()> {
@@ -775,6 +803,15 @@ pub struct ExitJlp<'info> {
     #[account(mut, has_one = venue)]
     pub vault: Box<Account<'info, Vault>>,
     pub venue: Box<Account<'info, Venue>>,
+    pub jupiter: JupiterLiquidity<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ReenterJlp<'info> {
+    #[account(mut, has_one = venue, has_one = share_mint)]
+    pub vault: Box<Account<'info, Vault>>,
+    pub venue: Box<Account<'info, Venue>>,
+    pub share_mint: Box<Account<'info, Mint>>,
     pub jupiter: JupiterLiquidity<'info>,
 }
 
