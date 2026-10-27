@@ -137,3 +137,16 @@
 
 /* A status dot. Still, so it never pulls the eye. */
 .live-dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; flex-shrink: 0; }
+
+/* Logo strip: a slow loop that pauses under the pointer. The logos are in the
+   page either way; motion only moves them. */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee { animation: marquee 38s linear infinite; }
+.marquee:hover { animation-play-state: paused; }
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee { animation: none; }
+}

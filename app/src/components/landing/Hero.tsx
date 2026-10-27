@@ -30,15 +30,24 @@ export function Hero() {
         <HeroCard />
       </div>
 
-      <div className="border-t border-line bg-paper/60">
-        <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-x-8 gap-y-4 px-5 py-6 md:px-8">
-          <span className="text-sm text-ink-3">Watching</span>
-          {VENUES.map((v) => (
-            <span key={v.id} className="flex items-center gap-2.5 text-sm font-medium">
-              <img src={v.logo} alt="" className="size-6 rounded-md object-contain" />
-              {v.name}
-            </span>
-          ))}
+      <div className="border-t border-line bg-paper/60 py-7">
+        <p className="px-5 text-center text-sm text-ink-3">
+          Watching <span className="font-semibold text-ink-2">{VENUES.length} perps and prediction markets</span> on Solana, read live from chain
+        </p>
+        <div className="marquee-mask mt-5 overflow-hidden">
+          {/* Two copies side by side; the track slides by one copy and loops. */}
+          <div className="marquee flex w-max">
+            {[0, 1].map((copy) => (
+              <ul key={copy} className="flex shrink-0 items-center gap-12 pr-12" aria-hidden={copy === 1}>
+                {VENUES.map((v) => (
+                  <li key={v.id} className="flex items-center gap-3 text-[0.95rem] font-semibold text-ink-2">
+                    <img src={v.logo} alt="" className="size-8 rounded-lg object-contain" />
+                    {v.name}
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
         </div>
       </div>
     </section>
