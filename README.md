@@ -45,8 +45,8 @@ app/              web app: landing, docs, replay, and the vault console
   pool, `deposit_jlp` buys JLP, `exit_jlp` sells it, `reenter_jlp` buys back in after a
   vote, and `withdraw` pays a holder out. `bun run test:fork` runs all of that against the real Jupiter
   Perps program on a mainnet fork.
-- Left open: re-entry after an exit is canary-only. See
-  [docs/open-questions.md](docs/open-questions.md).
+- Left open: a venue that is neither the canary nor Jupiter has no deposit,
+  exit or re-entry path yet. See [docs/open-questions.md](docs/open-questions.md).
 
 ## Docs
 

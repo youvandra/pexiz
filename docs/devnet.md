@@ -1,12 +1,13 @@
 # Devnet deploy and live demo
 
-**Status (26 Oct 2026):** all three programs are deployed to devnet. The canary
-venue runs under a real Squads v4 multisig (3 of 5, 24 h timelock) with the
-venue registered in the oracle and an escape vault holding 1,000 test USDC.
-Demo (a) has run: a member's nonce account turned the flag green → amber.
-Demo (b) is proposed and approved; the Squads timelock makes it executable
-24 h after approval (from about 16:29 UTC on 27 Oct 2026). The signature
-table below is appended by the scripts.
+**Status (28 Oct 2026):** all three programs are deployed to devnet. The canary
+venue runs under a real Squads v4 multisig (3 of 5, originally a 24 h
+timelock) with the venue registered in the oracle and an escape vault holding
+1,000 test USDC. Both demos have run. Demo (a): a member's nonce account turned
+the flag green → amber. Demo (b): the multisig cut its own timelock to 0 on
+27 Oct 2026 at 16:39 UTC, and the next crank cycle turned the flag red and
+exited the vault in the same transaction. The signature table below is
+appended by the scripts.
 
 Devnet accounts:
 
