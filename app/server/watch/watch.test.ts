@@ -161,3 +161,43 @@ describe("tokens", () => {
     expect(tokenVerdict([p("mint", true, 86_400)], true).assessment).toBe("red")
   })
 })
+
+describe("feed", () => {
+  test("a signed body verifies against its signer, and a changed one does not", async () => {
+    const { loadSigner, verifyFeed } = await import("./feed")
+    const { mkdtempSync } = await import("node:fs")
+    const { tmpdir } = await import("node:os")
+    const s = loadSigner(`${mkdtempSync(`${tmpdir()}/feed-`)}/k.pem`)
+    const body = JSON.stringify({ status: "green" })
+    const sig = s.sign(body)
+    expect(verifyFeed(body, sig, s.address)).toBe(true)
+    expect(verifyFeed(body.replace("green", "red"), sig, s.address)).toBe(false)
+  })
+
+  test("a venue reads as stale after three missed passes", async () => {
+    const { feedVenue } = await import("./feed")
+    const v = feedVenue({ ...base, venue: "drift", readAt: 1_000, timeLockSecs: 3600, threshold: 4, members: ["a", "b"] }, 300, 1_000 + 901)
+    expect(v.stale).toBe(true)
+    expect(v.changeDelaySecs).toBe(3600)
+    expect(v.authorityAsRecorded).toBe(false)
+    expect(feedVenue({ ...base, venue: "drift", readAt: 1_000 }, 300, 1_100).stale).toBe(false)
+  })
+})
+
+describe("webhooks", () => {
+  test("a receiver gets the events with a signature it can check", async () => {
+    const { loadSigner, postWebhooks, verifyFeed } = await import("./feed")
+    const { mkdtempSync } = await import("node:fs")
+    const { tmpdir } = await import("node:os")
+    const s = loadSigner(`${mkdtempSync(`${tmpdir()}/hook-`)}/k.pem`)
+    let got: { body: string; sig: string | null; signer: string | null } | null = null
+    const srv = Bun.serve({ port: 0, async fetch(req) { got = { body: await req.text(), sig: req.headers.get("x-pexiz-signature"), signer: req.headers.get("x-pexiz-signer") }; return new Response("ok") } })
+    const e = { key: "k", venue: "drift", at: 1, kind: "status", title: "Status: Safe → Get out", tone: "bad" as const }
+    await postWebhooks([`http://127.0.0.1:${srv.port}/hook`], s, [e], [])
+    srv.stop()
+    expect(got).not.toBeNull()
+    expect(JSON.parse(got!.body).events).toEqual([e])
+    expect(got!.signer).toBe(s.address)
+    expect(verifyFeed(got!.body, got!.sig!, got!.signer!)).toBe(true)
+  })
+})

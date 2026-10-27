@@ -63,6 +63,7 @@ export default defineConfig({
     proxy: {
       "/api/venues": `http://127.0.0.1:${process.env.PEXIZ_WATCH_PORT ?? 5262}`,
       "/api/check": `http://127.0.0.1:${process.env.PEXIZ_WATCH_PORT ?? 5262}`,
+      "/api/v1": `http://127.0.0.1:${process.env.PEXIZ_WATCH_PORT ?? 5262}`,
     },
   },
 })

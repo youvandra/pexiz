@@ -11,12 +11,15 @@
 //   PEXIZ_WATCH_NONCE_SECS  seconds between durable-nonce scans (default 3600)
 //   TELEGRAM_BOT_TOKEN      the bot; without it alerts are only logged
 //   PEXIZ_PUBLIC_URL        the app's public origin, for links in alerts
+//   PEXIZ_FEED_KEY          Ed25519 key that signs /api/v1 (default data/feed-key.pem, made on first run)
+//   PEXIZ_WEBHOOKS          comma-separated URLs that receive signed change events
 import { mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { Connection } from "@solana/web3.js"
 import { VENUES, type WatchedVenue } from "../../src/data/facts"
 import { CheckError, checkAddress, type CheckResult } from "./check"
 import { diff } from "./diff"
+import { FEED_VERSION, feedVenue, loadSigner, postWebhooks } from "./feed"
 import { readHistory } from "./history"
 import { readVenue } from "./read"
 import { openStore } from "./store"
@@ -35,6 +38,8 @@ const RESCAN = 20n
 mkdirSync(dirname(DB), { recursive: true })
 const store = openStore(DB)
 const conn = new Connection(env.PEXIZ_MAINNET_RPC_URL ?? "https://api.mainnet-beta.solana.com", "confirmed")
+const signer = loadSigner(env.PEXIZ_FEED_KEY ?? join(dirname(DB), "feed-key.pem"))
+const WEBHOOKS = (env.PEXIZ_WEBHOOKS ?? "").split(",").map((u) => u.trim()).filter(Boolean)
 const bot = env.TELEGRAM_BOT_TOKEN ? await telegramBot(env.TELEGRAM_BOT_TOKEN, store, APP_URL) : logBot(APP_URL)
 const now = () => Math.floor(Date.now() / 1000)
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -91,6 +96,8 @@ async function loop() {
     if (news.length) {
       console.log(`${news.length} new: ${news.map((e) => `${e.venue} ${e.title}`).join("; ")}`)
       await bot.alert(news).catch((e) => console.warn(`alert: ${e.message}`))
+      const touched = new Set(news.map((e) => e.venue))
+      await postWebhooks(WEBHOOKS, signer, news, store.states().filter((s) => touched.has(s.venue)).map((s) => feedVenue(s, POLL_SECS)))
     }
     await pause(Math.max(5_000, POLL_SECS * 1000 - (Date.now() - started)))
   }
@@ -105,23 +112,23 @@ const checkHits = new Map<string, number[]>()
 let running = 0
 const waiting: (() => void)[] = []
 
-async function check(program: string, ip: string): Promise<Response> {
-  const hit = checked.get(program)
-  if (hit && Date.now() - hit.at < CHECK_TTL_MS) return json(hit.result)
+async function check(address: string, ip: string): Promise<[unknown, number]> {
+  const hit = checked.get(address)
+  if (hit && Date.now() - hit.at < CHECK_TTL_MS) return [hit.result, 200]
   const recent = (checkHits.get(ip) ?? []).filter((t) => Date.now() - t < 60_000)
-  if (recent.length >= CHECKS_PER_MIN) return json({ error: "Too many checks. Try again in a minute." }, 429)
+  if (recent.length >= CHECKS_PER_MIN) return [{ error: "Too many checks. Try again in a minute." }, 429]
   checkHits.set(ip, [...recent, Date.now()])
   if (running >= 2) await new Promise<void>((r) => waiting.push(r))
   running++
   try {
-    const result = await checkAddress(conn, program)
-    checked.set(program, { at: Date.now(), result })
+    const result = await checkAddress(conn, address)
+    checked.set(address, { at: Date.now(), result })
     if (checked.size > 500) checked.delete(checked.keys().next().value!)
-    return json(result)
+    return [result, 200]
   } catch (e) {
-    if (e instanceof CheckError) return json({ error: e.message }, e.status)
-    console.warn(`check ${program}: ${(e as Error).message}`)
-    return json({ error: "Could not read that program from chain just now. Try again in a minute." }, 502)
+    if (e instanceof CheckError) return [{ error: e.message }, e.status]
+    console.warn(`check ${address}: ${(e as Error).message}`)
+    return [{ error: "Could not read that address from chain just now. Try again in a minute." }, 502]
   } finally {
     running--
     waiting.shift()?.()
@@ -131,12 +138,63 @@ async function check(program: string, ip: string): Promise<Response> {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-cache" } })
 
+/** A feed response: open to any origin, its exact body signed. */
+function signed(body: unknown, status = 200): Response {
+  const text = JSON.stringify(body)
+  return new Response(text, {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-cache",
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "x-pexiz-signer, x-pexiz-signature",
+      "x-pexiz-signer": signer.address,
+      "x-pexiz-signature": signer.sign(text),
+    },
+  })
+}
+
+const ADDRESS = "[1-9A-HJ-NP-Za-km-z]{32,44}"
+
+/** The public, versioned feed. */
+async function v1(url: URL, ip: string): Promise<Response> {
+  const path = url.pathname.replace(/^\/api\/v1/, "") || "/"
+  const lastPass = Number(store.meta("last_pass") ?? 0) || null
+  if (path === "/" ) {
+    return signed({
+      version: FEED_VERSION,
+      signer: signer.address,
+      endpoints: {
+        "/api/v1/venues": "Every watched protocol's admin risk, read from mainnet every few minutes.",
+        "/api/v1/venues/{id}": "One protocol, with its admin history.",
+        "/api/v1/check/{address}": "Any program or token mint, read on request.",
+      },
+      signature: "x-pexiz-signature is the Ed25519 signature, hex, of the exact response body; x-pexiz-signer is the key.",
+    })
+  }
+  if (path === "/venues") {
+    return signed({ version: FEED_VERSION, generatedAt: Math.floor(Date.now() / 1000), lastPass, pollSecs: POLL_SECS, venues: store.states().map((s) => feedVenue(s, POLL_SECS)) })
+  }
+  const one = path.match(/^\/venues\/([a-z0-9-]+)$/)
+  if (one) {
+    const s = store.state(one[1])
+    if (!s) return signed({ error: "unknown protocol" }, 404)
+    return signed({ version: FEED_VERSION, generatedAt: Math.floor(Date.now() / 1000), venue: feedVenue(s, POLL_SECS), history: store.events(one[1], 100) })
+  }
+  const c = path.match(new RegExp(`^/check/(${ADDRESS})$`))
+  if (c) {
+    const [body, status] = await check(c[1], ip)
+    return signed(status === 200 ? { version: FEED_VERSION, generatedAt: Math.floor(Date.now() / 1000), result: body } : body, status)
+  }
+  return signed({ error: "not found" }, 404)
+}
+
 Bun.serve({
   port: PORT,
   // A check traces several keys through their transactions; give it time.
   idleTimeout: 120,
   hostname: "127.0.0.1",
-  fetch(req) {
+  async fetch(req) {
     const url = new URL(req.url)
     if (url.pathname === "/api/venues") {
       const subs = store.subscriberCounts()
@@ -147,8 +205,10 @@ Bun.serve({
         venues: store.states().map((s) => ({ ...s, subscribers: subs[s.venue] ?? 0 })),
       })
     }
-    const c = url.pathname.match(/^\/api\/check\/([1-9A-HJ-NP-Za-km-z]{32,44})$/)
-    if (c) return check(c[1], req.headers.get("x-forwarded-for") ?? "local")
+    const ip = req.headers.get("x-forwarded-for") ?? "local"
+    if (url.pathname === "/api/v1" || url.pathname.startsWith("/api/v1/")) return v1(url, ip)
+    const c = url.pathname.match(new RegExp(`^/api/check/(${ADDRESS})$`))
+    if (c) return check(c[1], ip).then(([body, status]) => json(body, status))
     if (url.pathname.startsWith("/api/check/")) return json({ error: "That is not a Solana address." }, 400)
     const m = url.pathname.match(/^\/api\/venues\/([a-z0-9-]+)\/events$/)
     if (m) {
@@ -160,6 +220,6 @@ Bun.serve({
   },
 })
 
-console.log(`pexiz watcher on :${PORT}, every ${POLL_SECS}s, ${bot.username ? `bot @${bot.username}` : "alerts to the log"}`)
+console.log(`pexiz watcher on :${PORT}, every ${POLL_SECS}s, ${bot.username ? `bot @${bot.username}` : "alerts to the log"}, feed signed by ${signer.address}${WEBHOOKS.length ? `, ${WEBHOOKS.length} webhooks` : ""}`)
 void bot.listen()
 await loop()
