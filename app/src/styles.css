@@ -153,15 +153,11 @@
   }
 }
 
-/* A section that holds a screen. Each one is meant to be read on its own, so
-   from tablet up it fills the viewport under the nav and centres what is in
-   it. On a phone the content sets the height, where a forced screen would
-   only add empty space above a list that already scrolls. */
+/* The page rhythm. A section is as tall as what is in it, with a wide band of
+   air above and below, so each one lands as its own screenful without being
+   stretched to one. The hero keeps a floor, because it is the first thing on
+   screen and has to fill it. */
 @media (min-width: 768px) {
-  .screen {
-    min-height: calc(100svh - 4rem);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
+  .band { padding-top: 7.5rem; padding-bottom: 7.5rem; }
+  .hero-screen { min-height: calc(100svh - 4rem); display: flex; flex-direction: column; justify-content: center; }
 }

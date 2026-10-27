@@ -23,7 +23,7 @@ function SectionHead({ kicker, title, body, id }: { kicker: string; title: strin
 
 export function Problem() {
   return (
-    <section className="screen mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
+    <section className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
       <SectionHead
         kicker="Why this exists"
         title="In April 2026, a Solana pool lost $285M in 12 minutes."
@@ -36,18 +36,18 @@ export function Problem() {
           [`${HEADLINE.warningDays} days`, "of visible warning signs first"],
           [`${HEADLINE.lpReaction}%`, "of LP money left during the warning"],
         ].map(([v, l], i) => (
-          <Reveal key={l} delay={90 * i} className="card p-7 md:p-8">
-            <div className="tabular tracking-display text-5xl font-medium md:text-6xl">{v}</div>
-            <div className="mt-2 text-ink-2 md:text-lg">{l}</div>
+          <Reveal key={l} delay={90 * i} className="card p-7 md:p-10">
+            <div className="tabular tracking-display text-5xl font-medium md:text-[4rem] md:leading-[1]">{v}</div>
+            <div className="mt-3 text-ink-2 md:text-lg">{l}</div>
           </Reveal>
         ))}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Reveal className="card p-5 md:p-7">
-          <div className="font-semibold">Money in the pool stayed put while the warning was live</div>
-          <div className="mt-1 text-sm text-ink-3">JLP supply in millions, March to April 2026</div>
-          <div className="mt-5 h-[260px]">
+          <div className="text-lg font-semibold">Money in the pool stayed put while the warning was live</div>
+          <div className="mt-1 text-ink-3">JLP supply in millions, March to April 2026</div>
+          <div className="mt-6 h-[300px] md:h-[360px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={JLP_SUPPLY} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
                 <defs>
@@ -76,17 +76,17 @@ export function Problem() {
         </Reveal>
 
         <Reveal delay={120} className="card p-0">
-          <div className="border-b border-line px-5 py-4 font-semibold">What happened</div>
+          <div className="border-b border-line px-6 py-5 text-lg font-semibold">What happened</div>
           <ol className="divide-y divide-line">
             {ATTACK.map((a) => (
-              <li key={a.date} className="flex gap-4 px-5 py-4">
+              <li key={a.date} className="flex gap-4 px-6 py-5">
                 <span className="tabular w-20 shrink-0 text-sm text-ink-3">{a.date}</span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 font-medium">
                     {a.title}
                     {a.pexiz && <span className="rounded-full bg-safe-soft px-2 py-0.5 text-[11px] font-semibold text-safe">Pexiz would exit here</span>}
                   </div>
-                  <p className="mt-0.5 text-sm text-ink-2">{a.body}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-2">{a.body}</p>
                 </div>
               </li>
             ))}
@@ -121,16 +121,16 @@ const STEPS = [
 export function How() {
   return (
     <section className="border-y border-line bg-paper">
-      <div className="screen mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
+      <div className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
         <SectionHead id="how" kicker="How it works" title="Three steps, all on chain." />
         <div className="mt-14 grid gap-5 md:grid-cols-3">
           {STEPS.map((s, i) => (
-            <Reveal key={s.title} delay={90 * i} className="rounded-[var(--radius-card)] border border-line bg-cream p-7 md:p-9">
+            <Reveal key={s.title} delay={90 * i} className="flex flex-col rounded-[var(--radius-card)] border border-line bg-cream p-7 md:min-h-[22rem] md:p-9">
               <div className="flex items-center justify-between">
                 {s.glyph}
                 <span className="tabular text-sm font-semibold text-ink-3">Step {i + 1}</span>
               </div>
-              <h3 className="mt-8 text-2xl font-semibold tracking-tight">{s.title}</h3>
+              <h3 className="mt-auto pt-10 text-2xl font-semibold tracking-tight md:text-[1.75rem]">{s.title}</h3>
               <p className="mt-3 leading-relaxed text-ink-2 md:text-lg">{s.body}</p>
             </Reveal>
           ))}
@@ -153,22 +153,22 @@ const EXAMPLES = [
 /** Time to exit, explained on two made-up protocols; real ones are in the app. */
 export function Venues() {
   return (
-    <section className="screen mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
+    <section className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <SectionHead id="venues" kicker="The one number" title="Would you have time to leave?" body="Every protocol can be changed by the people who hold its keys. What matters is whether an approved change has to wait longer than you need to get out." />
         <LinkButton href="/app/monitor" className="shrink-0"><Svg>{Icon.monitor}</Svg>Check a real protocol</LinkButton>
       </div>
       <div className="mt-14 grid gap-5 lg:grid-cols-2">
         {EXAMPLES.map((e, i) => (
-          <Reveal key={e.title} delay={110 * i} className="card p-7 md:p-9">
+          <Reveal key={e.title} delay={110 * i} className="card p-7 md:p-10">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-lg font-semibold">{e.title}</div>
-                <p className="mt-1.5 text-ink-2">{e.note}</p>
+                <div className="text-xl font-semibold md:text-2xl">{e.title}</div>
+                <p className="mt-2 text-ink-2 md:text-lg">{e.note}</p>
               </div>
               <span className="shrink-0 rounded-md border border-line-2 px-2 py-0.5 text-xs font-semibold text-ink-3">Example</span>
             </div>
-            <ExitTrack delaySecs={e.delay} flag={e.flag} className="mt-7" />
+            <ExitTrack delaySecs={e.delay} flag={e.flag} className="mt-10" />
           </Reveal>
         ))}
       </div>
@@ -179,7 +179,7 @@ export function Venues() {
 export function TryIt() {
   const { data } = useCanary(30_000)
   return (
-    <section className="screen mx-auto max-w-[1180px] px-5 py-20 md:px-8">
+    <section className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
       <Reveal className="card grid gap-12 p-7 md:p-14 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div>
           <div className="text-sm font-semibold text-ink-3">Try it now</div>
@@ -234,7 +234,7 @@ const FAQ = [
 
 export function Faq() {
   return (
-    <section className="screen mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
+    <section className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
       <div className="grid gap-12 lg:grid-cols-[1fr_1.5fr]">
       <SectionHead id="faq" kicker="FAQ" title="Common questions" />
       <Reveal className="divide-y divide-line border-y border-line">

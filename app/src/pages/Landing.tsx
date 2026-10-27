@@ -1,5 +1,5 @@
 import { Nav } from "@/components/landing/Nav"
-import { Hero } from "@/components/landing/Hero"
+import { Hero, Protocols } from "@/components/landing/Hero"
 import { Faq, Footer, How, Problem, TryIt, Venues } from "@/components/landing/Sections"
 
 export function Landing() {
@@ -8,6 +8,7 @@ export function Landing() {
       <Nav />
       <main>
         <Hero />
+        <Protocols />
         <Problem />
         <How />
         <Venues />

@@ -39,8 +39,8 @@ export function ExitTrack({ delaySecs, flag, className }: { delaySecs?: number; 
 
   return (
     <div ref={ref} className={cn("select-none", className)}>
-      <div className="relative h-[108px]">
-        <svg viewBox="0 0 100 10" preserveAspectRatio="none" className="absolute inset-x-0 top-[38px] h-[30px] w-full" aria-hidden>
+      <div className="relative h-[132px]">
+        <svg viewBox="0 0 100 10" preserveAspectRatio="none" className="absolute inset-x-0 top-[48px] h-[38px] w-full" aria-hidden>
           <defs>
             <pattern id={`${id}-hatch`} width="3" height="10" patternUnits="userSpaceOnUse" patternTransform="skewX(-20)">
               <rect width="3" height="10" fill="var(--sand)" />
@@ -53,7 +53,7 @@ export function ExitTrack({ delaySecs, flag, className }: { delaySecs?: number; 
         </svg>
 
         {/* The ruler. */}
-        <div className="absolute inset-x-0 top-[68px] h-5">
+        <div className="absolute inset-x-0 top-[86px] h-5">
           {TICKS.map((t) => (
             <span key={t} className="absolute top-0 -translate-x-1/2 text-[10px] font-medium text-ink-3" style={{ left: `${pos(t) * 100}%` }}>
               <span className="absolute -top-2 left-1/2 h-1.5 w-px -translate-x-1/2 bg-line-2" />
@@ -63,7 +63,7 @@ export function ExitTrack({ delaySecs, flag, className }: { delaySecs?: number; 
         </div>
 
         {/* How long the change waits, and the door at the end of it. */}
-        <div className="absolute inset-x-0 top-[46px] h-[14px]">
+        <div className="absolute inset-x-0 top-[58px] h-[18px]">
           <div
             className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-[width] duration-[900ms] ease-out"
             style={{ width: seen ? `${theirs}%` : 0, background: tone }}
@@ -77,9 +77,9 @@ export function ExitTrack({ delaySecs, flag, className }: { delaySecs?: number; 
         </div>
 
         {/* Where you are out, read off the same ruler. */}
-        <div className="absolute top-0 h-[38px] -translate-x-1/2 text-center" style={{ left: `${mine}%` }}>
-          <div className="whitespace-nowrap text-[11px] font-semibold">You are out<span className="ml-1 font-normal text-ink-3">{duration(ASSUMED_EXIT_SECS)}</span></div>
-          <div className="mx-auto mt-1 h-[18px] w-px bg-ink" />
+        <div className="absolute top-0 h-[48px] -translate-x-1/2 text-center" style={{ left: `${mine}%` }}>
+          <div className="whitespace-nowrap text-xs font-semibold">You are out<span className="ml-1 font-normal text-ink-3">{duration(ASSUMED_EXIT_SECS)}</span></div>
+          <div className="mx-auto mt-1.5 h-[24px] w-px bg-ink" />
         </div>
       </div>
 
@@ -88,18 +88,18 @@ export function ExitTrack({ delaySecs, flag, className }: { delaySecs?: number; 
         The half hour it takes you to withdraw
       </div>
 
-      <p className="mt-5 flex flex-wrap items-baseline gap-x-2 border-t border-line pt-4 text-sm">
+      <p className="mt-6 flex flex-wrap items-baseline gap-x-2.5 border-t border-line pt-5 text-sm md:text-base">
         {spare === undefined ? (
           <span className="text-ink-2">The change delay cannot be read, so there is no verdict.</span>
         ) : safe ? (
           <>
-            <Dur text={duration(spare)} className="tracking-display text-2xl font-medium" />
+            <Dur text={duration(spare)} className="tracking-display text-3xl font-medium md:text-4xl" />
             <span className="font-semibold">to spare.</span>
             <span className="text-ink-2">The door is still open when you are out.</span>
           </>
         ) : (
           <>
-            <span className="tracking-display text-2xl font-medium text-danger">No time</span>
+            <span className="tracking-display text-3xl font-medium text-danger md:text-4xl">No time</span>
             <span className="font-semibold text-danger">to spare.</span>
             <span className="text-ink-2">The door can shut while you are still inside.</span>
           </>
