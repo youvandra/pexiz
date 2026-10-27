@@ -78,9 +78,8 @@ const meterPos = (secs: number) => Math.min(1, Math.log1p(Math.max(0, secs) / 60
 
 export function cardSvg(v: WatchedVenue, r: Verdict & { delay?: number }, now = new Date()): string {
   const c = COLORS[r.assessment]
-  const windowText = r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)
-  const mx = 72, my = 470, mw = 520
-  const need = mx + meterPos(ASSUMED_EXIT_SECS) * mw
+  const windowText = r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "No time" : duration(r.exitWindowSecs)
+  const mx = 72, my = 452, mw = 520
   const fill = r.delay === undefined ? 0 : Math.max(meterPos(r.delay) * mw, r.delay > 0 ? 14 : 0)
   const bars = [16, 28, 40].map((h, i) => `<rect x="${i * 17}" y="${40 - h}" width="12" height="${h}" rx="3" fill="${c.fg}" opacity="${i < c.level ? 1 : 0.22}"/>`).join("")
   const why = wrap(r.why, 30)
@@ -106,12 +105,16 @@ export function cardSvg(v: WatchedVenue, r: Verdict & { delay?: number }, now = 
     <g transform="translate(30 26)">${bars}</g>
     <text x="104" y="60" font-size="40" font-weight="600" fill="${c.fg}">${esc(c.label)}</text>
   </g>
-  <text x="72" y="364" font-size="22" font-weight="600" fill="rgba(13,13,12,.46)" letter-spacing="2">TIME TO EXIT</text>
-  <text x="70" y="444" font-size="84" font-weight="500" fill="#0d0d0c" letter-spacing="-2">${durSpans(windowText, 84)}</text>
-  <rect x="${mx}" y="${my}" width="${mw}" height="14" rx="7" fill="#f3ece1"/>
-  ${fill > 0 ? `<rect x="${mx}" y="${my}" width="${fill}" height="14" rx="7" fill="${c.fg}"/>` : ""}
-  <rect x="${need - 2}" y="${my - 8}" width="4" height="30" rx="2" fill="#0d0d0c"/>
-  <text x="${mx}" y="${my + 50}" font-size="20" fill="rgba(13,13,12,.55)">${r.delay === undefined ? "Change delay unknown" : r.delay ? `Changes wait ${duration(r.delay)}` : "Changes land at once"} · you need ${duration(ASSUMED_EXIT_SECS)} to withdraw</text>
+  <text x="72" y="334" font-size="22" font-weight="600" fill="rgba(13,13,12,.46)" letter-spacing="2">TIME TO EXIT</text>
+  <text x="70" y="404" font-size="72" font-weight="500" fill="#0d0d0c" letter-spacing="-2">${durSpans(windowText, 72)}${r.exitWindowSecs !== undefined && r.exitWindowSecs > 0 ? `<tspan font-size="30" fill="rgba(13,13,12,.55)" letter-spacing="0"> to spare</tspan>` : ""}</text>
+  <text x="${mx}" y="${my - 2}" font-size="19" fill="rgba(13,13,12,.55)">You need to withdraw</text>
+  <text x="${mx + mw}" y="${my - 2}" font-size="19" font-weight="600" fill="#0d0d0c" text-anchor="end">${duration(ASSUMED_EXIT_SECS)}</text>
+  <rect x="${mx}" y="${my + 10}" width="${mw}" height="12" rx="6" fill="#f3ece1"/>
+  <rect x="${mx}" y="${my + 10}" width="${meterPos(ASSUMED_EXIT_SECS) * mw}" height="12" rx="6" fill="#0d0d0c"/>
+  <text x="${mx}" y="${my + 56}" font-size="19" fill="rgba(13,13,12,.55)">An approved change waits</text>
+  <text x="${mx + mw}" y="${my + 56}" font-size="19" font-weight="600" fill="#0d0d0c" text-anchor="end">${r.delay === undefined ? "Unknown" : r.delay ? duration(r.delay) : "Not at all"}</text>
+  <rect x="${mx}" y="${my + 68}" width="${mw}" height="12" rx="6" fill="#f3ece1"/>
+  ${fill > 0 ? `<rect x="${mx}" y="${my + 68}" width="${fill}" height="12" rx="6" fill="${c.fg}"/>` : r.delay === 0 ? `<rect x="${mx}" y="${my + 68}" width="12" height="12" rx="6" fill="${c.fg}"/>` : ""}
   <rect x="684" y="342" width="4" height="${why.length * 38 + 8}" rx="2" fill="${c.fg}"/>
   ${why.map((l, i) => `<text x="708" y="${376 + i * 38}" font-size="28" fill="#0d0d0c">${esc(l)}</text>`).join("")}
   <line x1="72" y1="570" x2="1128" y2="570" stroke="rgba(13,13,12,.1)" stroke-width="2"/>

@@ -1,9 +1,9 @@
 import { Link, Redirect, useParams } from "wouter"
 import { ago, duration, short } from "@/lib/format"
-import { ASSUMED_EXIT_SECS, MEASURED_ON, VAULTS, VENUES, explorer } from "@/data/facts"
+import { MEASURED_ON, VAULTS, VENUES, explorer } from "@/data/facts"
 import { useBoard, type Assessment } from "@/data/chain"
 import { STATUS_MEANING } from "@/data/assess"
-import { Dur, WindowMeter } from "@/components/ui/meter"
+import { Dur, ExitRaceDetail } from "@/components/ui/meter"
 import { Button, FlagPill, LinkButton, Skeleton, VenueLogo, flagSurface } from "@/components/ui/kit"
 import { useToasts } from "@/lib/solana"
 import { EmptyState, Icon, Svg } from "@/components/app/chrome"
@@ -46,8 +46,8 @@ export function MonitorVenue() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <StatTile label="Time to exit" value={r ? <Dur text={r.exitWindowSecs === undefined ? "—" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)} /> : null} sub="Change delay minus 30m to withdraw" />
-        <StatTile label="Change delay" value={r ? <Dur text={r.timeLockSecs !== undefined ? duration(r.timeLockSecs) : venue.admin === "squads-v3" ? "None" : "—"} /> : null} sub="How long an approved change waits" />
+        <StatTile label="Time to exit" value={r ? <Dur text={r.exitWindowSecs === undefined ? "—" : r.exitWindowSecs <= 0 ? "No time" : duration(r.exitWindowSecs)} /> : null} sub="Spare time after you withdraw" />
+        <StatTile label="Change delay" value={r ? <Dur text={r.timeLockSecs ? duration(r.timeLockSecs) : r.timeLockSecs === 0 || venue.admin === "squads-v3" ? "None" : "—"} /> : null} sub="How long an approved change waits" />
         <StatTile label="Approvals needed" value={r ? (r.threshold ? `${r.threshold} of ${r.members}` : "—") : null} unit={r?.threshold ? "signers" : undefined} sub={r?.txIndex !== undefined ? `${r.txIndex} proposals so far` : undefined} />
       </div>
 
@@ -55,7 +55,7 @@ export function MonitorVenue() {
         <h2 className="font-semibold">Would you get out in time?</h2>
         <p className="mt-1 text-sm text-ink-2">{r?.why ?? "Reading…"}</p>
         {r && <p className="mt-3 flex flex-wrap items-center gap-2 text-sm"><FlagPill flag={r.assessment} /><span className="text-ink-2">{STATUS_MEANING[r.assessment]}</span></p>}
-        {r && <WindowBar delay={r.timeLockSecs ?? (venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} />}
+        {r && <ExitRaceDetail delaySecs={r.timeLockSecs ?? (venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} />}
         {venue.note && <p className="mt-4 text-sm text-ink-3">{venue.note}.</p>}
         {r?.authorityMatches === false && <p className="mt-3 text-sm font-semibold text-danger">The upgrade authority no longer matches the recorded multisig vault.</p>}
       </section>
@@ -131,18 +131,6 @@ export function MonitorVenue() {
   )
 }
 
-/** Delay drawn against the time a user needs to leave, on the meter's scale. */
-function WindowBar({ delay, flag }: { delay?: number; flag: Assessment }) {
-  return (
-    <div className="mt-6">
-      <WindowMeter delaySecs={delay} flag={flag} className="h-3 w-full" />
-      <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-ink-2">
-        <span className="flex items-center gap-1.5"><span className="h-3 w-0.5 rounded-full bg-ink" />You need {duration(ASSUMED_EXIT_SECS)} to withdraw</span>
-        <span>{delay === undefined ? "Change delay unknown" : delay ? `Changes wait ${duration(delay)}` : "Changes land at once"}</span>
-      </div>
-    </div>
-  )
-}
 
 /** The protocol's share card, with ways to pass it on. */
 function ShareCard({ id, name }: { id: string; name: string }) {

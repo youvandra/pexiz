@@ -80,7 +80,7 @@ function Canary() {
               {[
                 ["Approvals needed", v ? `${v.threshold} of ${v.members.length} signers` : null],
                 ["Change delay", v ? duration(v.timeLockSecs) : null],
-                ["Time to exit", v ? (v.exitWindowSecs > 0 ? duration(v.exitWindowSecs) : "None") : null],
+                ["Time to exit", v ? (v.exitWindowSecs > 0 ? duration(v.exitWindowSecs) : "No time") : null],
                 ["Approvals signed in advance", v ? (v.presigners.length ? `${v.presigners.length} found` : "None") : null],
               ].map(([k, val]) => (
                 <div key={k}>

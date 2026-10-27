@@ -8,7 +8,7 @@ import { useVault } from "@/data/vault"
 import { FlagPill, Skeleton, VenueLogo, flagLabel } from "@/components/ui/kit"
 import { DoorGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
-import { Dur, WindowMeter } from "@/components/ui/meter"
+import { Dur, ExitRace } from "@/components/ui/meter"
 import { PageHead } from "@/components/app/chrome"
 
 interface Row {
@@ -30,7 +30,7 @@ interface Row {
 
 const ADMIN_SHORT = { "squads-v4": "Multisig", "squads-v3": "Old multisig", governance: "DAO vote", dormant: "One key" } as const
 
-const windowText = (s: number | undefined) => (s === undefined ? "—" : s <= 0 ? "None" : duration(s))
+const windowText = (s: number | undefined) => (s === undefined ? "—" : s <= 0 ? "No time" : duration(s))
 
 function fromBoard(r: BoardRow): Row {
   return {
@@ -39,7 +39,7 @@ function fromBoard(r: BoardRow): Row {
     name: r.venue.name,
     kind: r.venue.kind,
     admin: r.threshold ? `${r.threshold} of ${r.members}` : ADMIN_SHORT[r.venue.admin],
-    delay: r.timeLockSecs !== undefined ? duration(r.timeLockSecs) : r.venue.admin === "squads-v3" ? "None" : "—",
+    delay: r.timeLockSecs ? duration(r.timeLockSecs) : r.timeLockSecs === 0 || r.venue.admin === "squads-v3" ? "None" : "—",
     window: windowText(r.exitWindowSecs),
     flag: r.assessment,
     live: r.live,
@@ -160,7 +160,7 @@ export function Monitor() {
                     <td className="px-5 py-4 text-ink-2"><Dur text={r.delay} /></td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <WindowMeter delaySecs={r.delaySecs} flag={r.flag} className="w-20" />
+                        <ExitRace delaySecs={r.delaySecs} flag={r.flag} className="w-20" />
                         <Dur text={r.window} className="font-semibold" />
                       </div>
                     </td>
@@ -192,13 +192,13 @@ export function Monitor() {
                 <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
                   <div><div className="text-xs text-ink-3">Approvals</div><div className="tabular font-medium">{r.admin}</div></div>
                   <div><div className="text-xs text-ink-3">Change delay</div><Dur text={r.delay} className="font-medium" /></div>
-                  <div><div className="text-xs text-ink-3">Time to exit</div><Dur text={r.window} className="font-medium" /><WindowMeter delaySecs={r.delaySecs} flag={r.flag} className="mt-1.5 w-full" /></div>
+                  <div><div className="text-xs text-ink-3">Time to exit</div><Dur text={r.window} className="font-medium" /><ExitRace delaySecs={r.delaySecs} flag={r.flag} className="mt-1.5 w-full" /></div>
                 </div>
               </Link>
             ))}
       </div>
 
-      <p className="mt-4 text-xs text-ink-3">Time to exit: how long an approved change must wait, minus the 30 minutes you need to withdraw.</p>
+      <p className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-3"><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ink" />The 30 minutes you need to withdraw</span><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ink-3" />How long an approved change waits</span><span>Longer bottom bar: you are out first.</span></p>
     </div>
   )
 }

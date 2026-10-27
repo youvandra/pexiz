@@ -6,7 +6,7 @@ import { SNAPSHOT_BOARD, useBoard, useCanary } from "@/data/chain"
 import { FlagPill, LinkButton, Logo, Skeleton, VenueLogo } from "@/components/ui/kit"
 import { DoorGlyph, EyeGlyph, ProofGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
-import { Dur, WindowMeter } from "@/components/ui/meter"
+import { Dur, ExitRace } from "@/components/ui/meter"
 
 function SectionHead({ kicker, title, body, id }: { kicker: string; title: string; body?: string; id?: string }) {
   return (
@@ -169,17 +169,17 @@ export function Venues() {
               <div className="text-sm text-ink-3">{r.venue.kind}</div>
             </div>
             <div className="hidden w-28 sm:block">
-              <WindowMeter delaySecs={r.timeLockSecs ?? (r.venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} className="w-full" />
+              <ExitRace delaySecs={r.timeLockSecs ?? (r.venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} className="w-full" />
             </div>
             <div className="w-24 text-sm">
               <div className="text-xs text-ink-3">Time to exit</div>
-              {rows === null ? <Skeleton className="h-5 w-16" /> : <Dur text={r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)} className="font-semibold" />}
+              {rows === null ? <Skeleton className="h-5 w-16" /> : <Dur text={r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "No time" : duration(r.exitWindowSecs)} className="font-semibold" />}
             </div>
             <div className="flex w-28 justify-end"><FlagPill flag={r.assessment} /></div>
           </Link>
         ))}
       </div>
-      <p className="mt-4 text-xs text-ink-3">Read live from Solana mainnet where possible, otherwise from the {MEASURED_ON} snapshot.</p>
+      <p className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-3"><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ink" />The 30 minutes you need to withdraw</span><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ink-3" />How long an approved change waits</span><span>Longer bottom bar: you are out first.</span><span>Read live from Solana mainnet.</span></p>
     </section>
   )
 }
