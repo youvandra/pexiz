@@ -1,4 +1,6 @@
 import { Link } from "wouter"
+import type { ReactNode } from "react"
+import { Dur } from "@/components/ui/meter"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { amount, duration, money } from "@/lib/format"
 import { VAULTS } from "@/data/facts"
@@ -61,7 +63,7 @@ export function Vaults() {
                 ) : (
                   <>
                     <Metric k="Protocol reads" v={jlp ? flagLabel(jlp.assessment) : null} />
-                    <Metric k="Exit window" v={jlp?.exitWindowSecs !== undefined ? duration(jlp.exitWindowSecs) : jlp ? "—" : null} />
+                    <Metric k="Exit window" v={jlp?.exitWindowSecs !== undefined ? <Dur text={duration(jlp.exitWindowSecs)} /> : jlp ? "—" : null} />
                     <Metric k="Cap" v="$10M" />
                   </>
                 )}
@@ -78,7 +80,7 @@ export function Vaults() {
   )
 }
 
-function Metric({ k, v }: { k: string; v: string | null }) {
+function Metric({ k, v }: { k: string; v: ReactNode | null }) {
   return (
     <div>
       <div className="text-xs text-ink-3">{k}</div>

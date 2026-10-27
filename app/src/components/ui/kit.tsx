@@ -39,6 +39,16 @@ function RiskLadder({ level }: { level: number }) {
   )
 }
 
+/** The risk ladder alone on the flag's tint: a timeline marker. */
+export function FlagMark({ flag, className }: { flag: Assessment; className?: string }) {
+  const f = FLAG[flag]
+  return (
+    <span className={cn("grid size-6 shrink-0 place-items-center rounded-md border", className)} style={{ color: f.fg, background: f.bg, borderColor: f.edge }}>
+      <RiskLadder level={f.level} />
+    </span>
+  )
+}
+
 /** The Pexiz status mark: a risk ladder and a word, on the flag's tint. */
 export function FlagPill({ flag, label, size = "sm", className }: { flag: Assessment; label?: string; live?: boolean; size?: "sm" | "md"; className?: string }) {
   const f = FLAG[flag]
@@ -56,6 +66,12 @@ export function FlagPill({ flag, label, size = "sm", className }: { flag: Assess
     </span>
   )
 }
+
+/** A page header surface tinted by the flag, light enough to sit under text. */
+export const flagSurface = (f: Assessment) => ({
+  background: `linear-gradient(180deg, color-mix(in srgb, ${FLAG[f].bg} 80%, var(--paper)), var(--paper))`,
+  borderColor: FLAG[f].edge,
+})
 
 export const flagLabel = (f: Assessment) => FLAG[f].label
 

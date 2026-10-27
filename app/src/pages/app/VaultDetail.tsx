@@ -4,11 +4,12 @@ import { ago, duration, money, short } from "@/lib/format"
 import { DEVNET, VAULTS, explorer } from "@/data/facts"
 import { AUM_CAP, canary, useVault } from "@/data/vault"
 import { useActivity } from "@/data/activity"
-import { FlagPill, LinkButton, Skeleton } from "@/components/ui/kit"
+import { FlagPill, LinkButton, Skeleton, flagSurface } from "@/components/ui/kit"
 import { DoorGlyph } from "@/components/ui/glyphs"
 import { EmptyState, Icon, Svg } from "@/components/app/chrome"
 import { Conditions, EventList, StatTile } from "@/components/app/bits"
 import { ActionPanel } from "@/components/app/ActionPanel"
+import { Dur } from "@/components/ui/meter"
 
 const STATE = {
   green: { tone: "bg-safe-soft", title: "Holding Canary LP", body: "The protocol reads Safe. Deposits are open, and the vault earns what the LP earns." },
@@ -36,7 +37,7 @@ function Canary() {
   return (
     <div>
       <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-ink-3 hover:text-ink">← Vaults</Link>
-      <div className="mt-4 mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="mt-4 mb-6 flex flex-wrap items-center justify-between gap-4 rounded-[var(--radius-card)] border p-5 md:p-6" style={v ? flagSurface(v.flag) : { background: "var(--paper)" }}>
         <div className="flex items-center gap-4">
           <DoorGlyph className="size-14" />
           <div>
@@ -84,7 +85,7 @@ function Canary() {
               ].map(([k, val]) => (
                 <div key={k}>
                   <dt className="text-ink-3">{k}</dt>
-                  <dd className="tabular mt-1 text-lg font-semibold">{val ?? <Skeleton className="h-6 w-16" />}</dd>
+                  <dd className="mt-1 text-lg font-semibold">{val ? <Dur text={val} /> : <Skeleton className="h-6 w-16" />}</dd>
                 </div>
               ))}
             </dl>

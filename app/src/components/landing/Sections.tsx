@@ -6,6 +6,7 @@ import { SNAPSHOT_BOARD, useBoard, useCanary } from "@/data/chain"
 import { FlagPill, LinkButton, Logo, Skeleton, VenueLogo } from "@/components/ui/kit"
 import { DoorGlyph, EyeGlyph, ProofGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
+import { Dur, WindowMeter } from "@/components/ui/meter"
 
 function SectionHead({ kicker, title, body, id }: { kicker: string; title: string; body?: string; id?: string }) {
   return (
@@ -166,11 +167,12 @@ export function Venues() {
               <div className="font-semibold">{r.venue.name}</div>
               <div className="text-sm text-ink-3">{r.venue.kind}</div>
             </div>
-            <div className="w-32 text-sm">
+            <div className="hidden w-28 sm:block">
+              <WindowMeter delaySecs={r.timeLockSecs ?? (r.venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} className="w-full" />
+            </div>
+            <div className="w-24 text-sm">
               <div className="text-xs text-ink-3">Exit window</div>
-              <div className="tabular font-semibold">
-                {rows === null ? <Skeleton className="h-5 w-16" /> : r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)}
-              </div>
+              {rows === null ? <Skeleton className="h-5 w-16" /> : <Dur text={r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)} className="font-semibold" />}
             </div>
             <div className="flex w-28 justify-end"><FlagPill flag={r.assessment} /></div>
           </Link>

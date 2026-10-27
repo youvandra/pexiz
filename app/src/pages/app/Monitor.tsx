@@ -7,6 +7,7 @@ import { useVault } from "@/data/vault"
 import { FlagPill, Skeleton, VenueLogo, flagLabel } from "@/components/ui/kit"
 import { DoorGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
+import { Dur, WindowMeter } from "@/components/ui/meter"
 import { PageHead } from "@/components/app/chrome"
 
 interface Row {
@@ -22,6 +23,8 @@ interface Row {
   why: string
   logo?: string
   category: "perps" | "prediction"
+  /** Admin delay for the meter; undefined when it cannot be read. */
+  delaySecs?: number
 }
 
 const ADMIN_SHORT = { "squads-v4": "Multisig", "squads-v3": "Squads v3", governance: "DAO vote", dormant: "Single key" } as const
@@ -42,6 +45,7 @@ function fromBoard(r: BoardRow): Row {
     why: r.why,
     logo: r.venue.logo,
     category: r.venue.category,
+    delaySecs: r.timeLockSecs ?? (r.venue.admin === "squads-v3" ? 0 : undefined),
   }
 }
 
@@ -67,6 +71,7 @@ export function Monitor() {
         flag: data.venue.flag,
         live: true,
         category: "perps",
+        delaySecs: data.venue.timeLockSecs,
         why: data.reasons[0] ? data.reasons[0][0].toUpperCase() + data.reasons[0].slice(1) + "." : "Every condition clear.",
       }
     : null
@@ -136,8 +141,13 @@ export function Monitor() {
                       </div>
                     </td>
                     <td className="tabular px-5 py-4 text-ink-2">{r.admin}</td>
-                    <td className="tabular px-5 py-4 text-ink-2">{r.delay}</td>
-                    <td className="tabular px-5 py-4 font-semibold">{r.window}</td>
+                    <td className="px-5 py-4 text-ink-2"><Dur text={r.delay} /></td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <WindowMeter delaySecs={r.delaySecs} flag={r.flag} className="w-20" />
+                        <Dur text={r.window} className="font-semibold" />
+                      </div>
+                    </td>
                     <td className="px-5 py-4 text-right"><FlagPill flag={r.flag} /></td>
                     <td className="pr-4 text-ink-3"><Svg className="-rotate-90">{Icon.chevron}</Svg></td>
                   </tr>
@@ -165,8 +175,8 @@ export function Monitor() {
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
                   <div><div className="text-xs text-ink-3">Signers</div><div className="tabular font-medium">{r.admin}</div></div>
-                  <div><div className="text-xs text-ink-3">Admin delay</div><div className="tabular font-medium">{r.delay}</div></div>
-                  <div><div className="text-xs text-ink-3">Exit window</div><div className="tabular font-medium">{r.window}</div></div>
+                  <div><div className="text-xs text-ink-3">Admin delay</div><Dur text={r.delay} className="font-medium" /></div>
+                  <div><div className="text-xs text-ink-3">Exit window</div><Dur text={r.window} className="font-medium" /><WindowMeter delaySecs={r.delaySecs} flag={r.flag} className="mt-1.5 w-full" /></div>
                 </div>
               </Link>
             ))}

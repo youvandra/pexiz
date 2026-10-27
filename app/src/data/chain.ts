@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react"
-import { duration } from "@/lib/format"
 import { Connection, PublicKey } from "@solana/web3.js"
 // Browser-safe SDK modules only; the JLP module needs Node's crypto.
 import { decodeMultisig, decodeUpgradeAuthority, programDataAddress, vaultPda } from "@pexiz/sdk/src/squads"
 import { findPendingUpgrades } from "@pexiz/sdk/src/upgrades"
 import { decodeVenue, type Venue } from "@pexiz/sdk/src/oracle"
 import { decodeVault, vaultAddresses, type VaultState } from "@pexiz/sdk/src/vault"
-import { describeReasons, type FlagName } from "@pexiz/sdk/src/reasons"
-import { ASSUMED_EXIT_SECS, DEVNET, VENUES, type WatchedVenue } from "./facts"
+import { describeReasons } from "@pexiz/sdk/src/reasons"
+import { DEVNET, VENUES, type WatchedVenue } from "./facts"
+import { assess, type Assessment, type PendingUpgrade } from "./assess"
+
+export { assess }
 
 const MAINNET = import.meta.env.VITE_MAINNET_RPC ?? `${location.origin}/rpc/mainnet`
 const DEVNET_RPC = import.meta.env.VITE_DEVNET_RPC ?? "https://api.devnet.solana.com"
 export const mainnet = new Connection(MAINNET, "confirmed")
 export const devnet = new Connection(DEVNET_RPC, "confirmed")
 
-export type Assessment = FlagName | "unrated"
+export type { Assessment, PendingUpgrade } from "./assess"
 
 export interface BoardRow {
   venue: WatchedVenue
@@ -28,39 +30,9 @@ export interface BoardRow {
   authorityMatches?: boolean
   exitWindowSecs?: number
   /** Approved proposals that would upgrade the program, oldest first. */
-  pendingUpgrades?: { index: bigint; approvedAt?: number; readyAt?: number }[]
+  pendingUpgrades?: PendingUpgrade[]
   assessment: Assessment
   why: string
-}
-
-/**
- * The board's reading of a mainnet venue. The on-chain oracle is on devnet;
- * here the same inputs are read straight from mainnet and judged by one
- * rule: is there time to leave before an approved change can land?
- */
-export function assess(v: WatchedVenue, timeLockSecs?: number, pending: BoardRow["pendingUpgrades"] = []): Pick<BoardRow, "assessment" | "why" | "exitWindowSecs"> {
-  const base = assessConfig(v, timeLockSecs)
-  if (!pending.length || base.assessment === "red") return base
-  const now = Date.now() / 1000
-  const ready = pending.find((p) => p.readyAt !== undefined && p.readyAt <= now)
-  const next = pending.map((p) => p.readyAt).filter((t): t is number => t !== undefined).sort()[0]
-  const why = ready
-    ? `An approved upgrade (#${ready.index}) can be executed at any time.`
-    : next
-      ? `An approved upgrade can land in ${duration(Math.round(next - now))}.`
-      : "An approved upgrade is waiting to execute."
-  return { ...base, assessment: "amber", why }
-}
-
-function assessConfig(v: WatchedVenue, timeLockSecs?: number): Pick<BoardRow, "assessment" | "why" | "exitWindowSecs"> {
-  if (v.admin === "squads-v3") return { assessment: "red", why: "No delay: an approved change lands at once.", exitWindowSecs: -ASSUMED_EXIT_SECS }
-  if (v.admin === "governance") return { assessment: "unrated", why: "Governance delay is a voting period; read per proposal." }
-  if (v.admin === "dormant") return { assessment: "unrated", why: "Authority has been unused since 2024." }
-  if (timeLockSecs === undefined) return { assessment: "unrated", why: "Multisig could not be read." }
-  const win = timeLockSecs - ASSUMED_EXIT_SECS
-  if (win <= 0) return { assessment: "red", why: "A change can land before users get out.", exitWindowSecs: win }
-  if (win < 12 * 3600) return { assessment: "amber", why: "Under 12 hours to notice and leave.", exitWindowSecs: win }
-  return { assessment: "green", why: "A full day's notice before any change lands.", exitWindowSecs: win }
 }
 
 function snapshotRow(v: WatchedVenue): BoardRow {

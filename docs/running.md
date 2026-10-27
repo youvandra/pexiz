@@ -87,3 +87,9 @@ and the canary vault straight from devnet. `/api/faucet` mints 1,000 test
 USDC per wallet every 12 hours, plus 0.05 SOL when the wallet has none; it
 signs with the test USDC mint authority at `PEXIZ_FAUCET_KEYPAIR` (default
 `~/.config/solana/id.json`).
+
+`/og/<protocol>.png` renders a 1200x630 share card from a fresh mainnet read
+(cached 5 minutes), and the production server adds link-preview tags to
+`/app/monitor/<protocol>`. Behind a proxy, set `PEXIZ_PUBLIC_URL` so the
+preview image URL is public. The card uses Inter Tight (SIL OFL) from
+`app/server/fonts`.

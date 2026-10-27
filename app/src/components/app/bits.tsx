@@ -2,10 +2,10 @@ import type { ReactNode } from "react"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { Reason } from "@pexiz/sdk/src/reasons"
 import { cn } from "@/lib/cn"
-import { short, usd } from "@/lib/format"
+import { amount, money, short } from "@/lib/format"
 import { explorer } from "@/data/facts"
 import type { ActivityEvent } from "@/data/activity"
-import { FlagPill, Skeleton } from "@/components/ui/kit"
+import { FlagMark, FlagPill, Skeleton } from "@/components/ui/kit"
 import { Icon, Svg } from "./chrome"
 
 export function StatTile({ label, value, sub, className }: { label: string; value: ReactNode; sub?: ReactNode; className?: string }) {
@@ -53,9 +53,6 @@ export function Conditions({ reasons }: { reasons: number | undefined }) {
   )
 }
 
-const when = (ms: number) =>
-  new Date(ms).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-
 const TITLE: Record<ActivityEvent["kind"], string> = {
   deposit: "Deposit",
   withdraw: "Withdrawal",
@@ -78,38 +75,72 @@ const DOT: Record<ActivityEvent["kind"], string> = {
   check: "bg-line-2",
 }
 
-export function EventRow({ e }: { e: ActivityEvent }) {
-  const { publicKey } = useWallet()
-  const you = publicKey?.toBase58() === e.who
-  const money = e.kind === "exit"
-    ? `${(e.usdc ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })} USDC out`
-    : e.usdc ? usd(Math.abs(e.usdc), 2) : e.lp ? `${e.lp.toLocaleString("en-US", { maximumFractionDigits: 2 })} LP` : ""
+const day = (ms: number) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+const time = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+
+/** Timeline marker: the risk ladder for flag changes, a dot for the rest. */
+function Marker({ e }: { e: ActivityEvent }) {
+  if (e.kind === "flag" && e.to) return <FlagMark flag={e.to} />
+  if (e.kind === "exit") return <FlagMark flag="red" />
   return (
-    <a href={explorer(e.sig, "devnet", "tx")} target="_blank" rel="noreferrer" className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-sand/50">
-      <span className={cn("size-2.5 shrink-0 rounded-full", DOT[e.kind])} />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-          {TITLE[e.kind]}
-          {e.kind === "flag" && e.from && e.to && (
-            <span className="flex items-center gap-1.5"><FlagPill flag={e.from} /><span className="text-ink-3">→</span><FlagPill flag={e.to} /></span>
-          )}
-          {e.failed && <span className="rounded-full bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-3">Failed</span>}
-        </div>
-        <div className="mt-0.5 truncate text-xs text-ink-3">
-          {when(e.at)} · {you ? "You" : e.kind === "flag" || e.kind === "check" || e.kind === "exit" ? "Crank" : short(e.who, 4)}
-          {e.reasons?.length ? ` · ${e.reasons.join(", ").toLowerCase().replaceAll("_", " ")}` : ""}
-        </div>
-      </div>
-      {money && <div className="tabular text-right text-sm font-semibold">{money}</div>}
-      <Svg className="text-ink-3 opacity-0 transition-opacity group-hover:opacity-100">{Icon.ext}</Svg>
-    </a>
+    <span className="grid size-6 place-items-center">
+      <span className={cn("size-2.5 rounded-full ring-4 ring-paper", DOT[e.kind])} />
+    </span>
   )
 }
 
+export function EventRow({ e }: { e: ActivityEvent }) {
+  const { publicKey } = useWallet()
+  const you = publicKey?.toBase58() === e.who
+  const value = e.kind === "exit"
+    ? `${amount(e.usdc ?? 0)} USDC out`
+    : e.usdc ? money(Math.abs(e.usdc)) : e.lp ? `${amount(e.lp)} LP` : ""
+  return (
+    <li className="relative">
+      <a href={explorer(e.sig, "devnet", "tx")} target="_blank" rel="noreferrer" className="group flex items-start gap-4 rounded-xl px-3 py-3 transition-colors hover:bg-sand/50">
+        <span className="relative z-10 mt-0.5"><Marker e={e} /></span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+            {TITLE[e.kind]}
+            {e.kind === "flag" && e.from && e.to && (
+              <span className="flex items-center gap-1.5"><FlagPill flag={e.from} /><Svg className="size-3 text-ink-3">{Icon.arrow}</Svg><FlagPill flag={e.to} /></span>
+            )}
+            {e.failed && <span className="rounded-md border border-line-2 px-1.5 py-0.5 text-[11px] font-semibold text-ink-3">Failed</span>}
+          </div>
+          <div className="mt-0.5 truncate text-xs text-ink-3">
+            {time(e.at)} · {you ? "You" : e.kind === "flag" || e.kind === "check" || e.kind === "exit" ? "Crank" : short(e.who, 4)}
+            {e.reasons?.length ? ` · ${e.reasons.join(", ").toLowerCase().replaceAll("_", " ")}` : ""}
+          </div>
+        </div>
+        {value && <div className="tabular shrink-0 pt-0.5 text-right text-sm font-semibold">{value}</div>}
+        <Svg className="mt-0.5 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100">{Icon.ext}</Svg>
+      </a>
+    </li>
+  )
+}
+
+/** Events as a vertical timeline, grouped by day. */
 export function EventList({ events, empty }: { events: ActivityEvent[] | null; empty: ReactNode }) {
   if (!events) {
-    return <div className="divide-y divide-line">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="px-5 py-4"><Skeleton className="h-9 w-full" /></div>)}</div>
+    return <div className="space-y-3 p-5">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
   }
   if (!events.length) return <div className="px-5 py-10 text-center text-sm text-ink-2">{empty}</div>
-  return <div className="divide-y divide-line">{events.map((e, i) => <EventRow key={`${e.sig}-${e.kind}-${i}`} e={e} />)}</div>
+  const groups: [string, ActivityEvent[]][] = []
+  for (const e of events) {
+    const d = day(e.at)
+    if (groups.at(-1)?.[0] === d) groups.at(-1)![1].push(e)
+    else groups.push([d, [e]])
+  }
+  return (
+    <div className="px-2 py-3">
+      {groups.map(([d, list]) => (
+        <section key={d} className="mb-2 last:mb-0">
+          <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-3">{d}</div>
+          <ol className="relative before:absolute before:bottom-4 before:left-[23px] before:top-4 before:w-px before:bg-line-2">
+            {list.map((e, i) => <EventRow key={`${e.sig}-${e.kind}-${i}`} e={e} />)}
+          </ol>
+        </section>
+      ))}
+    </div>
+  )
 }

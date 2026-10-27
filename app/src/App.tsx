@@ -9,7 +9,10 @@ const AppRoutes = lazy(() => import("@/pages/app"))
 function ScrollTop() {
   const [loc] = useLocation()
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
+    // A link to a section lands on it; anything else starts at the top.
+    const target = window.location.hash && document.getElementById(window.location.hash.slice(1))
+    if (target) target.scrollIntoView()
+    else window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
   }, [loc])
   return null
 }

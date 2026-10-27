@@ -1,8 +1,10 @@
 import { Link, Redirect, useParams } from "wouter"
 import { ago, duration, short } from "@/lib/format"
 import { ASSUMED_EXIT_SECS, VAULTS, VENUES, explorer } from "@/data/facts"
-import { useBoard } from "@/data/chain"
-import { FlagPill, LinkButton, Skeleton, VenueLogo } from "@/components/ui/kit"
+import { useBoard, type Assessment } from "@/data/chain"
+import { Dur, WindowMeter } from "@/components/ui/meter"
+import { Button, FlagPill, LinkButton, Skeleton, VenueLogo, flagSurface } from "@/components/ui/kit"
+import { useToasts } from "@/lib/solana"
 import { EmptyState, Icon, Svg } from "@/components/app/chrome"
 import { StatTile } from "@/components/app/bits"
 
@@ -31,7 +33,7 @@ export function MonitorVenue() {
   return (
     <div>
       <Link href="/monitor" className="text-sm text-ink-3 hover:text-ink">← Monitor</Link>
-      <div className="mt-4 mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="mt-4 mb-6 flex flex-wrap items-center justify-between gap-4 rounded-[var(--radius-card)] border p-5 md:p-6" style={r ? flagSurface(r.assessment) : { background: "var(--paper)" }}>
         <div className="flex items-center gap-4">
           <VenueLogo src={venue.logo} name={venue.name} className="size-14 rounded-2xl" />
           <div>
@@ -43,15 +45,15 @@ export function MonitorVenue() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <StatTile label="Exit window" value={r ? (r.exitWindowSecs === undefined ? "—" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)) : null} sub="Time left to act after a change is approved" />
-        <StatTile label="Admin delay" value={r ? (r.timeLockSecs !== undefined ? duration(r.timeLockSecs) : venue.admin === "squads-v3" ? "None" : "—") : null} sub="Timelock on approved changes" />
+        <StatTile label="Exit window" value={r ? <Dur text={r.exitWindowSecs === undefined ? "—" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)} /> : null} sub="Time left to act after a change is approved" />
+        <StatTile label="Admin delay" value={r ? <Dur text={r.timeLockSecs !== undefined ? duration(r.timeLockSecs) : venue.admin === "squads-v3" ? "None" : "—"} /> : null} sub="Timelock on approved changes" />
         <StatTile label="Signers" value={r ? (r.threshold ? `${r.threshold} of ${r.members}` : "—") : null} sub={r?.txIndex !== undefined ? `${r.txIndex} multisig transactions so far` : "Approvals needed"} />
       </div>
 
       <section className="card mt-6 p-6">
         <h2 className="font-semibold">Would you get out in time?</h2>
         <p className="mt-1 text-sm text-ink-2">{r?.why ?? "Reading…"}</p>
-        {r && <WindowBar delay={r.timeLockSecs ?? 0} />}
+        {r && <WindowBar delay={r.timeLockSecs ?? (venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} />}
         {venue.note && <p className="mt-4 text-sm text-ink-3">{venue.note}.</p>}
         {r?.authorityMatches === false && <p className="mt-3 text-sm font-semibold text-danger">The upgrade authority no longer matches the recorded multisig vault.</p>}
       </section>
@@ -111,6 +113,7 @@ export function MonitorVenue() {
               ))}
             </dl>
           </section>
+          <ShareCard id={venue.id} name={venue.name} />
           {vault && (
             <Link href={`/vault/${vault.id}`} className="card flex items-center justify-between gap-4 p-5 transition-colors hover:bg-sand/40">
               <div>
@@ -126,23 +129,36 @@ export function MonitorVenue() {
   )
 }
 
-/** Delay drawn against the time a user needs to leave. */
-function WindowBar({ delay }: { delay: number }) {
-  const span = Math.max(delay, ASSUMED_EXIT_SECS) * 1.15
-  const exitPct = (ASSUMED_EXIT_SECS / span) * 100
-  const delayPct = (delay / span) * 100
-  const safe = delay > ASSUMED_EXIT_SECS
+/** Delay drawn against the time a user needs to leave, on the meter's scale. */
+function WindowBar({ delay, flag }: { delay?: number; flag: Assessment }) {
   return (
     <div className="mt-6">
-      <div className="relative h-12 rounded-xl bg-sand">
-        <div className="absolute inset-y-0 left-0 rounded-xl" style={{ width: `${Math.max(delayPct, 1.5)}%`, background: safe ? "var(--safe-soft)" : "var(--danger-soft)" }} />
-        <div className="absolute inset-y-1.5 left-0 rounded-lg bg-ink/85" style={{ width: `${exitPct}%`, marginLeft: 6 }} />
-        <div className="absolute inset-y-0 border-r-2 border-dashed" style={{ left: `${delayPct}%`, borderColor: safe ? "var(--safe)" : "var(--danger)" }} />
-      </div>
-      <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-ink-2">
-        <span><span className="mr-1.5 inline-block size-2 rounded-full bg-ink" />Time you need: {duration(ASSUMED_EXIT_SECS)}</span>
-        <span><span className="mr-1.5 inline-block size-2 rounded-full" style={{ background: safe ? "var(--safe)" : "var(--danger)" }} />Admin delay: {delay ? duration(delay) : "none"}</span>
+      <WindowMeter delaySecs={delay} flag={flag} className="h-3 w-full" />
+      <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-ink-2">
+        <span className="flex items-center gap-1.5"><span className="h-3 w-0.5 rounded-full bg-ink" />You need {duration(ASSUMED_EXIT_SECS)} to withdraw</span>
+        <span>Admin delay: {delay === undefined ? "unknown" : delay ? duration(delay) : "none"}</span>
       </div>
     </div>
+  )
+}
+
+/** The protocol's share card, with ways to pass it on. */
+function ShareCard({ id, name }: { id: string; name: string }) {
+  const { push } = useToasts()
+  const url = `${location.origin}/app/monitor/${id}`
+  const image = `/og/${id}.png`
+  const post = `https://x.com/intent/post?text=${encodeURIComponent(`Would you have time to leave ${name}? Read from chain by Pexiz.`)}&url=${encodeURIComponent(url)}`
+  return (
+    <section className="card p-0">
+      <div className="border-b border-line px-5 py-4 font-semibold">Share this status</div>
+      <div className="p-5">
+        <img src={image} alt={`${name} status card`} className="aspect-[1200/630] w-full rounded-xl border border-line bg-sand object-cover" loading="lazy" />
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant="line" className="h-9 px-3 text-sm" onClick={() => { navigator.clipboard?.writeText(url); push({ kind: "info", title: "Link copied" }) }}><Svg>{Icon.copy}</Svg>Copy link</Button>
+          <LinkButton href={post} variant="line" className="h-9 px-3 text-sm" external><Svg>{Icon.arrowUpRight}</Svg>Post on X</LinkButton>
+          <a href={image} download={`pexiz-${id}.png`} className="btn btn-line h-9 px-3 text-sm"><Svg>{Icon.deposit}</Svg>Save image</a>
+        </div>
+      </div>
+    </section>
   )
 }

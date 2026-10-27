@@ -4,11 +4,24 @@ import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import type { Plugin } from "vite"
 
-/** Serves the devnet faucet from the dev server, same handler as production. */
+/** Serves the devnet faucet and share cards from the dev server, same handlers as production. */
 function faucetDev(): Plugin {
   return {
     name: "pexiz-faucet",
     configureServer(server) {
+      server.middlewares.use("/og", async (req, res, next) => {
+        try {
+          const id = req.url?.match(/^\/([a-z0-9-]+)\.png$/)?.[1]
+          if (!id) return next()
+          const { ogCard } = await server.ssrLoadModule("/server/og.ts")
+          const r: Response = await ogCard(id)
+          res.statusCode = r.status
+          res.setHeader("content-type", r.headers.get("content-type") ?? "image/png")
+          res.end(Buffer.from(await r.arrayBuffer()))
+        } catch (e) {
+          next(e)
+        }
+      })
       server.middlewares.use("/api/faucet", async (req, res, next) => {
         try {
           const { faucet } = await server.ssrLoadModule("/server/faucet.ts")
