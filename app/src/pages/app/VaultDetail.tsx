@@ -11,10 +11,10 @@ import { Conditions, EventList, StatTile } from "@/components/app/bits"
 import { ActionPanel } from "@/components/app/ActionPanel"
 
 const STATE = {
-  green: { tone: "bg-safe-soft", title: "Holding Canary LP", body: "The venue reads Safe. Deposits are open, and the vault earns what the LP earns." },
+  green: { tone: "bg-safe-soft", title: "Holding Canary LP", body: "The protocol reads Safe. Deposits are open, and the vault earns what the LP earns." },
   amber: { tone: "bg-warn-soft", title: "Watching: deposits paused", body: "A warning condition holds. Your position stays in the LP, and you can withdraw at any time. Left unresolved for 48 hours, it turns red." },
   red: { tone: "bg-danger-soft", title: "Red: the vault leaves", body: "The next crank update exits the vault to USDC in the same transaction." },
-  exited: { tone: "bg-danger-soft", title: "Exited to USDC", body: "The vault sold its LP when the flag turned red. Withdraw your USDC, or vote to re-enter once the venue reads Safe again." },
+  exited: { tone: "bg-danger-soft", title: "Exited to USDC", body: "The vault sold its LP when the flag turned red. Withdraw your USDC, or vote to re-enter once the protocol reads Safe again." },
 }
 
 export function VaultDetail() {
@@ -79,7 +79,7 @@ function Canary() {
           </section>
 
           <section className="card p-0">
-            <div className="border-b border-line px-5 py-4 font-semibold">Venue under watch</div>
+            <div className="border-b border-line px-5 py-4 font-semibold">Protocol under watch</div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 text-sm md:grid-cols-4">
               {[
                 ["Signers", v ? `${v.threshold} of ${v.members.length}` : null],
@@ -146,7 +146,7 @@ function Planned({ id }: { id: string }) {
           glyph={<DoorGlyph className="size-16" tint="#E9C22E" />}
           title={`${v.name} vault is planned`}
           body={`${v.blurb} It opens on mainnet after the canary vault has run a full exit and re-entry cycle.`}
-          action={<div className="flex flex-wrap justify-center gap-2"><LinkButton href={`/monitor/${v.monitorId}`}>Watch the venue</LinkButton><LinkButton href="/vault/canary" variant="line">Try the canary vault</LinkButton></div>}
+          action={<div className="flex flex-wrap justify-center gap-2"><LinkButton href={`/monitor/${v.monitorId}`}>Watch the protocol</LinkButton><LinkButton href="/vault/canary" variant="line">Try the canary vault</LinkButton></div>}
         />
       </div>
     </div>

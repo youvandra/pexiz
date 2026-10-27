@@ -2,7 +2,7 @@ import { Link, Redirect, useParams } from "wouter"
 import { ago, duration, short } from "@/lib/format"
 import { ASSUMED_EXIT_SECS, VAULTS, VENUES, explorer } from "@/data/facts"
 import { useBoard } from "@/data/chain"
-import { FlagPill, LinkButton, Skeleton } from "@/components/ui/kit"
+import { FlagPill, LinkButton, Skeleton, VenueLogo } from "@/components/ui/kit"
 import { EmptyState, Icon, Svg } from "@/components/app/chrome"
 import { StatTile } from "@/components/app/bits"
 
@@ -18,7 +18,7 @@ export function MonitorVenue() {
   const venue = VENUES.find((v) => v.id === id)
   const { rows, readAt } = useBoard()
   if (id === "canary") return <Redirect to="/vault/canary" />
-  if (!venue) return <EmptyState title="Unknown venue" body="Pexiz does not watch this venue yet." action={<LinkButton href="/monitor" variant="line">Back to Monitor</LinkButton>} />
+  if (!venue) return <EmptyState title="Unknown protocol" body="Pexiz does not watch this protocol yet." action={<LinkButton href="/monitor" variant="line">Back to Monitor</LinkButton>} />
   const r = rows?.find((x) => x.venue.id === id)
   const vault = VAULTS.find((v) => v.monitorId === id)
 
@@ -32,9 +32,12 @@ export function MonitorVenue() {
     <div>
       <Link href="/monitor" className="text-sm text-ink-3 hover:text-ink">← Monitor</Link>
       <div className="mt-4 mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-4">
+          <VenueLogo src={venue.logo} name={venue.name} className="size-14 rounded-2xl" />
+          <div>
           <h1 className="tracking-display text-4xl font-medium md:text-5xl">{venue.name}</h1>
           <div className="mt-2 text-sm text-ink-3">{venue.kind} · {ADMIN_LABEL[venue.admin]} · {r?.live && readAt ? `read from mainnet ${ago(readAt)}` : r ? "snapshot" : "reading…"}</div>
+          </div>
         </div>
         {r ? <FlagPill flag={r.assessment} live={r.live} className="px-3.5 py-1.5 text-sm" /> : <Skeleton className="h-8 w-28 rounded-full" />}
       </div>

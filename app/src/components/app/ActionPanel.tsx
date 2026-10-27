@@ -109,7 +109,7 @@ function Deposit({ v }: { v: VaultView }) {
   const shares = v.supply > 0 && v.nav > 0 ? (n * v.supply) / v.nav : n
 
   if (v.venue.flag !== "green") {
-    return <Blocked flag={v.venue.flag} title="Deposits paused" body="New deposits open only while the venue reads Safe. Withdrawals stay open in every state." />
+    return <Blocked flag={v.venue.flag} title="Deposits paused" body="New deposits open only while the protocol reads Safe. Withdrawals stay open in every state." />
   }
   const problem = !publicKey ? null : !h ? "Loading balances…" : n <= 0 ? "Enter an amount" : n > h.usdc ? "Not enough test USDC" : n > room ? "Above the vault cap" : h.sol < 0.001 ? "Need SOL for the fee" : null
 
@@ -204,21 +204,21 @@ function Reentry({ v }: { v: VaultView }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-ink-2">The vault is in USDC. It buys back in only when the venue reads Safe again and holders of half of all shares vote for it.</p>
+      <p className="text-sm text-ink-2">The vault is in USDC. It buys back in only when the protocol reads Safe again and holders of half of all shares vote for it.</p>
       <div>
         <div className="flex justify-between text-sm"><span className="font-medium">Votes to re-enter</span><span className="tabular">{pct.toFixed(1)}% of 50%</span></div>
         <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-sand">
           <div className="h-full rounded-full bg-ink transition-[width] duration-500" style={{ width: `${pct}%` }} />
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className={cn("rounded-full px-2.5 py-1 font-semibold", green ? "bg-safe-soft text-safe" : "bg-sand text-ink-2")}>{green ? "✓" : "○"} Venue reads Safe</span>
+          <span className={cn("rounded-full px-2.5 py-1 font-semibold", green ? "bg-safe-soft text-safe" : "bg-sand text-ink-2")}>{green ? "✓" : "○"} Protocol reads Safe</span>
           <span className={cn("rounded-full px-2.5 py-1 font-semibold", majority ? "bg-safe-soft text-safe" : "bg-sand text-ink-2")}>{majority ? "✓" : "○"} Majority voted</span>
         </div>
       </div>
       {!publicKey ? (
         <WalletButton className="h-12 w-full justify-center" label="Connect to vote" />
       ) : green && majority ? (
-        <Button className="h-12 w-full justify-center" disabled={busy} onClick={() => run("Re-enter the venue", buildReenter)}>{busy ? "Sending…" : "Re-enter now"}</Button>
+        <Button className="h-12 w-full justify-center" disabled={busy} onClick={() => run("Re-enter the protocol", buildReenter)}>{busy ? "Sending…" : "Re-enter now"}</Button>
       ) : h && h.voted > 0 ? (
         <Button variant="line" className="h-12 w-full justify-center" disabled={busy} onClick={() => run("Take back your vote", () => buildUnvote(publicKey))}>{busy ? "Sending…" : `Take back ${fmt(h.voted)} shares`}</Button>
       ) : (

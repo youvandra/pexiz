@@ -115,10 +115,8 @@
   .hairline { height: 1px; background: var(--line); }
 }
 
-/* Buttons: a light orb follows the cursor inside the control. */
+/* Buttons: flat, with a plain colour change on hover. */
 .btn {
-  position: relative;
-  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
@@ -127,48 +125,15 @@
   border-radius: 0.8rem;
   font-weight: 500;
   font-size: 0.95rem;
-  transition: transform 0.15s ease, background 0.2s ease;
-  isolation: isolate;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.btn:active { transform: translateY(1px); }
-.btn::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  width: 9rem;
-  height: 9rem;
-  left: calc(var(--mx, 50%) - 4.5rem);
-  top: calc(var(--my, 50%) - 4.5rem);
-  border-radius: 999px;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-}
-.btn:hover::before { opacity: 1; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-ink { background: var(--ink); color: var(--paper); }
-.btn-ink::before { background: radial-gradient(closest-side, rgba(255, 255, 255, 0.28), transparent); }
-.btn-line { border: 1px solid var(--ink); color: var(--ink); background: transparent; }
-.btn-line::before { background: radial-gradient(closest-side, rgba(13, 13, 12, 0.1), transparent); }
+.btn-ink:not(:disabled):hover { background: #2a2a27; }
+.btn-line { border: 1px solid var(--line-2); color: var(--ink); background: var(--paper); }
+.btn-line:not(:disabled):hover { border-color: var(--ink); }
 .btn-ghost { color: var(--ink-2); }
 .btn-ghost:hover { color: var(--ink); }
 
-/* Content stays visible: motion only decorates what is already on screen. */
-.reveal { animation: reveal 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-@keyframes reveal {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
-}
-html.motion-off .reveal { animation: none; }
-
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 currentColor; opacity: 0.9; }
-  100% { box-shadow: 0 0 0 7px transparent; opacity: 0.9; }
-}
-.live-dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; animation: pulse-ring 1.6s ease-out infinite; }
-
-@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.marquee { animation: marquee 48s linear infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal, .marquee, .live-dot { animation: none !important; }
-}
+/* A status dot. Still, so it never pulls the eye. */
+.live-dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; flex-shrink: 0; }

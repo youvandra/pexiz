@@ -58,8 +58,8 @@ export function useToasts() {
 }
 
 const VAULT_ERRORS: Record<number, string> = {
-  6000: "Deposits are open only while the venue reads Safe.",
-  6001: "The vault exits only when the venue reads Get out.",
+  6000: "Deposits are open only while the protocol reads Safe.",
+  6001: "The vault exits only when the protocol reads Get out.",
   6002: "This deposit would take the vault over its $10M cap.",
   6003: "The vault has already exited to USDC.",
   6004: "Re-entry needs a Safe flag and votes from half of all shares.",

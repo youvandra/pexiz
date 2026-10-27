@@ -82,7 +82,7 @@ export function Replay() {
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.3fr_1fr_1fr]">
         <div className="card p-6">
           <div className="text-xs uppercase tracking-[0.08em] text-ink-3">On chain</div>
-          <div key={s.chain} className="reveal mt-2 text-2xl font-semibold tracking-tight">{s.chain}</div>
+          <div key={s.chain} className="mt-2 text-2xl font-semibold tracking-tight">{s.chain}</div>
           <div className="mt-6 flex items-center gap-3">
             <FlagPill flag={s.flag} live className="text-sm" />
             <span className="text-sm text-ink-2">Pexiz oracle</span>
@@ -91,13 +91,13 @@ export function Replay() {
         </div>
         <div className="card p-6" style={{ background: "var(--safe-soft)" }}>
           <div className="text-xs uppercase tracking-[0.08em] text-safe">Pexiz escape vault</div>
-          <div key={s.vault} className="reveal mt-2 text-xl font-semibold tracking-tight">{s.vault}</div>
+          <div key={s.vault} className="mt-2 text-xl font-semibold tracking-tight">{s.vault}</div>
           <div className="mt-6 tabular tracking-display text-5xl font-medium text-safe">{s.vaultSafe ? "100%" : "—"}</div>
           <div className="text-sm text-ink-2">of deposits recoverable</div>
         </div>
         <div className="card p-6" style={{ background: i >= 4 ? "var(--danger-soft)" : undefined }}>
           <div className="text-xs uppercase tracking-[0.08em] text-ink-3">An LP who waits</div>
-          <div key={s.holder} className="reveal mt-2 text-xl font-semibold tracking-tight">{s.holder}</div>
+          <div key={s.holder} className="mt-2 text-xl font-semibold tracking-tight">{s.holder}</div>
           <div className={cn("mt-6 tabular tracking-display text-5xl font-medium", i >= 5 ? "text-danger" : "")}>{i >= 5 ? "SOL 0" : i >= 4 ? "Racing" : "—"}</div>
           <div className="text-sm text-ink-2">{i >= 5 ? "left in the pool's SOL custody" : "no alert, no exit"}</div>
         </div>

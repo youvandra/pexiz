@@ -19,11 +19,14 @@ export interface WatchedVenue {
   authority: string
   snapshot: { threshold?: number; members?: number; timeLockSecs?: number }
   note?: string
+  /** The venue's own mark, from its website. */
+  logo: string
 }
 
 export const VENUES: WatchedVenue[] = [
   {
     id: "jupiter-perps",
+    logo: "/logos/jupiter.svg",
     name: "Jupiter Perps",
     kind: "Perps · JLP pool",
     program: "PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu",
@@ -34,6 +37,7 @@ export const VENUES: WatchedVenue[] = [
   },
   {
     id: "drift",
+    logo: "/logos/drift.png",
     name: "Drift",
     kind: "Perps · relaunching",
     program: "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH",
@@ -44,6 +48,7 @@ export const VENUES: WatchedVenue[] = [
   },
   {
     id: "zeta",
+    logo: "/logos/zeta.png",
     name: "Zeta",
     kind: "Perps",
     program: "ZETAxsqBRek56DhiGXrn75yj2NHU3aYUnxvHXpkf3aD",
@@ -54,6 +59,7 @@ export const VENUES: WatchedVenue[] = [
   },
   {
     id: "adrena",
+    logo: "/logos/adrena.svg",
     name: "Adrena",
     kind: "Perps",
     program: "13gDzEXCdocbj8iAiqrScGo47NiSuYENGsRqi3SEAwet",
@@ -64,6 +70,7 @@ export const VENUES: WatchedVenue[] = [
   },
   {
     id: "phoenix",
+    logo: "/logos/phoenix.png",
     name: "Phoenix",
     kind: "Order book",
     program: "PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY",
@@ -133,6 +140,7 @@ export interface VaultListing {
   /** Monitor entry for the venue the vault watches. */
   monitorId: string
   blurb: string
+  logo?: string
 }
 
 export const VAULTS: VaultListing[] = [
@@ -152,6 +160,7 @@ export const VAULTS: VaultListing[] = [
     network: "mainnet",
     status: "planned",
     monitorId: "jupiter-perps",
+    logo: "/logos/jupiter.svg",
     blurb: "Holds JLP while Jupiter Perps reads Safe. Capped at $10M, the size JLP can exit under 1% impact.",
   },
 ]

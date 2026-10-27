@@ -283,7 +283,7 @@ export function Toasts() {
   return (
     <div className="pointer-events-none fixed bottom-20 right-4 z-[60] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2 md:bottom-6">
       {toasts.map((t) => (
-        <div key={t.id} className="card reveal pointer-events-auto flex gap-3 p-4">
+        <div key={t.id} className="card pointer-events-auto flex gap-3 p-4">
           <span className={cn(
             "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full",
             t.kind === "success" ? "bg-safe-soft text-safe" : t.kind === "error" ? "bg-danger-soft text-danger" : "bg-sand text-ink-2",

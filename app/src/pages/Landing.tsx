@@ -1,6 +1,6 @@
 import { Nav } from "@/components/landing/Nav"
 import { Hero } from "@/components/landing/Hero"
-import { BoardPreview, Capacity, Faq, Footer, How, LiveDevnet, Stats, Warning } from "@/components/landing/Sections"
+import { Faq, Footer, How, Problem, TryIt, Venues } from "@/components/landing/Sections"
 
 export function Landing() {
   return (
@@ -8,12 +8,10 @@ export function Landing() {
       <Nav />
       <main>
         <Hero />
-        <Stats />
-        <Warning />
-        <BoardPreview />
+        <Problem />
         <How />
-        <Capacity />
-        <LiveDevnet />
+        <Venues />
+        <TryIt />
         <Faq />
       </main>
       <Footer />

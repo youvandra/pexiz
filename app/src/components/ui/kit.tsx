@@ -1,27 +1,20 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, MouseEvent, ReactNode } from "react"
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react"
 import { Link } from "wouter"
 import { cn } from "@/lib/cn"
 import type { Assessment } from "@/data/chain"
 
-/** Tracks the cursor so the orb inside `.btn` follows it. */
-function follow(e: MouseEvent<HTMLElement>) {
-  const r = e.currentTarget.getBoundingClientRect()
-  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`)
-  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`)
-}
-
 type Variant = "ink" | "line" | "ghost"
 
 export function Button({ variant = "ink", className, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
-  return <button {...p} onMouseMove={follow} className={cn("btn", `btn-${variant}`, className)} />
+  return <button {...p} className={cn("btn", `btn-${variant}`, className)} />
 }
 
 export function LinkButton({ href, variant = "ink", className, children, external }: { href: string; variant?: Variant; className?: string; children: ReactNode; external?: boolean }) {
   const cls = cn("btn", `btn-${variant}`, className)
   if (external || href.startsWith("http")) {
-    return <a href={href} target="_blank" rel="noreferrer" onMouseMove={follow} className={cls}>{children}</a>
+    return <a href={href} target="_blank" rel="noreferrer" className={cls}>{children}</a>
   }
-  return <Link href={href} onMouseMove={follow} className={cls}>{children}</Link>
+  return <Link href={href} className={cls}>{children}</Link>
 }
 
 export function A(p: AnchorHTMLAttributes<HTMLAnchorElement>) {
@@ -92,5 +85,14 @@ export function Stat({ value, label, className }: { value: ReactNode; label: Rea
       <div className="tabular tracking-display text-4xl font-medium md:text-5xl">{value}</div>
       <div className="mt-1.5 text-sm text-ink-2">{label}</div>
     </div>
+  )
+}
+
+/** A venue's own logo on a neutral tile, or its initial when there is none. */
+export function VenueLogo({ src, name, className }: { src?: string; name: string; className?: string }) {
+  return (
+    <span className={cn("grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-paper", className)}>
+      {src ? <img src={src} alt={`${name} logo`} className="size-full object-contain" /> : <span className="text-sm font-semibold text-ink-2">{name[0]}</span>}
+    </span>
   )
 }
