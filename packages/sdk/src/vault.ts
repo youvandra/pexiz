@@ -82,6 +82,36 @@ export function exitIx(v: VaultAddresses, lp: bigint, minUsdcOut: bigint): Promi
   return vaultProgram.methods.exit(bn(lp), bn(minUsdcOut)).accountsStrict(poolAccounts(v)).instruction();
 }
 
+/** Accounts Jupiter Perps needs for `removeLiquidity2`, beside the vault's own. */
+export interface JlpExitAccounts {
+  pool: PublicKey;
+  lpMint: PublicKey;
+  transferAuthority: PublicKey;
+  perpetuals: PublicKey;
+  custody: PublicKey;
+  custodyDovesPriceAccount: PublicKey;
+  custodyPythnetPriceAccount: PublicKey;
+  custodyTokenAccount: PublicKey;
+  eventAuthority: PublicKey;
+  jupiterProgram: PublicKey;
+  /** Every custody, then every custody's Doves price account. */
+  aumAccounts: PublicKey[];
+}
+
+/** Redeems `lp` of the vault's JLP through Jupiter Perps itself. */
+export function exitJlpIx(v: VaultAddresses, j: JlpExitAccounts, lp: bigint, minUsdcOut: bigint): Promise<TransactionInstruction> {
+  return vaultProgram.methods.exitJlp(bn(lp), bn(minUsdcOut))
+    .accountsStrict({
+      vault: v.vault, venue: v.venue, vaultUsdc: v.vaultUsdc, vaultLp: v.vaultLp,
+      jlpPool: j.pool, jlpMint: j.lpMint, transferAuthority: j.transferAuthority, perpetuals: j.perpetuals,
+      custody: j.custody, custodyDovesPriceAccount: j.custodyDovesPriceAccount,
+      custodyPythnetPriceAccount: j.custodyPythnetPriceAccount, custodyTokenAccount: j.custodyTokenAccount,
+      eventAuthority: j.eventAuthority, tokenProgram: TOKEN_PROGRAM_ID, jupiterProgram: j.jupiterProgram,
+    })
+    .remainingAccounts(j.aumAccounts.map((pubkey) => ({ pubkey, isSigner: false, isWritable: true })))
+    .instruction();
+}
+
 export function voteReenterIx(v: VaultAddresses, user: PublicKey, userShares: PublicKey, shares: bigint) {
   return vaultProgram.methods.voteReenter(bn(shares)).accountsStrict({
     vault: v.vault, shareMint: v.shareMint, vote: votePda(v.vault, user), shareEscrow: v.shareEscrow, userShares, user,

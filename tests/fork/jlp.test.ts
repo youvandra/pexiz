@@ -14,7 +14,10 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { ACCOUNT_SIZE, AccountLayout, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { JLP_MINT, JUPITER_PERPS_ID, removeLiquidity2Ix } from "@pexiz/sdk/src/jlp";
+import { JLP_MINT, JUPITER_PERPS_ID, jupiterPerpsPdas, removeLiquidity2Ix } from "@pexiz/sdk/src/jlp";
+import { bn } from "@pexiz/sdk/src/canary";
+import { ORACLE_PROGRAM_ID, oracleCoder } from "@pexiz/sdk/src/oracle";
+import { VAULT_PROGRAM_ID, decodeVault, exitFloor, exitJlpIx, vaultAddresses, vaultCoder } from "@pexiz/sdk/src/vault";
 import { startValidator, send, type PreloadedAccount, type Validator } from "../validator/harness";
 
 const DIR = join(import.meta.dir, "../fixtures/jlp");
@@ -38,6 +41,47 @@ const LP_AMOUNT = 1_000_000_000n; // 1,000 JLP at 6 decimals
 /** Which of a custody's price accounts the pool values its AUM with, and where that account keeps its timestamp. */
 const DOVES_PRICE = 2;
 const DOVES_PUBLISH_TIME = 177;
+const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+/** The venue the vault watches; its flag is preloaded red, as after a crank. */
+const venueKey = Keypair.generate().publicKey;
+const vaultAddrs = vaultAddresses(venueKey, USDC_MINT);
+
+async function poolAum(): Promise<bigint> {
+  const acc = await v.conn.getAccountInfo(new PublicKey(dump.pool.address));
+  return acc!.data.readBigUInt64LE(JLP_POOL_AUM_OFFSET);
+}
+
+async function mintSupply(mint: PublicKey): Promise<bigint> {
+  const acc = await v.conn.getAccountInfo(mint);
+  return acc!.data.readBigUInt64LE(36);
+}
+
+/** Mirrors JLP_POOL_AUM_OFFSET in the vault program. */
+const JLP_POOL_AUM_OFFSET = 212;
+
+/** A venue whose flag is already red, and a vault already holding JLP. */
+async function pexizAccounts(): Promise<PreloadedAccount[]> {
+  const zero32 = Array.from({ length: 32 }, () => 0);
+  const venue = await oracleCoder.accounts.encode("Venue", {
+    params_program: PublicKey.default, program_data: PublicKey.default, multisig: PublicKey.default,
+    upgrade_authority: PublicKey.default, vault_index: 0, min_time_lock_secs: 3600, exit_time_secs: 1800,
+    snapshot: { threshold: 4, time_lock_secs: 0, member_count: 8, members_hash: zero32, replaced_7d: 0, taken_at: bn(0n) },
+    members: [], presigners: [], flag: { Red: {} }, reasons: 1, active_reasons: 1,
+    amber_since: bn(0n), red_since: bn(0n), clear_since: bn(0n), baseline_threshold: 4, replaced_window_start: bn(0n),
+    replaced_window_base: 0, low_threshold_since: bn(0n), last_update_slot: bn(0n),
+    bump: 255, pending_upgrades: [],
+  });
+  const vault = await vaultCoder.accounts.encode("Vault", {
+    venue: venueKey, pool: new PublicKey(dump.pool.address), lp_mint: JLP_MINT, usdc_mint: USDC_MINT,
+    share_mint: vaultAddrs.shareMint, vault_usdc: vaultAddrs.vaultUsdc, vault_lp: vaultAddrs.vaultLp,
+    share_escrow: vaultAddrs.shareEscrow, exited: false, exited_at_slot: bn(0n), exits: 0, reentry_votes: bn(0n),
+    bump: PublicKey.findProgramAddressSync([Buffer.from("vault"), venueKey.toBuffer()], VAULT_PROGRAM_ID)[1],
+  });
+  return [
+    { address: venueKey, owner: ORACLE_PROGRAM_ID, data: venue },
+    { address: vaultAddrs.vault, owner: VAULT_PROGRAM_ID, data: vault },
+  ];
+}
 const owner = Keypair.generate();
 
 beforeAll(async () => {
@@ -77,6 +121,10 @@ beforeAll(async () => {
       // The JLP each owner is about to burn, and the account the wSOL comes back to.
       ...holding(owner.publicKey),
       ...holding(PROBE_OWNER),
+      // The vault, its venue, and the token accounts it exits with.
+      ...(await pexizAccounts()),
+      { address: vaultAddrs.vaultLp, owner: TOKEN_PROGRAM_ID, data: tokenAccount(JLP_MINT, vaultAddrs.vault, LP_AMOUNT) },
+      { address: vaultAddrs.vaultUsdc, owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, vaultAddrs.vault, 0n) },
       ...restamped,
     ],
   });
@@ -131,4 +179,30 @@ test.skipIf(!ready)("so can a program signing as a PDA, so the vault can hold JL
   const out = await received(PROBE_OWNER);
   console.log(`PDA via CPI: ${LP_AMOUNT} JLP out, ${out} lamports of wSOL back`);
   expect(out).toBeGreaterThan(0n);
+}, 120_000);
+
+test.skipIf(!ready)("and the vault itself, through exit_jlp, with the floor from the pool's own AUM", async () => {
+  const usdc = dump.custodies.find((c) => c.mint === USDC_MINT.toBase58())!;
+  const lpOut = LP_AMOUNT / 10n;
+  const floor = exitFloor(lpOut, await poolAum(), await mintSupply(JLP_MINT));
+  const ix = await exitJlpIx(vaultAddrs, {
+    pool: new PublicKey(dump.pool.address),
+    lpMint: JLP_MINT,
+    ...jupiterPerpsPdas(),
+    custody: new PublicKey(usdc.address),
+    custodyDovesPriceAccount: new PublicKey(usdc.priceAccounts[DOVES_PRICE].address),
+    custodyPythnetPriceAccount: new PublicKey(usdc.priceAccounts[0].address),
+    custodyTokenAccount: new PublicKey(usdc.tokenAccount),
+    jupiterProgram: JUPITER_PERPS_ID,
+    aumAccounts: [
+      ...dump.custodies.map((c) => new PublicKey(c.address)),
+      ...dump.custodies.map((c) => new PublicKey(c.priceAccounts[DOVES_PRICE].address)),
+    ],
+  }, lpOut, floor);
+  await send(v, [ix]);
+  const acc = await v.conn.getAccountInfo(vaultAddrs.vaultUsdc);
+  const got = AccountLayout.decode(acc!.data).amount;
+  console.log(`vault: ${lpOut} JLP out, ${got} USDC back, floor was ${floor}`);
+  expect(got).toBeGreaterThanOrEqual(floor);
+  expect(decodeVault((await v.conn.getAccountInfo(vaultAddrs.vault))!.data).exited).toBe(true);
 }, 120_000);

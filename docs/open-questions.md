@@ -60,8 +60,16 @@ What the fork settled, each of it a guess before:
   written, so the test restamps the cloned Doves accounts, and only their
   timestamp. The prices are the ones that were on mainnet when `jlp.py` ran.
 
-Still unwritten: the vault's own JLP instructions. The fork now says what they
-must pass, so the remaining work is the instruction, not the unknowns.
+**Written since (27 Oct):** `exit_jlp` on the vault. It takes the same guards
+as `exit` and calls Jupiter directly, signing as the vault PDA. Its floor is
+the pool's own `aum_usd` divided by the JLP supply, read from the pool account
+in the same transaction, so no caller can route the vault into a fire sale.
+On the fork the vault took 100 JLP out for 445.55 USDC against a floor of
+442.07.
+
+Still open for a live JLP vault: `init_vault` types its pool as a canary
+`Pool`, so a vault bound to the Jupiter pool cannot be created yet. The fork
+test preloads the vault account instead.
 
 **Anza Programmatic Signer.** The nonce account layout (72 bytes) is not
 published in a form we could check. `proofs.rs` takes one more verifier
