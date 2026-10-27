@@ -11,11 +11,11 @@ import { Reveal } from "@/components/ui/reveal"
 
 function SectionHead({ kicker, title, body, id }: { kicker: string; title: string; body?: string; id?: string }) {
   return (
-    <Reveal className="max-w-2xl">
+    <Reveal className="max-w-3xl">
       <div id={id} className="scroll-mt-24">
         <div className="text-sm font-semibold text-ink-3">{kicker}</div>
-        <h2 className="tracking-display mt-3 text-4xl font-medium leading-[1.05] md:text-5xl">{title}</h2>
-        {body && <p className="mt-4 text-lg leading-relaxed text-ink-2">{body}</p>}
+        <h2 className="tracking-display mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">{title}</h2>
+        {body && <p className="mt-5 text-lg leading-relaxed text-ink-2 md:text-xl">{body}</p>}
       </div>
     </Reveal>
   )
@@ -23,22 +23,22 @@ function SectionHead({ kicker, title, body, id }: { kicker: string; title: strin
 
 export function Problem() {
   return (
-    <section className="mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
+    <section className="screen mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
       <SectionHead
         kicker="Why this exists"
         title="In April 2026, a Solana pool lost $285M in 12 minutes."
         body="The attackers prepared for nine days, in public, on chain. Liquidity providers had no way to see it, so almost nobody left in time."
       />
 
-      <div className="mt-12 grid gap-3 sm:grid-cols-3">
+      <div className="mt-14 grid gap-4 sm:grid-cols-3">
         {[
           [`$${HEADLINE.drained}M`, `taken in ${HEADLINE.minutes} minutes`],
           [`${HEADLINE.warningDays} days`, "of visible warning signs first"],
           [`${HEADLINE.lpReaction}%`, "of LP money left during the warning"],
         ].map(([v, l], i) => (
-          <Reveal key={l} delay={90 * i} className="card p-6">
-            <div className="tabular tracking-display text-4xl font-medium md:text-5xl">{v}</div>
-            <div className="mt-2 text-ink-2">{l}</div>
+          <Reveal key={l} delay={90 * i} className="card p-7 md:p-8">
+            <div className="tabular tracking-display text-5xl font-medium md:text-6xl">{v}</div>
+            <div className="mt-2 text-ink-2 md:text-lg">{l}</div>
           </Reveal>
         ))}
       </div>
@@ -102,17 +102,17 @@ export function Problem() {
 
 const STEPS = [
   {
-    glyph: <EyeGlyph className="size-12" />,
+    glyph: <EyeGlyph className="size-14" />,
     title: "We watch the admin keys",
     body: "Every protocol has people who can change its code. Pexiz reads, from chain, how many of them must agree and how long a change must wait.",
   },
   {
-    glyph: <ProofGlyph className="size-12" />,
+    glyph: <ProofGlyph className="size-14" />,
     title: "We set a status, with proof",
     body: "If the wait gets shorter, signers change, or someone signs approvals in advance, the status turns to Watch or Get out. Anyone can check why.",
   },
   {
-    glyph: <DoorGlyph className="size-12" />,
+    glyph: <DoorGlyph className="size-14" />,
     title: "Your vault leaves on its own",
     body: "When the status turns to Get out, your vault swaps to USDC in that same moment. No alerts to catch, no button to press.",
   },
@@ -121,17 +121,17 @@ const STEPS = [
 export function How() {
   return (
     <section className="border-y border-line bg-paper">
-      <div className="mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
+      <div className="screen mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
         <SectionHead id="how" kicker="How it works" title="Three steps, all on chain." />
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
+        <div className="mt-14 grid gap-5 md:grid-cols-3">
           {STEPS.map((s, i) => (
-            <Reveal key={s.title} delay={90 * i} className="rounded-[var(--radius-card)] border border-line bg-cream p-6">
+            <Reveal key={s.title} delay={90 * i} className="rounded-[var(--radius-card)] border border-line bg-cream p-7 md:p-9">
               <div className="flex items-center justify-between">
                 {s.glyph}
                 <span className="tabular text-sm font-semibold text-ink-3">Step {i + 1}</span>
               </div>
-              <h3 className="mt-6 text-xl font-semibold tracking-tight">{s.title}</h3>
-              <p className="mt-2 leading-relaxed text-ink-2">{s.body}</p>
+              <h3 className="mt-8 text-2xl font-semibold tracking-tight">{s.title}</h3>
+              <p className="mt-3 leading-relaxed text-ink-2 md:text-lg">{s.body}</p>
             </Reveal>
           ))}
         </div>
@@ -153,18 +153,18 @@ const EXAMPLES = [
 /** Time to exit, explained on two made-up protocols; real ones are in the app. */
 export function Venues() {
   return (
-    <section className="mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
+    <section className="screen mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <SectionHead id="venues" kicker="The one number" title="Would you have time to leave?" body="Every protocol can be changed by the people who hold its keys. What matters is whether an approved change has to wait longer than you need to get out." />
         <LinkButton href="/app/monitor" className="shrink-0"><Svg>{Icon.monitor}</Svg>Check a real protocol</LinkButton>
       </div>
-      <div className="mt-12 grid gap-4 lg:grid-cols-2">
+      <div className="mt-14 grid gap-5 lg:grid-cols-2">
         {EXAMPLES.map((e, i) => (
-          <Reveal key={e.title} delay={110 * i} className="card p-6 md:p-7">
+          <Reveal key={e.title} delay={110 * i} className="card p-7 md:p-9">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="font-semibold">{e.title}</div>
-                <p className="mt-1 text-sm text-ink-2">{e.note}</p>
+                <div className="text-lg font-semibold">{e.title}</div>
+                <p className="mt-1.5 text-ink-2">{e.note}</p>
               </div>
               <span className="shrink-0 rounded-md border border-line-2 px-2 py-0.5 text-xs font-semibold text-ink-3">Example</span>
             </div>
@@ -179,37 +179,37 @@ export function Venues() {
 export function TryIt() {
   const { data } = useCanary(30_000)
   return (
-    <section className="mx-auto max-w-[1180px] px-5 md:px-8">
-      <Reveal className="card grid gap-10 p-6 md:p-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+    <section className="screen mx-auto max-w-[1180px] px-5 py-20 md:px-8">
+      <Reveal className="card grid gap-12 p-7 md:p-14 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div>
           <div className="text-sm font-semibold text-ink-3">Try it now</div>
-          <h2 className="tracking-display mt-3 text-4xl font-medium leading-[1.05] md:text-5xl">A live test vault, with free test funds.</h2>
-          <p className="mt-4 text-lg text-ink-2">Connect any Solana wallet, get test USDC from the built-in faucet, and watch the vault react to a real multisig.</p>
+          <h2 className="tracking-display mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">A live test vault, with free test funds.</h2>
+          <p className="mt-5 text-lg text-ink-2 md:text-xl">Connect any Solana wallet, get test USDC from the built-in faucet, and watch the vault react to a real multisig.</p>
           <div className="mt-7 flex flex-wrap gap-3">
             <LinkButton href="/app/vault/canary" className="h-12 px-5"><Svg>{Icon.vault}</Svg>Open the test vault</LinkButton>
             <LinkButton href="/docs" variant="line" className="h-12 px-5"><Svg>{Icon.book}</Svg>Read the docs</LinkButton>
           </div>
         </div>
-        <div className="rounded-[var(--radius-card)] border border-line bg-cream p-5">
+        <div className="rounded-[var(--radius-card)] border border-line bg-cream p-6 md:p-7">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <DoorGlyph className="size-10" />
+              <DoorGlyph className="size-12" />
               <div>
-                <div className="font-semibold">Canary Pool</div>
+                <div className="text-lg font-semibold">Canary Pool</div>
                 <div className="text-sm text-ink-3">Test vault</div>
               </div>
             </div>
             {data ? <FlagPill flag={data.venue.flag} /> : <Skeleton className="h-6 w-20 rounded-md" />}
           </div>
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-6 grid grid-cols-3 gap-2.5">
             {[
               ["Approvals", data ? `${data.venue.threshold} of ${data.venue.members.length}` : null],
               ["Change delay", data ? duration(data.venue.timeLockSecs) : null],
               ["Deposited", data ? `$${(data.vaultUsdc + data.vaultLp).toLocaleString("en-US")}` : null],
             ].map(([k, v]) => (
-              <div key={k} className="rounded-xl bg-paper p-3">
+              <div key={k} className="rounded-xl bg-paper p-4">
                 <div className="text-xs text-ink-3">{k}</div>
-                <div className="tabular mt-1 font-semibold">{v ?? <Skeleton className="h-5 w-12" />}</div>
+                <div className="tabular mt-1.5 text-lg font-semibold">{v ?? <Skeleton className="h-5 w-12" />}</div>
               </div>
             ))}
           </div>
@@ -234,19 +234,21 @@ const FAQ = [
 
 export function Faq() {
   return (
-    <section className="mx-auto grid max-w-[1180px] gap-12 px-5 py-24 md:px-8 md:py-28 lg:grid-cols-[1fr_1.5fr]">
+    <section className="screen mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
+      <div className="grid gap-12 lg:grid-cols-[1fr_1.5fr]">
       <SectionHead id="faq" kicker="FAQ" title="Common questions" />
       <Reveal className="divide-y divide-line border-y border-line">
         {FAQ.map(([q, a]) => (
-          <details key={q} className="group py-5">
-            <summary className="flex list-none items-center justify-between gap-4 text-lg font-medium">
+          <details key={q} className="group py-6">
+            <summary className="flex list-none items-center justify-between gap-4 text-lg font-medium md:text-xl">
               {q}
               <span className="grid size-8 shrink-0 place-items-center rounded-full border border-line-2 text-ink-2 group-open:rotate-45">+</span>
             </summary>
-            <p className="mt-3 max-w-xl leading-relaxed text-ink-2">{a}</p>
+            <p className="mt-3 max-w-2xl leading-relaxed text-ink-2 md:text-lg">{a}</p>
           </details>
         ))}
       </Reveal>
+      </div>
     </section>
   )
 }
