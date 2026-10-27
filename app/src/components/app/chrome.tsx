@@ -204,14 +204,14 @@ function AccountMenu() {
           <div className="rounded-xl bg-sand/60 p-4">
             <div className="text-xs text-ink-3">Connected</div>
             <div className="mt-1 font-mono text-sm">{short(addr, 8)}</div>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-              {[["SOL", h ? amount(h.sol, 3) : undefined], ["USDC", h ? amount(h.usdc) : undefined], ["Shares", h ? amount(h.shares) : undefined]].map(([k, v]) => (
-                <div key={k} className="min-w-0">
-                  <div className="text-[11px] uppercase tracking-[0.08em] text-ink-3">{k}</div>
-                  <div className="tabular truncate font-semibold">{v ?? "…"}</div>
+            <dl className="mt-4 space-y-1.5 text-sm">
+              {[["Wallet balance", h ? `${amount(h.usdc)} USDC` : undefined], ["Vault shares", h ? amount(h.shares) : undefined], ["Balance for fees", h ? `${amount(h.sol, 3)} SOL` : undefined]].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3">
+                  <dt className="text-ink-2">{k}</dt>
+                  <dd className="tabular truncate font-semibold">{v ?? "…"}</dd>
                 </div>
               ))}
-            </div>
+            </dl>
           </div>
           <Faucet owner={addr} onDone={refresh} />
           <MenuItem icon={Icon.copy} onClick={() => { navigator.clipboard?.writeText(addr); push({ kind: "info", title: "Address copied" }); setOpen(false) }}>Copy address</MenuItem>

@@ -105,12 +105,12 @@ export function cardSvg(v: WatchedVenue, r: Verdict & { delay?: number }, now = 
     <g transform="translate(30 26)">${bars}</g>
     <text x="104" y="60" font-size="40" font-weight="600" fill="${c.fg}">${esc(c.label)}</text>
   </g>
-  <text x="72" y="364" font-size="22" font-weight="600" fill="rgba(13,13,12,.46)" letter-spacing="2">EXIT WINDOW</text>
+  <text x="72" y="364" font-size="22" font-weight="600" fill="rgba(13,13,12,.46)" letter-spacing="2">TIME TO EXIT</text>
   <text x="70" y="444" font-size="84" font-weight="500" fill="#0d0d0c" letter-spacing="-2">${durSpans(windowText, 84)}</text>
   <rect x="${mx}" y="${my}" width="${mw}" height="14" rx="7" fill="#f3ece1"/>
   ${fill > 0 ? `<rect x="${mx}" y="${my}" width="${fill}" height="14" rx="7" fill="${c.fg}"/>` : ""}
   <rect x="${need - 2}" y="${my - 8}" width="4" height="30" rx="2" fill="#0d0d0c"/>
-  <text x="${mx}" y="${my + 50}" font-size="20" fill="rgba(13,13,12,.55)">${r.delay === undefined ? "Admin delay unknown" : r.delay ? `Admin delay ${duration(r.delay)}` : "No admin delay"} · you need ${duration(ASSUMED_EXIT_SECS)} to withdraw</text>
+  <text x="${mx}" y="${my + 50}" font-size="20" fill="rgba(13,13,12,.55)">${r.delay === undefined ? "Change delay unknown" : r.delay ? `Changes wait ${duration(r.delay)}` : "Changes land at once"} · you need ${duration(ASSUMED_EXIT_SECS)} to withdraw</text>
   <rect x="684" y="342" width="4" height="${why.length * 38 + 8}" rx="2" fill="${c.fg}"/>
   ${why.map((l, i) => `<text x="708" y="${376 + i * 38}" font-size="28" fill="#0d0d0c">${esc(l)}</text>`).join("")}
   <line x1="72" y1="570" x2="1128" y2="570" stroke="rgba(13,13,12,.1)" stroke-width="2"/>

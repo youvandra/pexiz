@@ -27,7 +27,7 @@ interface Row {
   delaySecs?: number
 }
 
-const ADMIN_SHORT = { "squads-v4": "Multisig", "squads-v3": "Squads v3", governance: "DAO vote", dormant: "Single key" } as const
+const ADMIN_SHORT = { "squads-v4": "Multisig", "squads-v3": "Old multisig", governance: "DAO vote", dormant: "One key" } as const
 
 const windowText = (s: number | undefined) => (s === undefined ? "—" : s <= 0 ? "None" : duration(s))
 
@@ -84,7 +84,7 @@ export function Monitor() {
       <PageHead
         title="Monitor"
         sub="Perps and prediction markets on Solana: who controls each one, and whether you would have time to leave if they changed it."
-        right={<span className="flex items-center gap-2 text-sm text-ink-3"><span className="live-dot text-safe" />{readAt ? `Mainnet read ${ago(readAt)}` : "Reading mainnet…"}</span>}
+        right={<span className="flex items-center gap-2 text-sm text-ink-3"><span className="live-dot text-safe" />{readAt ? `Updated ${ago(readAt)}` : "Reading…"}</span>}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -119,9 +119,9 @@ export function Monitor() {
           <thead className="text-xs uppercase tracking-[0.08em] text-ink-3">
             <tr className="border-b border-line">
               <th className="px-5 py-3.5 font-medium">Protocol</th>
-              <th className="px-5 py-3.5 font-medium">Signers</th>
-              <th className="px-5 py-3.5 font-medium">Admin delay</th>
-              <th className="px-5 py-3.5 font-medium">Exit window</th>
+              <th className="px-5 py-3.5 font-medium">Approvals needed</th>
+              <th className="px-5 py-3.5 font-medium">Change delay</th>
+              <th className="px-5 py-3.5 font-medium">Time to exit</th>
               <th className="px-5 py-3.5 text-right font-medium">Status</th>
               <th className="w-10" />
             </tr>
@@ -174,15 +174,15 @@ export function Monitor() {
                   <FlagPill flag={r.flag} />
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-                  <div><div className="text-xs text-ink-3">Signers</div><div className="tabular font-medium">{r.admin}</div></div>
-                  <div><div className="text-xs text-ink-3">Admin delay</div><Dur text={r.delay} className="font-medium" /></div>
-                  <div><div className="text-xs text-ink-3">Exit window</div><Dur text={r.window} className="font-medium" /><WindowMeter delaySecs={r.delaySecs} flag={r.flag} className="mt-1.5 w-full" /></div>
+                  <div><div className="text-xs text-ink-3">Approvals</div><div className="tabular font-medium">{r.admin}</div></div>
+                  <div><div className="text-xs text-ink-3">Change delay</div><Dur text={r.delay} className="font-medium" /></div>
+                  <div><div className="text-xs text-ink-3">Time to exit</div><Dur text={r.window} className="font-medium" /><WindowMeter delaySecs={r.delaySecs} flag={r.flag} className="mt-1.5 w-full" /></div>
                 </div>
               </Link>
             ))}
       </div>
 
-      <p className="mt-4 text-xs text-ink-3">Exit window: the admin delay minus the 30 minutes you need to withdraw.</p>
+      <p className="mt-4 text-xs text-ink-3">Time to exit: how long an approved change must wait, minus the 30 minutes you need to withdraw.</p>
     </div>
   )
 }

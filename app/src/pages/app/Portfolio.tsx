@@ -29,10 +29,10 @@ export function Portfolio() {
     <div>
       <PageHead title="Portfolio" />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="In vaults" value={value === null ? null : money(value)} sub={h ? `${amount(h.shares + h.voted)} shares` : undefined} />
-        <StatTile label="USDC" value={h ? amount(h.usdc) : null} sub="In your wallet" />
-        <StatTile label="Canary LP" value={h ? amount(h.lp) : null} sub="In your wallet" />
-        <StatTile label="SOL" value={h ? amount(h.sol, 3) : null} sub="For network fees" />
+        <StatTile label="Deposited in vaults" value={value === null ? null : money(value)} sub={h ? `${amount(h.shares + h.voted)} shares` : undefined} />
+        <StatTile label="Wallet balance" value={h ? amount(h.usdc) : null} unit="USDC" />
+        <StatTile label="LP tokens in wallet" value={h ? amount(h.lp) : null} unit="Canary LP" />
+        <StatTile label="Balance for fees" value={h ? amount(h.sol, 3) : null} unit="SOL" />
       </div>
 
       <h2 className="mt-12 text-lg font-semibold">Positions</h2>
@@ -44,13 +44,13 @@ export function Portfolio() {
             <DoorGlyph className="size-11" />
             <div className="min-w-0 flex-1">
               <div className="font-semibold">Canary Pool</div>
-              <div className="text-sm text-ink-2">{data.vault.exited ? "Exited to USDC" : "Holding Canary LP"}{h.voted > 0 && ` · ${amount(h.voted)} shares voting to re-enter`}</div>
+              <div className="text-sm text-ink-2">{data.vault.exited ? "Now holding USDC" : "Holding Canary LP"}{h.voted > 0 && ` · ${amount(h.voted)} shares voting to go back in`}</div>
             </div>
             <FlagPill flag={data.venue.flag} />
             <div className="tabular min-w-0 truncate text-right font-semibold">{money(value!)}</div>
           </Link>
         ) : (
-          <EmptyState glyph={<DoorGlyph className="size-14" />} title="No positions yet" body="Deposit test USDC into the canary vault to see it leave on its own when the flag turns red." action={<LinkButton href="/vault/canary"><Svg>{Icon.vault}</Svg>Open the canary vault</LinkButton>} />
+          <EmptyState glyph={<DoorGlyph className="size-14" />} title="No positions yet" body="Deposit test USDC into the canary vault to see it leave on its own when the status turns to Get out." action={<LinkButton href="/vault/canary"><Svg>{Icon.vault}</Svg>Open the canary vault</LinkButton>} />
         )}
       </div>
 

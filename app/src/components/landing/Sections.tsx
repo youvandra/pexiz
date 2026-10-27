@@ -105,13 +105,13 @@ const STEPS = [
   },
   {
     glyph: <ProofGlyph className="size-12" />,
-    title: "We raise a flag, with proof",
-    body: "If the wait gets shorter, signers change, or someone pre-signs approvals, the flag turns to Watch or Get out. Anyone can check why.",
+    title: "We set a status, with proof",
+    body: "If the wait gets shorter, signers change, or someone signs approvals in advance, the status turns to Watch or Get out. Anyone can check why.",
   },
   {
     glyph: <DoorGlyph className="size-12" />,
     title: "Your vault leaves on its own",
-    body: "When the flag turns to Get out, your vault swaps to USDC in that same moment. No alerts to catch, no button to press.",
+    body: "When the status turns to Get out, your vault swaps to USDC in that same moment. No alerts to catch, no button to press.",
   },
 ]
 
@@ -156,7 +156,7 @@ export function Venues() {
   return (
     <section className="mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <SectionHead id="venues" kicker="Protocols we watch" title="Would you have time to leave?" body="The exit window is how long you have between an admin change being approved and it taking effect, minus the time you need to withdraw." />
+        <SectionHead id="venues" kicker="Protocols we watch" title="Would you have time to leave?" body="Time to exit is how long an approved change must wait before it takes effect, minus the 30 minutes you need to withdraw." />
         <LinkButton href="/app/monitor" variant="line" className="shrink-0">Open the monitor<Svg>{Icon.arrow}</Svg></LinkButton>
       </div>
       <div className="card mt-12 divide-y divide-line p-0">
@@ -171,14 +171,14 @@ export function Venues() {
               <WindowMeter delaySecs={r.timeLockSecs ?? (r.venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} className="w-full" />
             </div>
             <div className="w-24 text-sm">
-              <div className="text-xs text-ink-3">Exit window</div>
+              <div className="text-xs text-ink-3">Time to exit</div>
               {rows === null ? <Skeleton className="h-5 w-16" /> : <Dur text={r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)} className="font-semibold" />}
             </div>
             <div className="flex w-28 justify-end"><FlagPill flag={r.assessment} /></div>
           </Link>
         ))}
       </div>
-      <p className="mt-4 text-xs text-ink-3">Assumes 30 minutes to notice and withdraw. Read live from Solana mainnet where possible, otherwise from the {MEASURED_ON} snapshot.</p>
+      <p className="mt-4 text-xs text-ink-3">Read live from Solana mainnet where possible, otherwise from the {MEASURED_ON} snapshot.</p>
     </section>
   )
 }
@@ -210,9 +210,9 @@ export function TryIt() {
           </div>
           <div className="mt-5 grid grid-cols-3 gap-2">
             {[
-              ["Signers", data ? `${data.venue.threshold} of ${data.venue.members.length}` : null],
-              ["Admin delay", data ? duration(data.venue.timeLockSecs) : null],
-              ["Vault holds", data ? `$${(data.vaultUsdc + data.vaultLp).toLocaleString("en-US")}` : null],
+              ["Approvals", data ? `${data.venue.threshold} of ${data.venue.members.length}` : null],
+              ["Change delay", data ? duration(data.venue.timeLockSecs) : null],
+              ["Deposited", data ? `$${(data.vaultUsdc + data.vaultLp).toLocaleString("en-US")}` : null],
             ].map(([k, v]) => (
               <div key={k} className="rounded-xl bg-paper p-3">
                 <div className="text-xs text-ink-3">{k}</div>
@@ -231,7 +231,7 @@ const FAQ = [
   ["What is Pexiz?", "A vault for liquidity providers on Solana. It holds your LP token while the protocol is safe, and swaps it to USDC by itself when the protocol's admin keys get weaker."],
   ["What is an admin takeover?", "Most protocols can be upgraded by a group of key holders. If attackers gain control of enough of those keys, they can change the code and take the pool's money. Pexiz watches for the signs that come first."],
   ["Does Pexiz hold my funds?", "Your deposit sits in an on-chain vault program, not with a company. You can withdraw any time, in every state, with your own wallet."],
-  ["What happens when the flag turns red?", "The same transaction that turns the flag red also sells the vault's LP token for USDC. You keep your share of that USDC and can withdraw it or vote to go back in later."],
+  ["What happens when the status turns to Get out?", "The same transaction that changes the status also sells the vault's LP token for USDC. You keep your share of that USDC and can withdraw it or vote to go back in later."],
   ["Can Pexiz stop a hack?", "No. It cannot change what the attackers do. It gets your money out while there is still time, before an approved change can take effect."],
   ["Does Pexiz pay for losses?", "No. Pexiz is not insurance. A false alarm can cost you yield and swap fees, and an exit can lose up to 1% to slippage. It lowers the chance of being caught; it does not cover what it misses."],
   ["What if everyone tries to leave at once?", "The vault leaves in the same transaction as the warning, before people can react. If the pool cannot take it all at once, it leaves in steps, each at no worse than 1% below the pool's own price. Inside the vault there is no queue: everyone gets their exact share."],

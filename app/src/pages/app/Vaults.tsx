@@ -29,8 +29,8 @@ export function Vaults() {
           value={!publicKey ? "—" : h && data ? money(h.shares * data.pricePerShare) : null}
           sub={!publicKey ? "Connect a wallet to see yours" : h ? `${amount(h.shares)} shares` : "Reading…"}
         />
-        <StatTile label="Protected in vaults" value={data ? money(data.nav, 0) : null} sub="Across all vaults" />
-        <StatTile label="Protocols watched" value={rows ? rows.length : null} sub="Perps and prediction markets" />
+        <StatTile label="Total deposited" value={data ? money(data.nav, 0) : null} sub="By everyone, in all vaults" />
+        <StatTile label="Watching" value={rows ? rows.length : null} unit="protocols" />
       </div>
 
       <GetStarted />
@@ -56,15 +56,15 @@ export function Vaults() {
               <div className="mt-6 grid grid-cols-3 gap-4 border-t border-line pt-5">
                 {live ? (
                   <>
-                    <Metric k="TVL" v={data ? money(data.nav, 0) : null} />
-                    <Metric k="State" v={data ? (data.vault.exited ? "In USDC" : "In LP") : null} />
-                    <Metric k="Cap used" v={data ? `${((data.nav / AUM_CAP) * 100).toFixed(data.nav / AUM_CAP < 0.01 ? 3 : 1)}%` : null} />
+                    <Metric k="Total deposited" v={data ? money(data.nav, 0) : null} />
+                    <Metric k="Now holding" v={data ? (data.vault.exited ? "USDC" : "Canary LP") : null} />
+                    <Metric k="Space left" v={data ? money(AUM_CAP - data.nav, 0) : null} />
                   </>
                 ) : (
                   <>
-                    <Metric k="Protocol reads" v={jlp ? flagLabel(jlp.assessment) : null} />
-                    <Metric k="Exit window" v={jlp?.exitWindowSecs !== undefined ? <Dur text={duration(jlp.exitWindowSecs)} /> : jlp ? "—" : null} />
-                    <Metric k="Cap" v="$10M" />
+                    <Metric k="Status" v={jlp ? flagLabel(jlp.assessment) : null} />
+                    <Metric k="Time to exit" v={jlp?.exitWindowSecs !== undefined ? <Dur text={duration(jlp.exitWindowSecs)} /> : jlp ? "—" : null} />
+                    <Metric k="Deposit cap" v="$10M" />
                   </>
                 )}
               </div>

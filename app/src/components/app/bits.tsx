@@ -8,23 +8,28 @@ import type { ActivityEvent } from "@/data/activity"
 import { FlagMark, FlagPill, Skeleton } from "@/components/ui/kit"
 import { Icon, Svg } from "./chrome"
 
-export function StatTile({ label, value, sub, className }: { label: string; value: ReactNode; sub?: ReactNode; className?: string }) {
+/** A plain-words label, then the value with its unit. `sub` only when it adds something. */
+export function StatTile({ label, value, unit, sub, className }: { label: string; value: ReactNode; unit?: string; sub?: ReactNode; className?: string }) {
   return (
     <div className={cn("card min-w-0 p-5", className)}>
-      <div className="truncate text-xs uppercase tracking-[0.08em] text-ink-3">{label}</div>
-      <div className="tabular tracking-display mt-2 truncate text-[1.75rem] font-medium leading-tight md:text-[2rem]" title={typeof value === "string" ? value : undefined}>{value ?? <Skeleton className="h-9 w-24" />}</div>
+      <div className="truncate text-sm text-ink-2">{label}</div>
+      <div className="tabular tracking-display mt-2 truncate text-[1.75rem] font-medium leading-tight md:text-[2rem]" title={typeof value === "string" ? `${value}${unit ? ` ${unit}` : ""}` : undefined}>
+        {value ?? <Skeleton className="h-9 w-24" />}
+        {value != null && unit && <span className="ml-1.5 text-[0.55em] font-medium tracking-normal text-ink-3">{unit}</span>}
+      </div>
       {sub && <div className="mt-1 truncate text-sm text-ink-2">{sub}</div>}
     </div>
   )
 }
 
 const CONDITIONS: [number, string, string][] = [
-  [Reason.TIME_LOCK_BELOW_MIN, "Timelock at or above minimum", "An approved change waits long enough for users to leave."],
-  [Reason.THRESHOLD_DROPPED, "Approval threshold held", "No fewer signers are needed than before."],
-  [Reason.MEMBERS_REPLACED, "Signer set stable", "Under a third of signers replaced in 7 days."],
-  [Reason.UPGRADE_AUTHORITY_MOVED, "Upgrade authority in place", "The program is still upgraded only by this multisig."],
-  [Reason.SIGNER_PRESIGNING, "No pre-signing accounts", "No signer controls a durable nonce that could hold a pre-signed approval."],
-  [Reason.AMBER_ESCALATED, "No stale warning", "No warning has been left unresolved for 48 hours."],
+  [Reason.TIME_LOCK_BELOW_MIN, "Changes still wait long enough", "An approved change waits longer than you need to withdraw."],
+  [Reason.THRESHOLD_DROPPED, "Same number of approvals needed", "Nobody lowered how many signers must agree."],
+  [Reason.MEMBERS_REPLACED, "Signers stayed the same", "Fewer than a third of signers were swapped this week."],
+  [Reason.UPGRADE_AUTHORITY_MOVED, "Same group controls upgrades", "Only this multisig can change the program."],
+  [Reason.SIGNER_PRESIGNING, "No approvals signed in advance", "No signer holds an account that keeps a signature ready to use later."],
+  [Reason.UPGRADE_PENDING, "No upgrade waiting to land", "No approved proposal is queued to replace the program."],
+  [Reason.AMBER_ESCALATED, "No warning left open", "No warning has stayed unresolved for 48 hours."],
 ]
 
 /** The six checks the oracle runs, each shown passing or failing. */
@@ -56,12 +61,12 @@ export function Conditions({ reasons }: { reasons: number | undefined }) {
 const TITLE: Record<ActivityEvent["kind"], string> = {
   deposit: "Deposit",
   withdraw: "Withdrawal",
-  exit: "Vault exited to USDC",
-  flag: "Flag changed",
-  vote: "Voted to re-enter",
+  exit: "Vault moved to USDC",
+  flag: "Status changed",
+  vote: "Voted to go back in",
   unvote: "Took back a vote",
-  reenter: "Vault re-entered",
-  check: "Oracle check",
+  reenter: "Vault went back in",
+  check: "Routine check",
 }
 
 const DOT: Record<ActivityEvent["kind"], string> = {
@@ -73,6 +78,16 @@ const DOT: Record<ActivityEvent["kind"], string> = {
   unvote: "bg-ink-3",
   reenter: "bg-safe",
   check: "bg-line-2",
+}
+
+const PLAIN_REASON: Record<string, string> = {
+  TIME_LOCK_BELOW_MIN: "change delay cut",
+  THRESHOLD_DROPPED: "fewer approvals needed",
+  MEMBERS_REPLACED: "signers swapped",
+  UPGRADE_AUTHORITY_MOVED: "upgrade control moved",
+  SIGNER_PRESIGNING: "approvals signed in advance",
+  AMBER_ESCALATED: "warning open 48h",
+  UPGRADE_PENDING: "upgrade waiting",
 }
 
 const day = (ms: number) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
@@ -108,8 +123,8 @@ export function EventRow({ e }: { e: ActivityEvent }) {
             {e.failed && <span className="rounded-md border border-line-2 px-1.5 py-0.5 text-[11px] font-semibold text-ink-3">Failed</span>}
           </div>
           <div className="mt-0.5 truncate text-xs text-ink-3">
-            {time(e.at)} · {you ? "You" : e.kind === "flag" || e.kind === "check" || e.kind === "exit" ? "Crank" : short(e.who, 4)}
-            {e.reasons?.length ? ` · ${e.reasons.join(", ").toLowerCase().replaceAll("_", " ")}` : ""}
+            {time(e.at)} · {you ? "You" : e.kind === "flag" || e.kind === "check" || e.kind === "exit" ? "Pexiz oracle" : short(e.who, 4)}
+            {e.reasons?.length ? ` · ${e.reasons.map((r) => PLAIN_REASON[r] ?? r).join(", ")}` : ""}
           </div>
         </div>
         {value && <div className="tabular shrink-0 pt-0.5 text-right text-sm font-semibold">{value}</div>}

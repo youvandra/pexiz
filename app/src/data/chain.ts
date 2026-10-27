@@ -65,19 +65,32 @@ async function readVenue(v: WatchedVenue): Promise<BoardRow> {
   }
 }
 
+// One board read shared by every page, kept for a minute, so moving between
+// pages never re-reads mainnet or waits on it again.
+const BOARD_TTL_MS = 60_000
+let board: { rows: BoardRow[]; at: number } | null = null
+let boardInflight: Promise<{ rows: BoardRow[]; at: number }> | null = null
+
+function loadBoard() {
+  if (board && Date.now() - board.at < BOARD_TTL_MS) return Promise.resolve(board)
+  // A slow or rate-limited RPC never holds the page: after 8s a venue falls
+  // back to its measured snapshot.
+  const timed = (v: WatchedVenue) =>
+    Promise.race([readVenue(v), new Promise<BoardRow>((ok) => setTimeout(() => ok(snapshotRow(v)), 8000))]).catch(() => snapshotRow(v))
+  boardInflight ??= Promise.all(VENUES.map(timed))
+    .then((rows) => (board = { rows, at: Date.now() }))
+    .finally(() => { boardInflight = null })
+  return boardInflight
+}
+
 export function useBoard() {
-  const [rows, setRows] = useState<BoardRow[] | null>(null)
-  const [readAt, setReadAt] = useState<number | null>(null)
+  const [state, setState] = useState(board)
   useEffect(() => {
     let on = true
-    Promise.all(VENUES.map((v) => readVenue(v).catch(() => snapshotRow(v)))).then((r) => {
-      if (!on) return
-      setRows(r)
-      setReadAt(Date.now())
-    })
+    loadBoard().then((b) => { if (on) setState(b) })
     return () => { on = false }
   }, [])
-  return { rows, readAt }
+  return { rows: state?.rows ?? null, readAt: state?.at ?? null }
 }
 
 export interface Canary {

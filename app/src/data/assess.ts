@@ -39,12 +39,12 @@ export function assess(v: WatchedVenue, timeLockSecs?: number, pending: PendingU
 
 function assessConfig(v: WatchedVenue, timeLockSecs?: number): Verdict {
   if (v.admin === "squads-v3") return { assessment: "red", why: "No delay: an approved change lands at once.", exitWindowSecs: -ASSUMED_EXIT_SECS }
-  if (v.admin === "governance") return { assessment: "unrated", why: "Governance delay is a voting period; read per proposal." }
-  if (v.admin === "dormant") return { assessment: "unrated", why: "Authority has been unused since 2024." }
-  if (timeLockSecs === undefined) return { assessment: "unrated", why: "Multisig could not be read." }
+  if (v.admin === "governance") return { assessment: "unrated", why: "Changes go through a DAO vote; the wait depends on each proposal." }
+  if (v.admin === "dormant") return { assessment: "unrated", why: "One key controls it, unused since 2024." }
+  if (timeLockSecs === undefined) return { assessment: "unrated", why: "Its multisig could not be read just now." }
   const win = timeLockSecs - ASSUMED_EXIT_SECS
-  if (win <= 0) return { assessment: "red", why: "A change can land before users get out.", exitWindowSecs: win }
-  if (win < 12 * 3600) return { assessment: "amber", why: "Under 12 hours to notice and leave.", exitWindowSecs: win }
+  if (win <= 0) return { assessment: "red", why: "A change can land before you could get out.", exitWindowSecs: win }
+  if (win < 12 * 3600) return { assessment: "amber", why: "Under 12 hours to notice and get out.", exitWindowSecs: win }
   return { assessment: "green", why: "A full day's notice before any change lands.", exitWindowSecs: win }
 }
 

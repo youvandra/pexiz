@@ -23,7 +23,7 @@ export function WindowMeter({ delaySecs, flag, className }: { delaySecs?: number
     <span
       className={cn("relative block h-2 w-24 shrink-0 rounded-full", delaySecs === undefined ? "border border-dashed border-line-2" : "bg-sand", className)}
       role="img"
-      aria-label={delaySecs === undefined ? "Delay unknown" : `Admin delay against the time needed to exit`}
+      aria-label={delaySecs === undefined ? "Delay unknown" : `Change delay against the time you need to exit`}
     >
       {fill > 0 && <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${fill}%`, background: TONE[flag] }} />}
       <span className="absolute -inset-y-1 w-0.5 rounded-full bg-ink" style={{ left: `calc(${need}% - 1px)` }} />

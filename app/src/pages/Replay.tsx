@@ -20,10 +20,10 @@ interface Step {
 // Real dates and parameters from the April 2026 takeover; the oracle and vault
 // are run through the same rules the programs enforce.
 const STEPS: Step[] = [
-  { at: "20 Mar", day: -3, chain: "2-of-5 multisig, delay in place", flag: "green", reason: "No condition holds.", vault: "Holding the LP token", holder: "Holding the LP token", vaultSafe: true },
-  { at: "23 Mar", day: 0, chain: "Nonce accounts appear for two signers", flag: "amber", reason: "SIGNER_PRESIGNING: a member controls a live durable nonce.", vault: "Deposits paused", holder: "Unaware", vaultSafe: true },
-  { at: "25 Mar", day: 2, chain: "Nonce still live, 48 hours later", flag: "red", reason: "AMBER_ESCALATED: the warning went unresolved for 48h.", vault: "Exited to USDC in the update transaction", holder: "Unaware", vaultSafe: true },
-  { at: "27 Mar", day: 4, chain: "Multisig timelock set to 0", flag: "red", reason: "TIME_LOCK_BELOW_MIN: approved changes land at once.", vault: "Out, in USDC", holder: "Unaware", vaultSafe: true },
+  { at: "20 Mar", day: -3, chain: "2-of-5 multisig, delay in place", flag: "green", reason: "Every check passes.", vault: "Holding the LP token", holder: "Holding the LP token", vaultSafe: true },
+  { at: "23 Mar", day: 0, chain: "Two signers can now sign in advance", flag: "amber", reason: "A signer can now sign approvals in advance.", vault: "Deposits paused", holder: "Unaware", vaultSafe: true },
+  { at: "25 Mar", day: 2, chain: "Nonce still live, 48 hours later", flag: "red", reason: "The warning stayed open for 48 hours.", vault: "Exited to USDC in the update transaction", holder: "Unaware", vaultSafe: true },
+  { at: "27 Mar", day: 4, chain: "Multisig timelock set to 0", flag: "red", reason: "Approved changes now land at once.", vault: "Out, in USDC", holder: "Unaware", vaultSafe: true },
   { at: "1 Apr 16:05", day: 9, chain: "Pre-signed transaction hands over admin", flag: "red", reason: "Admin control transferred.", vault: "Out, in USDC", holder: "Exposed", vaultSafe: true },
   { at: "1 Apr 16:12", day: 9.2, chain: "Stolen JLP redeemed; SOL custody 886,921 → 1,138", flag: "red", reason: "The exit is used up by the attacker.", vault: "Out, in USDC", holder: "Stuck behind the attacker", vaultSafe: true },
 ]
@@ -85,12 +85,12 @@ export function Replay() {
           <div key={s.chain} className="mt-2 text-2xl font-semibold tracking-tight">{s.chain}</div>
           <div className="mt-6 flex items-center gap-3">
             <FlagPill flag={s.flag} size="md" />
-            <span className="text-sm text-ink-2">Pexiz oracle</span>
+            <span className="text-sm text-ink-2">Pexiz status</span>
           </div>
-          <p className="mt-3 font-mono text-xs leading-relaxed text-ink-2">{s.reason}</p>
+          <p className="mt-3 text-sm leading-relaxed text-ink-2">{s.reason}</p>
         </div>
         <div className="card p-6" style={{ background: "var(--safe-soft)" }}>
-          <div className="text-xs uppercase tracking-[0.08em] text-safe">Pexiz escape vault</div>
+          <div className="text-xs uppercase tracking-[0.08em] text-safe">Pexiz vault</div>
           <div key={s.vault} className="mt-2 text-xl font-semibold tracking-tight">{s.vault}</div>
           <div className="mt-6 tabular tracking-display text-5xl font-medium text-safe">{s.vaultSafe ? "100%" : "—"}</div>
           <div className="text-sm text-ink-2">of deposits recoverable</div>

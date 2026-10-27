@@ -59,7 +59,7 @@ export const VENUES: WatchedVenue[] = [
     admin: "squads-v3",
     authority: "DdGHYzBoTGJJZ4Npy1AHVuyZsfX89ShauiukqMt8sPRw",
     snapshot: {},
-    note: "Squads v3 multisig, which has no timelock",
+    note: "An older Squads v3 multisig, which has no delay on changes",
   },
   {
     id: "adrena",
@@ -71,7 +71,7 @@ export const VENUES: WatchedVenue[] = [
     admin: "governance",
     authority: "7VzEXYvGmLg3tdVuFuGFQdr7GP5tutTUt8EcTGHvG8Ev",
     snapshot: {},
-    note: "SPL Governance; the delay is the proposal voting period",
+    note: "Changes go through a DAO vote",
   },
   {
     id: "phoenix",

@@ -1,6 +1,6 @@
 import { Link, Redirect, useParams } from "wouter"
 import { ago, duration, short } from "@/lib/format"
-import { ASSUMED_EXIT_SECS, VAULTS, VENUES, explorer } from "@/data/facts"
+import { ASSUMED_EXIT_SECS, MEASURED_ON, VAULTS, VENUES, explorer } from "@/data/facts"
 import { useBoard, type Assessment } from "@/data/chain"
 import { Dur, WindowMeter } from "@/components/ui/meter"
 import { Button, FlagPill, LinkButton, Skeleton, VenueLogo, flagSurface } from "@/components/ui/kit"
@@ -25,9 +25,9 @@ export function MonitorVenue() {
   const vault = VAULTS.find((v) => v.monitorId === id)
 
   const facts: [string, string | undefined][] = [
-    ["Program", venue.program],
-    ["Upgrade authority", venue.authority],
-    ["Multisig", venue.multisig],
+    ["Program address", venue.program],
+    ["Who can upgrade it", venue.authority],
+    ["Multisig address", venue.multisig],
   ]
 
   return (
@@ -38,16 +38,16 @@ export function MonitorVenue() {
           <VenueLogo src={venue.logo} name={venue.name} className="size-14 rounded-2xl" />
           <div>
           <h1 className="tracking-display text-4xl font-medium md:text-5xl">{venue.name}</h1>
-          <div className="mt-2 text-sm text-ink-3">{venue.kind} · {ADMIN_LABEL[venue.admin]} · {r?.live && readAt ? `read from mainnet ${ago(readAt)}` : r ? "snapshot" : "reading…"}</div>
+          <div className="mt-2 text-sm text-ink-3">{venue.kind} · {ADMIN_LABEL[venue.admin]} · {r?.live && readAt ? `updated ${ago(readAt)}` : r ? `as of ${MEASURED_ON}` : "reading…"}</div>
           </div>
         </div>
         {r ? <FlagPill flag={r.assessment} size="md" /> : <Skeleton className="h-8 w-28 rounded-full" />}
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <StatTile label="Exit window" value={r ? <Dur text={r.exitWindowSecs === undefined ? "—" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)} /> : null} sub="Time left to act after a change is approved" />
-        <StatTile label="Admin delay" value={r ? <Dur text={r.timeLockSecs !== undefined ? duration(r.timeLockSecs) : venue.admin === "squads-v3" ? "None" : "—"} /> : null} sub="Timelock on approved changes" />
-        <StatTile label="Signers" value={r ? (r.threshold ? `${r.threshold} of ${r.members}` : "—") : null} sub={r?.txIndex !== undefined ? `${r.txIndex} multisig transactions so far` : "Approvals needed"} />
+        <StatTile label="Time to exit" value={r ? <Dur text={r.exitWindowSecs === undefined ? "—" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)} /> : null} sub="Change delay minus 30m to withdraw" />
+        <StatTile label="Change delay" value={r ? <Dur text={r.timeLockSecs !== undefined ? duration(r.timeLockSecs) : venue.admin === "squads-v3" ? "None" : "—"} /> : null} sub="How long an approved change waits" />
+        <StatTile label="Approvals needed" value={r ? (r.threshold ? `${r.threshold} of ${r.members}` : "—") : null} unit={r?.threshold ? "signers" : undefined} sub={r?.txIndex !== undefined ? `${r.txIndex} proposals so far` : undefined} />
       </div>
 
       <section className="card mt-6 p-6">
@@ -62,7 +62,7 @@ export function MonitorVenue() {
         <section className="card mt-6 p-0">
           <div className="flex items-center justify-between border-b border-line px-5 py-4">
             <h2 className="font-semibold">Approved upgrades waiting to execute</h2>
-            <span className="text-xs text-ink-3">Squads proposals that would replace the program</span>
+            <span className="text-xs text-ink-3">Approved changes to the program's code</span>
           </div>
           <ul className="divide-y divide-line text-sm">
             {r.pendingUpgrades.map((p) => {
@@ -86,24 +86,24 @@ export function MonitorVenue() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="card p-0">
-          <div className="border-b border-line px-5 py-4 font-semibold">Signers</div>
+          <div className="border-b border-line px-5 py-4 font-semibold">Signers{r?.threshold ? <span className="font-normal text-ink-3"> · {r.threshold} must approve</span> : null}</div>
           {r?.memberKeys ? (
             <ul className="divide-y divide-line text-sm">
               {r.memberKeys.map((k, i) => (
                 <li key={k} className="flex items-center justify-between px-5 py-3">
-                  <span className="text-ink-3">Member {i + 1}</span>
+                  <span className="text-ink-3">Signer {i + 1}</span>
                   <a href={explorer(k)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-mono text-xs hover:underline">{short(k, 6)}<Svg className="size-3 text-ink-3">{Icon.ext}</Svg></a>
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="px-5 py-8 text-sm text-ink-2">{rows ? "Signer list is read only for Squads v4 venues." : <Skeleton className="h-20 w-full" />}</div>
+            <div className="px-5 py-8 text-sm text-ink-2">{rows ? "Signers are listed for Squads multisigs only." : <Skeleton className="h-20 w-full" />}</div>
           )}
         </section>
 
         <div className="space-y-6">
           <section className="card p-0">
-            <div className="border-b border-line px-5 py-4 font-semibold">On chain</div>
+            <div className="border-b border-line px-5 py-4 font-semibold">Addresses</div>
             <dl className="divide-y divide-line text-sm">
               {facts.filter(([, v]) => v).map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between gap-3 px-5 py-3.5">
@@ -136,7 +136,7 @@ function WindowBar({ delay, flag }: { delay?: number; flag: Assessment }) {
       <WindowMeter delaySecs={delay} flag={flag} className="h-3 w-full" />
       <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-ink-2">
         <span className="flex items-center gap-1.5"><span className="h-3 w-0.5 rounded-full bg-ink" />You need {duration(ASSUMED_EXIT_SECS)} to withdraw</span>
-        <span>Admin delay: {delay === undefined ? "unknown" : delay ? duration(delay) : "none"}</span>
+        <span>{delay === undefined ? "Change delay unknown" : delay ? `Changes wait ${duration(delay)}` : "Changes land at once"}</span>
       </div>
     </div>
   )

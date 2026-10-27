@@ -48,9 +48,9 @@ export function Hero() {
 /** A still picture of the product: one vault, its checks, its state. */
 function HeroCard() {
   const checks: [string, boolean][] = [
-    ["Admin delay longer than your exit", true],
-    ["Signer set unchanged this week", true],
-    ["No pre-signed approvals waiting", false],
+    ["Changes wait longer than you need to exit", true],
+    ["Signers stayed the same this week", true],
+    ["No approvals signed in advance", false],
   ]
   return (
     <div className="card mx-auto w-full max-w-[440px] p-0">

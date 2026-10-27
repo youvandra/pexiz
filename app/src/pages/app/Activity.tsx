@@ -6,10 +6,10 @@ import { EventList } from "@/components/app/bits"
 
 const FILTERS: { id: string; label: string; kinds: EventKind[] | null }[] = [
   { id: "all", label: "All", kinds: null },
-  { id: "flag", label: "Flag changes", kinds: ["flag", "exit", "reenter"] },
+  { id: "flag", label: "Status changes", kinds: ["flag", "exit", "reenter"] },
   { id: "money", label: "Deposits & withdrawals", kinds: ["deposit", "withdraw"] },
   { id: "votes", label: "Votes", kinds: ["vote", "unvote"] },
-  { id: "checks", label: "Oracle checks", kinds: ["check"] },
+  { id: "checks", label: "Routine checks", kinds: ["check"] },
 ]
 
 export function Activity() {
@@ -19,7 +19,7 @@ export function Activity() {
   const shown = events && (kinds ? events.filter((e) => kinds.includes(e.kind)) : events)
   return (
     <div>
-      <PageHead title="Activity" sub="Every flag change, exit and deposit on the canary vault." />
+      <PageHead title="Activity" sub="Every status change, exit and deposit on the canary vault." />
       <div className="mb-4 flex flex-wrap gap-1.5">
         {FILTERS.map((x) => (
           <button key={x.id} onClick={() => setF(x.id)} className={cn("h-9 rounded-full border px-3.5 text-sm font-medium transition-colors", f === x.id ? "border-ink bg-ink text-cream" : "border-line bg-paper text-ink-2 hover:text-ink")}>

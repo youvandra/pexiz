@@ -12,10 +12,10 @@ import { ActionPanel } from "@/components/app/ActionPanel"
 import { Dur } from "@/components/ui/meter"
 
 const STATE = {
-  green: { tone: "bg-safe-soft", title: "Holding Canary LP", body: "The protocol reads Safe. Deposits are open, and the vault earns what the LP earns." },
+  green: { tone: "bg-safe-soft", title: "All clear", body: "Deposits are open. The vault holds Canary LP and earns what LPs earn." },
   amber: { tone: "bg-warn-soft", title: "Warning open", body: "Your position stays in the LP while the warning holds. If it is still open after 48 hours, the vault leaves for USDC." },
-  red: { tone: "bg-danger-soft", title: "Leaving now", body: "The next crank update exits the vault to USDC in the same transaction." },
-  exited: { tone: "bg-danger-soft", title: "Exited to USDC", body: "The vault sold its LP when the flag turned red. Withdraw your USDC, or vote to re-enter once the protocol reads Safe again." },
+  red: { tone: "bg-danger-soft", title: "Leaving now", body: "The next update moves the vault to USDC in the same transaction." },
+  exited: { tone: "bg-danger-soft", title: "Moved to USDC", body: "The vault sold its LP when the status turned to Get out. Withdraw your USDC, or vote to go back in once it reads Safe again." },
 }
 
 export function VaultDetail() {
@@ -60,28 +60,28 @@ function Canary() {
           ) : <Skeleton className="h-24 w-full rounded-[var(--radius-card)]" />}
 
           <div className="grid grid-cols-2 gap-3 2xl:grid-cols-4">
-            <StatTile label="TVL" value={data ? money(data.nav, 0) : null} />
-            <StatTile label="Share price" value={data ? `$${data.pricePerShare.toFixed(3)}` : null} />
-            <StatTile label="Exits so far" value={data ? String(data.vault.exits) : null} />
-            <StatTile label="Room left" value={data ? money(AUM_CAP - data.nav, 0) : null} sub="of a $10M cap" />
+            <StatTile label="Total deposited" value={data ? money(data.nav, 0) : null} />
+            <StatTile label="Value of one share" value={data ? `$${data.pricePerShare.toFixed(3)}` : null} />
+            <StatTile label="Times it has exited" value={data ? (data.vault.exits ? String(data.vault.exits) : "Never") : null} />
+            <StatTile label="Space before the cap" value={data ? money(AUM_CAP - data.nav, 0) : null} sub="The cap is $10M" />
           </div>
 
           <section className="card p-0">
             <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <h2 className="font-semibold">What the oracle checks</h2>
-              <span className="text-xs text-ink-3">Recomputed on chain each update</span>
+              <h2 className="font-semibold">What Pexiz checks</h2>
+              <span className="text-xs text-ink-3">Checked on chain at every update</span>
             </div>
             <div className="px-5"><Conditions reasons={v?.reasons} /></div>
           </section>
 
           <section className="card p-0">
-            <div className="border-b border-line px-5 py-4 font-semibold">Protocol under watch</div>
+            <div className="border-b border-line px-5 py-4 font-semibold">Who controls this protocol</div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 text-sm md:grid-cols-4">
               {[
-                ["Signers", v ? `${v.threshold} of ${v.members.length}` : null],
-                ["Admin delay", v ? duration(v.timeLockSecs) : null],
-                ["Exit window", v ? (v.exitWindowSecs > 0 ? duration(v.exitWindowSecs) : "None") : null],
-                ["Pre-signing accounts", v ? String(v.presigners.length) : null],
+                ["Approvals needed", v ? `${v.threshold} of ${v.members.length} signers` : null],
+                ["Change delay", v ? duration(v.timeLockSecs) : null],
+                ["Time to exit", v ? (v.exitWindowSecs > 0 ? duration(v.exitWindowSecs) : "None") : null],
+                ["Approvals signed in advance", v ? (v.presigners.length ? `${v.presigners.length} found` : "None") : null],
               ].map(([k, val]) => (
                 <div key={k}>
                   <dt className="text-ink-3">{k}</dt>
@@ -93,10 +93,10 @@ function Canary() {
 
           <section className="card p-0">
             <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <h2 className="font-semibold">Flag history</h2>
+              <h2 className="font-semibold">Status history</h2>
               <Link href="/activity" className="text-sm text-ink-2 underline decoration-line-2 underline-offset-4 hover:text-ink">All activity</Link>
             </div>
-            <EventList events={flagEvents?.slice(0, 6) ?? null} empty="No flag changes yet." />
+            <EventList events={flagEvents?.slice(0, 6) ?? null} empty="The status has not changed yet." />
           </section>
 
           <section className="card p-0">
@@ -105,12 +105,12 @@ function Canary() {
           </section>
 
           <section className="card p-0">
-            <div className="border-b border-line px-5 py-4 font-semibold">Contracts</div>
+            <div className="border-b border-line px-5 py-4 font-semibold">Addresses</div>
             <dl className="divide-y divide-line text-sm">
               {([
-                ["Escape vault", canary.vault.toBase58()],
-                ["Oracle venue", DEVNET.venue],
-                ["Squads multisig", DEVNET.multisig],
+                ["This vault", canary.vault.toBase58()],
+                ["Its status account", DEVNET.venue],
+                ["Protocol multisig", DEVNET.multisig],
                 ["Vault program", DEVNET.vault],
                 ["Oracle program", DEVNET.oracle],
               ] as const).map(([k, a]) => (
