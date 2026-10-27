@@ -11,7 +11,7 @@ import { Reveal } from "@/components/ui/reveal"
 
 function SectionHead({ kicker, title, body, id }: { kicker: string; title: string; body?: string; id?: string }) {
   return (
-    <Reveal className="max-w-3xl">
+    <Reveal again className="max-w-3xl">
       <div id={id} className="scroll-mt-24">
         <div className="text-sm font-semibold text-ink-3">{kicker}</div>
         <h2 className="tracking-display mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">{title}</h2>

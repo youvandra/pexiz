@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn"
 
 const FAILSAFE_MS = 1500
 
-function useReveal<T extends HTMLElement>() {
+function useReveal<T extends HTMLElement>(again: boolean) {
   const ref = useRef<T>(null)
   const [shown, setShown] = useState(false)
   const [armed, setArmed] = useState(false)
@@ -22,23 +22,39 @@ function useReveal<T extends HTMLElement>() {
     // Already on screen at first paint: show it, with the transition armed so
     // it fades in rather than appearing.
     setArmed(true)
+    let failsafe: ReturnType<typeof setTimeout> | undefined
     const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && (setShown(true), io.disconnect())),
+      (entries) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            setShown(true)
+            if (failsafe) clearTimeout(failsafe)
+            if (!again) io.disconnect()
+            // Once it has been seen, it never hides again on its own: a
+            // failsafe that fires later must not blank what is on screen.
+            return
+          }
+          // Out of view and on its way back: let it fade so the next pass in
+          // is a fresh entrance. Only when it has left the screen entirely.
+          if (again) setShown(false)
+        }),
       { rootMargin: "0px 0px -8% 0px", threshold: 0.01 },
     )
     io.observe(el)
-    const t = setTimeout(() => (setShown(true), io.disconnect()), FAILSAFE_MS)
-    return () => (clearTimeout(t), io.disconnect())
-  }, [])
+    failsafe = setTimeout(() => (setShown(true), again || io.disconnect()), FAILSAFE_MS)
+    return () => (failsafe && clearTimeout(failsafe), io.disconnect())
+  }, [again])
   return { ref, hidden: armed && !shown, shown: !armed || shown }
 }
 
 /**
- * Fades its children up into place the first time they come into view.
- * `delay` staggers a row of cards; keep it under a third of a second.
+ * Fades its children up into place as they come into view. `delay` staggers a
+ * row of cards; keep it under a third of a second. With `again`, the fade runs
+ * both ways: it plays out as the element leaves the screen and in again on the
+ * way back, which suits a whole section but would make a row of cards flicker.
  */
-export function Reveal({ children, className, delay = 0, as: As = "div" }: { children: ReactNode; className?: string; delay?: number; as?: "div" | "li" | "section" }) {
-  const { ref, hidden } = useReveal<HTMLDivElement>()
+export function Reveal({ children, className, delay = 0, again = false, as: As = "div" }: { children: ReactNode; className?: string; delay?: number; again?: boolean; as?: "div" | "li" | "section" }) {
+  const { ref, hidden } = useReveal<HTMLDivElement>(again)
   return (
     <As
       ref={ref as never}
@@ -55,6 +71,6 @@ export function Reveal({ children, className, delay = 0, as: As = "div" }: { chi
  * a bar that grows, a line that is drawn.
  */
 export function useInView<T extends HTMLElement>() {
-  const { ref, shown } = useReveal<T>()
+  const { ref, shown } = useReveal<T>(false)
   return [ref, shown] as const
 }

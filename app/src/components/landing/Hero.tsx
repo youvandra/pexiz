@@ -1,17 +1,17 @@
 import { cn } from "@/lib/cn"
 import { Link } from "wouter"
 import { VENUES } from "@/data/facts"
-import { FlagPill } from "@/components/ui/kit"
 import { Icon, Svg } from "@/components/ui/icons"
+import { Console } from "@/components/landing/Console"
 import { Reveal } from "@/components/ui/reveal"
 
 export function Hero() {
   return (
     <section
-      className="hero-screen relative -mt-16 overflow-hidden pt-16"
+      className="hero-screen relative -mt-16 overflow-hidden pt-16 [--hero-gutter:3rem]"
       style={{ background: "radial-gradient(80% 70% at 85% 0%, #e3f1e4 0%, transparent 60%), radial-gradient(70% 60% at 0% 100%, #f8ecc4 0%, transparent 60%), var(--cream)" }}
     >
-      <div className="mx-auto grid w-full max-w-[1180px] gap-14 px-5 py-16 md:px-8 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:py-20">
+      <div className="mx-auto grid w-full max-w-[1180px] items-center gap-14 px-5 py-16 md:px-8 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-10 lg:py-20">
         <Reveal>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-medium text-ink-2">
             <img src="/logos/solana.svg" alt="" className="size-3.5" />
@@ -33,8 +33,10 @@ export function Hero() {
             </a>
           </div>
         </Reveal>
-        <Reveal delay={120}>
-          <HeroCard />
+        <Reveal delay={120} className="lg:relative lg:h-[540px]">
+          {/* Off the right edge, so the product reads as a room you are
+              looking into rather than a card on a page. */}
+          <Console className="w-full shadow-[0_24px_60px_-28px_rgba(13,13,12,0.28)] lg:absolute lg:left-0 lg:top-0 lg:w-[min(52rem,calc(100vw-var(--hero-gutter)))]" />
         </Reveal>
       </div>
 
@@ -52,7 +54,7 @@ export function Protocols() {
   return (
     <section id="protocols" className="scroll-mt-16 border-y border-line bg-paper/70">
       <div className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
-        <Reveal className="mx-auto max-w-2xl text-center">
+        <Reveal again className="mx-auto max-w-2xl text-center">
           <div className="text-sm font-semibold text-ink-3">Protocols we watch</div>
           <h2 className="tracking-display mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">Is your protocol on the list?</h2>
           <p className="mt-5 text-lg leading-relaxed text-ink-2 md:text-xl">
@@ -91,44 +93,6 @@ export function Protocols() {
         </ul>
       </div>
     </section>
-  )
-}
-
-/** A still picture of the product, on the protocol most people hold: Jupiter. */
-function HeroCard() {
-  const checks: [string, boolean][] = [
-    ["Changes wait longer than you need to exit", true],
-    ["Signers stayed the same this week", true],
-    ["No approvals signed in advance", false],
-  ]
-  return (
-    <div className="card mx-auto w-full max-w-[500px] p-0">
-      <div className="flex items-center justify-between border-b border-line px-6 py-5">
-        <div className="flex items-center gap-3">
-          <img src="/logos/jupiter.svg" alt="" className="size-11 rounded-xl object-contain" />
-          <div>
-            <div className="text-lg font-semibold">Jupiter Perps vault</div>
-            <div className="text-sm text-ink-3">Example of a warning</div>
-          </div>
-        </div>
-        <FlagPill flag="amber" />
-      </div>
-      <div className="p-6 md:p-7">
-        <div className="text-xs uppercase tracking-[0.08em] text-ink-3">Your position</div>
-        <div className="tabular tracking-display mt-2 text-5xl font-medium">$12,480.00</div>
-        <ul className="mt-7 space-y-3.5">
-          {checks.map(([t, ok]) => (
-            <li key={t} className="flex items-center gap-3">
-              <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold", ok ? "bg-safe-soft text-safe" : "bg-warn-soft text-warn")}>{ok ? "✓" : "!"}</span>
-              <span className={ok ? "text-ink-2" : "font-medium"}>{t}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-7 rounded-xl bg-sand/70 px-5 py-4 text-ink-2">
-          Deposits paused. If this isn't fixed in 48 hours, the vault moves to USDC.
-        </div>
-      </div>
-    </div>
   )
 }
 
