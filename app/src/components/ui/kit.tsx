@@ -90,15 +90,6 @@ export function Eyebrow({ n, children, className }: { n?: string; children: Reac
 }
 
 /** Two-tone display heading: ink first line, muted second line. */
-export function Display({ top, bottom, className, as: Tag = "h2" }: { top: ReactNode; bottom?: ReactNode; className?: string; as?: "h1" | "h2" }) {
-  return (
-    <Tag className={cn("tracking-display font-medium leading-[0.92]", className)}>
-      <span className="block">{top}</span>
-      {bottom && <span className="block text-ink-3">{bottom}</span>}
-    </Tag>
-  )
-}
-
 export function Skeleton({ className }: { className?: string }) {
   return <span className={cn("block animate-pulse rounded-md bg-sand", className)} />
 }

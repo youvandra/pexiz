@@ -1,5 +1,5 @@
-import { Nav } from "@/components/landing/Nav"
-import { Display, FlagPill } from "@/components/ui/kit"
+import { PageHead, Shell } from "@/components/landing/Shell"
+import { FlagPill } from "@/components/ui/kit"
 import { ASSUMED_EXIT_SECS, DEVNET, MEASURED_ON, explorer } from "@/data/facts"
 import { duration, short } from "@/lib/format"
 
@@ -51,52 +51,66 @@ const ADDRESSES = [
   ["Test vault", DEVNET.escapeVault],
 ] as const
 
+const TOC = [...SECTIONS.map((s) => [s.id, s.title]), ["status", "Status rules"], ["addresses", "Addresses"]]
+
+function H2({ children }: { children: string }) {
+  return <h2 className="text-2xl font-semibold tracking-tight md:text-[1.75rem]">{children}</h2>
+}
+
 export function Docs() {
   return (
-    <div className="min-h-screen">
-      <Nav />
-      <main className="page grid gap-14 px-5 pb-28 pt-14 md:px-8 lg:grid-cols-[220px_1fr]">
-        <aside className="hidden lg:block">
-          <nav className="sticky top-24 space-y-2 text-sm text-ink-2">
-            {[...SECTIONS.map((s) => [s.id, s.title]), ["status", "Status rules"], ["addresses", "Addresses"]].map(([id, t]) => (
-              <a key={id} href={`#${id}`} className="block hover:text-ink">{t}</a>
+    <Shell>
+      <div className="page px-5 pb-24 pt-12 md:px-8 md:pb-32 md:pt-20">
+        <PageHead
+          kicker="Docs"
+          title="How Pexiz reads a protocol."
+          body="The rules the oracle follows, what the vault does with them, and where the test deployment lives."
+        />
+        <div className="mt-12 grid gap-14 border-t border-line pt-4 md:mt-16 lg:grid-cols-[13rem_minmax(0,1fr)]">
+          <aside className="hidden lg:block">
+            <nav className="sticky top-24 pt-6">
+              <div className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-3">On this page</div>
+              <div className="mt-4 space-y-2.5 text-sm text-ink-2">
+                {TOC.map(([id, t]) => (
+                  <a key={id} href={`#${id}`} className="block transition-colors hover:text-ink">{t}</a>
+                ))}
+              </div>
+            </nav>
+          </aside>
+          <div className="min-w-0 max-w-3xl">
+            {SECTIONS.map((s) => (
+              <section key={s.id} id={s.id} className="scroll-mt-24 border-b border-line py-10">
+                <H2>{s.title}</H2>
+                <p className="mt-4 leading-relaxed text-ink-2 md:text-lg">{s.body}</p>
+              </section>
             ))}
-          </nav>
-        </aside>
-        <div className="min-w-0 max-w-2xl">
-          <Display as="h1" top="How Pexiz" bottom="reads a protocol." className="text-5xl md:text-6xl" />
-          {SECTIONS.map((s) => (
-            <section key={s.id} id={s.id} className="scroll-mt-24 border-b border-line py-10">
-              <h2 className="text-2xl font-semibold tracking-tight">{s.title}</h2>
-              <p className="mt-3 leading-relaxed text-ink-2">{s.body}</p>
+            <section id="status" className="scroll-mt-24 border-b border-line py-10">
+              <H2>Status rules</H2>
+              <div className="mt-6 space-y-3">
+                {RULES.map(([f, t]) => (
+                  <div key={f} className="card flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:gap-5">
+                    <FlagPill flag={f} className="w-fit sm:mt-0.5" />
+                    <span className="leading-relaxed text-ink-2">{t}</span>
+                  </div>
+                ))}
+              </div>
             </section>
-          ))}
-          <section id="status" className="scroll-mt-24 border-b border-line py-10">
-            <h2 className="text-2xl font-semibold tracking-tight">Status rules</h2>
-            <div className="mt-5 space-y-3">
-              {RULES.map(([f, t]) => (
-                <div key={f} className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:gap-4">
-                  <FlagPill flag={f} className="w-fit sm:mt-0.5" />
-                  <span className="text-ink-2">{t}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-          <section id="addresses" className="scroll-mt-24 py-10">
-            <h2 className="text-2xl font-semibold tracking-tight">Addresses</h2>
-            <p className="mt-2 text-sm text-ink-2">The test deployment on Solana devnet.</p>
-            <dl className="mt-5 divide-y divide-line text-sm">
-              {ADDRESSES.map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-4 py-3">
-                  <dt className="text-ink-2">{k}</dt>
-                  <dd><a className="font-mono text-xs underline decoration-line-2 underline-offset-4" target="_blank" rel="noreferrer" href={explorer(v, "devnet")} title={v}>{short(v, 8)}</a></dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-6 text-xs text-ink-3">Mainnet figures measured {MEASURED_ON}.</p>
-          </section>
+            <section id="addresses" className="scroll-mt-24 py-10">
+              <H2>Addresses</H2>
+              <p className="mt-3 text-ink-2">The test deployment on Solana devnet.</p>
+              <dl className="card mt-6 divide-y divide-line p-0 text-sm">
+                {ADDRESSES.map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between gap-4 px-5 py-3.5">
+                    <dt className="text-ink-2">{k}</dt>
+                    <dd><a className="font-mono text-xs underline decoration-line-2 underline-offset-4 hover:decoration-ink" target="_blank" rel="noreferrer" href={explorer(v, "devnet")} title={v}>{short(v, 8)}</a></dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-6 text-xs text-ink-3">Mainnet figures measured {MEASURED_ON}.</p>
+            </section>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </Shell>
   )
 }

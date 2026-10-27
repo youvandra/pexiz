@@ -2,8 +2,8 @@ import { useEffect, useState } from "react"
 import { cn } from "@/lib/cn"
 import { Button, FlagPill, flagColor } from "@/components/ui/kit"
 import type { Assessment } from "@/data/chain"
-import { Nav } from "@/components/landing/Nav"
-import { Display, LinkButton } from "@/components/ui/kit"
+import { PageHead, Shell } from "@/components/landing/Shell"
+import { LinkButton } from "@/components/ui/kit"
 import { Icon, Svg } from "@/components/ui/icons"
 
 interface Step {
@@ -42,25 +42,22 @@ export function Replay() {
   const s = STEPS[i]
 
   return (
-    <div className="min-h-screen">
-      <Nav />
-      <main className="mx-auto max-w-[1100px] px-5 pb-24 pt-10 md:px-8 md:pt-16">
-      <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <Display as="h1" top="Nine days of warning." bottom="Replayed with Pexiz." className="text-5xl md:text-7xl" />
-          <p className="mt-5 max-w-xl text-ink-2">The March–April 2026 admin takeover, step by step: what was on chain, what the Pexiz oracle would read, and where an LP ends up with and without the vault.</p>
+    <Shell>
+      <div className="page px-5 pb-24 pt-12 md:px-8 md:pb-32 md:pt-20">
+      <PageHead
+        kicker="April 2026"
+        title="Nine days of warning, replayed with Pexiz."
+        body="The March to April 2026 admin takeover, step by step: what was on chain, what the Pexiz oracle would read, and where an LP ends up with and without the vault."
+      >
+        <div className="mt-8 flex gap-3">
+          <Button className="h-12 rounded-full px-6" onClick={() => { if (i >= STEPS.length - 1) setI(0); setPlaying((p) => !p) }}>{playing ? "Pause" : "Play the replay"}</Button>
+          <Button variant="line" className="h-12 rounded-full px-5" onClick={() => { setI(0); setPlaying(false) }}><Svg>{Icon.undo}</Svg>Reset</Button>
         </div>
-        {
-          <div className="flex gap-2">
-            <Button variant="line" className="h-10" onClick={() => { setI(0); setPlaying(false) }}><Svg>{Icon.undo}</Svg>Reset</Button>
-            <Button className="h-10" onClick={() => { if (i >= STEPS.length - 1) setI(0); setPlaying((p) => !p) }}>{playing ? "Pause" : "Play"}</Button>
-          </div>
-        }
-      </div>
+      </PageHead>
 
-      <div className="card p-5 md:p-7">
+      <div className="card mt-12 p-5 md:mt-16 md:p-7">
         <div className="relative pt-2">
-          <div className="absolute left-0 right-0 top-[1.15rem] h-1 rounded-full bg-sand" />
+          <div className="absolute left-[8.33%] right-[8.33%] top-[1.375rem] h-1 rounded-full bg-sand" />
           <ol className="relative grid" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0,1fr))` }}>
             {STEPS.map((x, k) => (
               <li key={x.at} className="flex flex-col items-center text-center">
@@ -72,10 +69,15 @@ export function Replay() {
                 >
                   <span className="size-2 rounded-full bg-paper" />
                 </button>
-                <span className={cn("tabular mt-2 text-xs", k === i ? "font-semibold text-ink" : "text-ink-3")}>{x.at}</span>
+                <span className={cn("tabular mt-2 hidden text-xs sm:block", k === i ? "font-semibold text-ink" : "text-ink-3")}>{x.at}</span>
               </li>
             ))}
           </ol>
+          {/* A phone has no room for six dates under six dots: name the one in view. */}
+          <div className="mt-4 text-center text-sm sm:hidden">
+            <span className="font-semibold">{s.at}</span>
+            <span className="text-ink-3"> · step {i + 1} of {STEPS.length}</span>
+          </div>
         </div>
       </div>
 
@@ -98,19 +100,19 @@ export function Replay() {
         <div className="card p-6" style={{ background: i >= 4 ? "var(--danger-soft)" : undefined }}>
           <div className="text-xs uppercase tracking-[0.08em] text-ink-3">An LP who waits</div>
           <div key={s.holder} className="mt-2 text-xl font-semibold tracking-tight">{s.holder}</div>
-          <div className={cn("mt-6 tabular tracking-display text-5xl font-medium", i >= 5 ? "text-danger" : "")}>{i >= 5 ? "SOL 0" : i >= 4 ? "Racing" : "—"}</div>
+          <div className={cn("mt-6 tabular tracking-display text-5xl font-medium", i >= 5 ? "text-danger" : "")}>{i >= 5 ? "SOL 0" : i >= 4 ? "Racing" : "Still in"}</div>
           <div className="text-sm text-ink-2">{i >= 5 ? "left in the pool's SOL custody" : "no alert, no exit"}</div>
         </div>
       </div>
       <p className="mt-4 text-xs text-ink-3">Dates and parameters from the April 2026 takeover. Flag and vault states follow the rules the deployed programs enforce.</p>
-      <div className="card mt-12 flex flex-wrap items-center justify-between gap-4 p-6 md:p-8">
+      <div className="card mt-12 flex flex-col items-start justify-between gap-5 p-6 sm:flex-row sm:items-center md:p-8">
         <div>
           <div className="text-2xl font-semibold tracking-tight">Run the same rules on a live vault</div>
           <p className="mt-1 text-ink-2">The test vault is watched by the deployed oracle.</p>
         </div>
-        <LinkButton href="/app/vault/canary"><Svg>{Icon.vault}</Svg>Open the test vault</LinkButton>
+        <LinkButton href="/app/vault/canary" className="h-12 rounded-full px-5"><Svg>{Icon.vault}</Svg>Open the test vault</LinkButton>
       </div>
-      </main>
-    </div>
+      </div>
+    </Shell>
   )
 }
