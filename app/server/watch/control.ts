@@ -3,6 +3,7 @@
 // DAO, or a PDA of some program, in which case whoever can upgrade that
 // program is the real control. Read on demand, one level deep.
 import { Connection, PublicKey, type AccountInfo } from "@solana/web3.js"
+import { VENUES } from "../../src/data/facts"
 import { MULTISIG_DISCRIMINATOR, SQUADS_V4_ID, decodeMultisig, decodeUpgradeAuthority, vaultPda, type Multisig } from "@pexiz/sdk/src/squads"
 
 export const LOADER_UPGRADEABLE = "BPFLoaderUpgradeab1e11111111111111111111111"
@@ -67,32 +68,6 @@ export class CheckError extends Error {
   }
 }
 
-/**
- * The Squads multisig whose vault is `authority`, found in the vault's recent
- * transactions, where it always appears beside it. Null when none names one.
- */
-export async function findMultisig(conn: Connection, authority: PublicKey, maxTx = 12): Promise<{ multisig: PublicKey; version: 3 | 4 } | null> {
-  const sigs = await conn.getSignaturesForAddress(authority, { limit: 40 })
-  const seen = new Set<string>([authority.toBase58()])
-  for (const s of sigs.filter((x) => !x.err).slice(0, maxTx)) {
-    const tx = await readTx(conn, s.signature)
-    if (!tx) continue
-    const keys = accountKeys(tx).filter((k) => !seen.has(k.toBase58()))
-    if (!keys.length) continue
-    keys.forEach((k) => seen.add(k.toBase58()))
-    const infos = await conn.getMultipleAccountsInfo(keys, { dataSlice: { offset: 0, length: 8 } })
-    for (let i = 0; i < keys.length; i++) {
-      const info = infos[i]
-      if (!info) continue
-      if (info.owner.equals(SQUADS_V4_ID) && Buffer.from(info.data).equals(MULTISIG_DISCRIMINATOR)) {
-        for (let v = 0; v < 16; v++) if (vaultPda(keys[i], v)[0].equals(authority)) return { multisig: keys[i], version: 4 }
-      }
-      if (info.owner.toBase58() === SQUADS_V3) return { multisig: keys[i], version: 3 }
-    }
-  }
-  return null
-}
-
 type Tx = NonNullable<Awaited<ReturnType<Connection["getTransaction"]>>>
 
 /**
@@ -101,11 +76,15 @@ type Tx = NonNullable<Awaited<ReturnType<Connection["getTransaction"]>>>
  * transaction must not stop the trace.
  */
 async function readTx(conn: Connection, signature: string): Promise<Tx | null> {
-  try {
-    return await conn.getTransaction(signature, { maxSupportedTransactionVersion: 0 })
-  } catch {
-    return null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await conn.getTransaction(signature, { maxSupportedTransactionVersion: 0 })
+    } catch (e) {
+      if (/version/i.test((e as Error).message)) return null
+      await new Promise((r) => setTimeout(r, 1_000))
+    }
   }
+  return null
 }
 
 function accountKeys(tx: Tx): PublicKey[] {
@@ -116,30 +95,57 @@ function accountKeys(tx: Tx): PublicKey[] {
   ]
 }
 
+export interface Trace {
+  /** The Squads multisig whose vault the key is. */
+  multisig: { address: PublicKey; version: 3 | 4 } | null
+  /** The program that uses the key, when it is that program's PDA. */
+  program: PublicKey | null
+}
+
 /**
- * The program a PDA belongs to, read from its recent transactions: the
- * program whose instruction, directly or through its inner calls, passes the
- * PDA. Only programs that are not infrastructure count.
+ * Who a PDA belongs to, from one pass over its recent transactions, a few at
+ * a time. A Squads vault always appears beside its multisig, and is proven
+ * by deriving it back. Otherwise the program whose instruction, directly or
+ * through its inner calls, passes the key is taken as its owner; only
+ * programs that are not infrastructure count.
  */
-export async function findOwnerProgram(conn: Connection, pda: PublicKey, maxTx = 6): Promise<PublicKey | null> {
-  const sigs = await conn.getSignaturesForAddress(pda, { limit: 20 })
+export async function traceKey(conn: Connection, key: PublicKey, maxTx = 20): Promise<Trace> {
+  const sigs = (await conn.getSignaturesForAddress(key, { limit: 40 })).filter((x) => !x.err).slice(0, maxTx)
   const votes = new Map<string, number>()
-  for (const s of sigs.filter((x) => !x.err).slice(0, maxTx)) {
-    const tx = await readTx(conn, s.signature)
-    if (!tx) continue
-    const keys = accountKeys(tx)
-    const at = keys.findIndex((k) => k.equals(pda))
-    if (at < 0) continue
-    const top = tx.transaction.message.compiledInstructions
-    const inner = new Map((tx.meta?.innerInstructions ?? []).map((g) => [g.index, g.instructions]))
-    top.forEach((ix, i) => {
-      const uses = ix.accountKeyIndexes.includes(at) || (inner.get(i) ?? []).some((x) => x.accounts.includes(at))
-      const program = keys[ix.programIdIndex]?.toBase58()
-      if (uses && program && !INFRA.has(program)) votes.set(program, (votes.get(program) ?? 0) + 1)
-    })
+  const seen = new Set<string>([key.toBase58()])
+  let multisig: Trace["multisig"] = null
+
+  // Three transactions at a time, stopping as soon as the multisig is proven:
+  // the public RPC refuses bursts, and most vaults show it in the first few.
+  for (let i = 0; i < sigs.length && !multisig; i += 3) {
+    const txs = (await Promise.all(sigs.slice(i, i + 3).map((s) => readTx(conn, s.signature)))).filter((t): t is Tx => !!t)
+    const fresh: PublicKey[] = []
+    for (const tx of txs) {
+      const keys = accountKeys(tx)
+      for (const k of keys) if (!seen.has(k.toBase58())) { seen.add(k.toBase58()); fresh.push(k) }
+      const at = keys.findIndex((k) => k.equals(key))
+      if (at < 0) continue
+      const inner = new Map((tx.meta?.innerInstructions ?? []).map((g) => [g.index, g.instructions]))
+      tx.transaction.message.compiledInstructions.forEach((ix, j) => {
+        const uses = ix.accountKeyIndexes.includes(at) || (inner.get(j) ?? []).some((x) => x.accounts.includes(at))
+        const program = keys[ix.programIdIndex]?.toBase58()
+        if (uses && program && !INFRA.has(program)) votes.set(program, (votes.get(program) ?? 0) + 1)
+      })
+    }
+    for (let c = 0; c < fresh.length && !multisig; c += 100) {
+      const chunk = fresh.slice(c, c + 100)
+      const infos = await conn.getMultipleAccountsInfo(chunk, { dataSlice: { offset: 0, length: 8 } })
+      chunk.forEach((k, j) => {
+        const info = infos[j]
+        if (!info || multisig) return
+        if (info.owner.equals(SQUADS_V4_ID) && Buffer.from(info.data).equals(MULTISIG_DISCRIMINATOR)) {
+          for (let v = 0; v < 16; v++) if (vaultPda(k, v)[0].equals(key)) multisig = { address: k, version: 4 }
+        } else if (info.owner.toBase58() === SQUADS_V3 && votes.has(SQUADS_V3)) multisig = { address: k, version: 3 }
+      })
+    }
   }
-  const best = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0]
-  return best ? new PublicKey(best) : null
+  const best = [...votes].filter(([p]) => p !== SQUADS_V3).sort((a, b) => b[1] - a[1])[0]?.[0]
+  return { multisig, program: best ? new PublicKey(best) : null }
 }
 
 async function squadsDetails(conn: Connection, multisig: PublicKey) {
@@ -149,8 +155,28 @@ async function squadsDetails(conn: Connection, multisig: PublicKey) {
   return { multisig: multisig.toBase58(), threshold: m.threshold, members: m.members.map((x) => x.key.toBase58()), timeLockSecs: m.timeLock, txIndex: Number(m.transactionIndex), m }
 }
 
+// Traces are slow on a public RPC and keys repeat across checks (one stake
+// pool program behind many staked-SOL tokens), so each is kept for a while.
+const TRACE_TTL_MS = 30 * 60_000
+const cache = new Map<string, { at: number; value: Promise<unknown> }>()
+
+function cached<T>(id: string, make: () => Promise<T>): Promise<T> {
+  const hit = cache.get(id)
+  if (hit && Date.now() - hit.at < TRACE_TTL_MS) return hit.value as Promise<T>
+  const value = make()
+  cache.set(id, { at: Date.now(), value })
+  // A failed read is not kept: the next check tries again.
+  value.catch(() => cache.delete(id))
+  if (cache.size > 2_000) cache.delete(cache.keys().next().value!)
+  return value
+}
+
 /** Who can change a program's code. */
-export async function programControl(conn: Connection, program: PublicKey): Promise<ProgramControl> {
+export function programControl(conn: Connection, program: PublicKey): Promise<ProgramControl> {
+  return cached(`program:${program.toBase58()}`, () => readProgramControl(conn, program))
+}
+
+async function readProgramControl(conn: Connection, program: PublicKey): Promise<ProgramControl> {
   const id = program.toBase58()
   const acc = await conn.getAccountInfo(program, { dataSlice: { offset: 0, length: 36 } })
   if (!acc) throw new CheckError("No account at that address on mainnet.", 404)
@@ -176,23 +202,36 @@ export async function programControl(conn: Connection, program: PublicKey): Prom
  * Who stands behind a key. With `followPrograms`, a PDA is traced to its
  * program and that program's own upgrade control; without, it stops there.
  */
-export async function keyControl(conn: Connection, key: PublicKey, opts: { followPrograms?: boolean } = {}): Promise<KeyControl> {
+export function keyControl(conn: Connection, key: PublicKey, opts: { followPrograms?: boolean } = {}): Promise<KeyControl> {
+  return cached(`key:${key.toBase58()}:${opts.followPrograms ? 1 : 0}`, () => readKeyControl(conn, key, opts))
+}
+
+const SYSTEM = "11111111111111111111111111111111"
+
+async function readKeyControl(conn: Connection, key: PublicKey, opts: { followPrograms?: boolean }): Promise<KeyControl> {
   const id = key.toBase58()
+  // A key on the board needs no trace: its multisig is already on record.
+  const known = VENUES.find((v) => v.authority === id && v.multisig)
+  if (known) return { key: id, control: "squads-v4", ...(await squadsDetails(conn, new PublicKey(known.multisig!))) }
+
   const info: AccountInfo<Buffer> | null = await conn.getAccountInfo(key, { dataSlice: { offset: 0, length: 8 } })
   const owner = info?.owner.toBase58()
   if (owner && GOVERNANCE.has(owner)) return { key: id, control: "governance" }
   if (PublicKey.isOnCurve(key.toBytes())) return { key: id, control: "single-key" }
 
-  const found = await findMultisig(conn, key)
-  if (found?.version === 4) {
-    const d = await squadsDetails(conn, found.multisig)
-    return { key: id, control: "squads-v4", ...d }
+  // A PDA that holds data belongs to the program that owns it; only an empty
+  // one, like a Squads vault, has to be traced through its transactions.
+  const holdsData = owner && owner !== SYSTEM && !SQUADS_V4_ID.equals(new PublicKey(owner)) && owner !== SQUADS_V3
+  let prog: PublicKey | null = holdsData ? new PublicKey(owner) : null
+  if (!prog) {
+    const t = await traceKey(conn, key)
+    if (t.multisig?.version === 4) {
+      const d = await squadsDetails(conn, t.multisig.address)
+      return { key: id, control: "squads-v4", ...d }
+    }
+    if (t.multisig?.version === 3) return { key: id, control: "squads-v3", multisig: t.multisig.address.toBase58() }
+    prog = t.program
   }
-  if (found?.version === 3) return { key: id, control: "squads-v3", multisig: found.multisig.toBase58() }
-
-  // A PDA that holds data is owned by its program; one that holds none shows
-  // its program in the transactions that use it.
-  const prog = owner && owner !== "11111111111111111111111111111111" ? new PublicKey(owner) : await findOwnerProgram(conn, key)
   if (!prog) return { key: id, control: "unknown" }
   if (!opts.followPrograms) return { key: id, control: "program", program: { program: prog.toBase58(), control: "unknown", authority: null } }
   const program = await programControl(conn, prog).catch(() => null)

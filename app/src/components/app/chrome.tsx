@@ -57,6 +57,7 @@ export function Sidebar() {
       <div className="mt-auto">
         <div className="flex flex-col gap-0.5 px-1 text-sm">
           <Link href="~/docs" className="rounded-lg px-2 py-1.5 text-ink-2 hover:bg-sand hover:text-ink">Docs</Link>
+          <a href="/docs#api" className="rounded-lg px-2 py-1.5 text-ink-2 hover:bg-sand hover:text-ink">Feed API</a>
           <Link href="~/" className="rounded-lg px-2 py-1.5 text-ink-2 hover:bg-sand hover:text-ink">Back to site</Link>
         </div>
       </div>

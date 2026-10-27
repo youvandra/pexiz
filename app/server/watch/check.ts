@@ -46,7 +46,7 @@ export interface TokenPower {
   does: string
   /** True for the powers that can take value from holders. */
   severe: boolean
-  holder: Omit<KeyControl, "m" | "program"> & { program?: Public<ProgramControl> }
+  holder: Omit<KeyControl, "m" | "program"> & { program?: Public<ProgramControl>; label?: string }
   /** Seconds between approval and effect; 0 for one key, null when unknown. */
   waitSecs: number | null
 }
@@ -169,15 +169,17 @@ export async function checkToken(conn: Connection, mint: PublicKey, owner: strin
     if (!traced.has(k)) traced.set(k, keyControl(conn, new PublicKey(k), { followPrograms: true }))
     return traced.get(k)!
   }
+  const sorted = [...info.authorities].sort((x, y) => ORDER.indexOf(x.role) - ORDER.indexOf(y.role))
   const powers: TokenPower[] = []
-  for (const a of [...info.authorities].sort((x, y) => ORDER.indexOf(x.role) - ORDER.indexOf(y.role))) {
+  for (const a of sorted) {
     const k = await trace(a.key)
     const wait = waitOf(k)
-    const { m: _m, program, ...holder } = k
+    const { m: _m, program, ...rest } = k
+    const holder: TokenPower["holder"] = { ...rest, program: program ? strip(program) : undefined }
     powers.push({
       role: a.role,
       ...ROLES[a.role],
-      holder: { ...holder, program: program ? strip(program) : undefined },
+      holder: { ...holder, label: holderLabel(holder) },
       waitSecs: wait === undefined ? null : wait === Infinity ? null : wait,
     })
   }
@@ -243,6 +245,8 @@ export function holderLabel(h: TokenPower["holder"]): string {
       if (p.control === "single-key") return "its program, upgradable by one key"
       if (p.control === "squads-v3") return "its program, upgradable by an old multisig"
       if (p.control === "immutable") return "a program nobody can change"
+      if (p.control === "program") return "its program, which another program upgrades"
+      if (p.control === "governance") return "its program, upgraded by DAO vote"
       return "its program"
     }
     default:

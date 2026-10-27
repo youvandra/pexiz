@@ -270,6 +270,7 @@ export function Footer() {
         <div className="space-y-2.5 text-sm">
           <div className="font-semibold">Learn</div>
           <Link href="/docs" className="block text-ink-2 hover:text-ink">Docs</Link>
+          <a href="/docs#api" className="block text-ink-2 hover:text-ink">Feed API for lenders</a>
           <a href="/#how" className="block text-ink-2 hover:text-ink">How it works</a>
           <a href="/#faq" className="block text-ink-2 hover:text-ink">FAQ</a>
         </div>

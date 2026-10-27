@@ -103,36 +103,55 @@ async function loop() {
   }
 }
 
-// Checks are read on demand, so they are cached, capped per address and run
-// two at a time: each one is a few dozen RPC calls.
+// Checks are read on demand: cached, capped per address, two running at a
+// time, and answered as a job. A trace on the public RPC can take a minute,
+// so a request that is not done in a few seconds is told "pending" and asks
+// again, rather than holding a connection open.
 const CHECK_TTL_MS = 5 * 60_000
 const CHECKS_PER_MIN = 10
-const checked = new Map<string, { at: number; result: CheckResult }>()
+const WAIT_MS = 8_000
+const checked = new Map<string, { at: number; body: unknown; status: number }>()
+const inflight = new Map<string, Promise<void>>()
 const checkHits = new Map<string, number[]>()
 let running = 0
 const waiting: (() => void)[] = []
 
-async function check(address: string, ip: string): Promise<[unknown, number]> {
-  const hit = checked.get(address)
-  if (hit && Date.now() - hit.at < CHECK_TTL_MS) return [hit.result, 200]
-  const recent = (checkHits.get(ip) ?? []).filter((t) => Date.now() - t < 60_000)
-  if (recent.length >= CHECKS_PER_MIN) return [{ error: "Too many checks. Try again in a minute." }, 429]
-  checkHits.set(ip, [...recent, Date.now()])
+async function runCheck(address: string) {
   if (running >= 2) await new Promise<void>((r) => waiting.push(r))
   running++
   try {
     const result = await checkAddress(conn, address)
-    checked.set(address, { at: Date.now(), result })
-    if (checked.size > 500) checked.delete(checked.keys().next().value!)
-    return [result, 200]
+    checked.set(address, { at: Date.now(), body: result, status: 200 })
   } catch (e) {
-    if (e instanceof CheckError) return [{ error: e.message }, e.status]
-    console.warn(`check ${address}: ${(e as Error).message}`)
-    return [{ error: "Could not read that address from chain just now. Try again in a minute." }, 502]
+    const known = e instanceof CheckError
+    if (!known) console.warn(`check ${address}: ${(e as Error).message}`)
+    // An address that is not a program or a token stays an error; a failed
+    // read is forgotten at once so the next ask tries again.
+    if (known) checked.set(address, { at: Date.now(), body: { error: e.message }, status: e.status })
+    else checked.set(address, { at: Date.now() - CHECK_TTL_MS + 5_000, body: { error: "Could not read that address from chain just now. Try again in a minute." }, status: 502 })
   } finally {
     running--
     waiting.shift()?.()
+    inflight.delete(address)
+    if (checked.size > 500) checked.delete(checked.keys().next().value!)
   }
+}
+
+async function check(address: string, ip: string): Promise<[unknown, number]> {
+  const hit = checked.get(address)
+  if (hit && Date.now() - hit.at < CHECK_TTL_MS) return [hit.body, hit.status]
+  let job = inflight.get(address)
+  if (!job) {
+    const recent = (checkHits.get(ip) ?? []).filter((t) => Date.now() - t < 60_000)
+    if (recent.length >= CHECKS_PER_MIN) return [{ error: "Too many checks. Try again in a minute." }, 429]
+    checkHits.set(ip, [...recent, Date.now()])
+    job = runCheck(address)
+    inflight.set(address, job)
+  }
+  await Promise.race([job, pause(WAIT_MS)])
+  const done = checked.get(address)
+  if (done && !inflight.has(address)) return [done.body, done.status]
+  return [{ pending: true, retryAfterSecs: 3 }, 202]
 }
 
 const json = (body: unknown, status = 200) =>
@@ -167,7 +186,7 @@ async function v1(url: URL, ip: string): Promise<Response> {
       endpoints: {
         "/api/v1/venues": "Every watched protocol's admin risk, read from mainnet every few minutes.",
         "/api/v1/venues/{id}": "One protocol, with its admin history.",
-        "/api/v1/check/{address}": "Any program or token mint, read on request.",
+        "/api/v1/check/{address}": "Any program or token mint, read on request. 202 means still reading: ask again after retryAfterSecs.",
       },
       signature: "x-pexiz-signature is the Ed25519 signature, hex, of the exact response body; x-pexiz-signer is the key.",
     })
@@ -184,6 +203,7 @@ async function v1(url: URL, ip: string): Promise<Response> {
   const c = path.match(new RegExp(`^/check/(${ADDRESS})$`))
   if (c) {
     const [body, status] = await check(c[1], ip)
+    // 202 means the read is still running: ask again after retryAfterSecs.
     return signed(status === 200 ? { version: FEED_VERSION, generatedAt: Math.floor(Date.now() / 1000), result: body } : body, status)
   }
   return signed({ error: "not found" }, 404)

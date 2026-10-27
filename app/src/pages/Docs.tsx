@@ -51,7 +51,47 @@ const ADDRESSES = [
   ["Test vault", DEVNET.escapeVault],
 ] as const
 
-const TOC = [...SECTIONS.map((s) => [s.id, s.title]), ["status", "Status rules"], ["addresses", "Addresses"]]
+const TOC = [...SECTIONS.map((s) => [s.id, s.title]), ["status", "Status rules"], ["api", "Feed API"], ["addresses", "Addresses"]]
+
+const ENDPOINTS = [
+  ["GET /api/v1/venues", "Every watched protocol: status, reason, time to exit, change delay, approvals, upgrade key, queued upgrades, signers able to sign in advance. Read from mainnet every five minutes."],
+  ["GET /api/v1/venues/{id}", "One protocol, with its admin history from the multisig's own record."],
+  ["GET /api/v1/check/{address}", "Any program or token mint, read on request. For a token: every key that can mint, freeze, move or pause it, and who holds each one. A first read can take a minute: 202 means still reading, ask again after retryAfterSecs."],
+] as const
+
+const EXAMPLE = `{
+  "id": "drift",
+  "status": "amber",
+  "statusLabel": "Watch",
+  "reason": "Under 12 hours to notice and get out.",
+  "exitWindowSecs": 1800,
+  "changeDelaySecs": 3600,
+  "approvalsNeeded": 4,
+  "signers": 7,
+  "authorityAsRecorded": true,
+  "pendingUpgrades": [],
+  "presigningSigners": 0,
+  "readAt": 1793129737,
+  "stale": false
+}`
+
+const VERIFY = `import { createPublicKey, verify } from "node:crypto"
+import { PublicKey } from "@solana/web3.js"
+
+const res = await fetch("https://<pexiz>/api/v1/venues")
+const body = await res.text()
+const signer = res.headers.get("x-pexiz-signer")!
+const sig = Buffer.from(res.headers.get("x-pexiz-signature")!, "hex")
+const der = Buffer.concat([
+  Buffer.from("302a300506032b6570032100", "hex"),
+  new PublicKey(signer).toBuffer(),
+])
+const key = createPublicKey({ key: der, format: "der", type: "spki" })
+console.log(verify(null, Buffer.from(body), key, sig)) // true`
+
+function Code({ children }: { children: string }) {
+  return <pre className="mt-4 overflow-x-auto rounded-xl border border-line bg-paper p-4 font-mono text-xs leading-relaxed text-ink-2">{children}</pre>
+}
 
 function H2({ children }: { children: string }) {
   return <h2 className="text-2xl font-semibold tracking-tight md:text-[1.75rem]">{children}</h2>
@@ -94,6 +134,34 @@ export function Docs() {
                   </div>
                 ))}
               </div>
+            </section>
+            <section id="api" className="scroll-mt-24 border-b border-line py-10">
+              <H2>Feed API</H2>
+              <p className="mt-4 leading-relaxed text-ink-2 md:text-lg">
+                For lending markets, vault curators and keepers: the same reading the monitor shows, in a stable shape a program or a risk desk can act on. Free to read, open to any origin.
+              </p>
+              <dl className="card mt-6 divide-y divide-line p-0 text-sm">
+                {ENDPOINTS.map(([k, v]) => (
+                  <div key={k} className="px-5 py-4">
+                    <dt className="font-mono text-xs font-semibold">{k}</dt>
+                    <dd className="mt-1.5 leading-relaxed text-ink-2">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <h3 className="mt-8 font-semibold">One protocol in the feed</h3>
+              <Code>{EXAMPLE}</Code>
+              <p className="mt-4 text-sm leading-relaxed text-ink-2">
+                <span className="font-semibold text-ink">exitWindowSecs</span> is the change delay minus the 30 minutes a holder needs to leave; zero or less means no time. <span className="font-semibold text-ink">stale</span> turns true when the last read is older than three passes: treat the status as unknown, never as Safe.
+              </p>
+              <h3 className="mt-8 font-semibold">Every response is signed</h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-2">
+                <span className="font-mono text-xs">x-pexiz-signature</span> is an Ed25519 signature, in hex, over the exact bytes of the body; <span className="font-mono text-xs">x-pexiz-signer</span> is the key, as a Solana address. A keeper can relay body and signature to Solana's Ed25519 program in the same transaction as a lending instruction, so the program acts only on a reading Pexiz signed.
+              </p>
+              <Code>{VERIFY}</Code>
+              <h3 className="mt-8 font-semibold">Webhooks</h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-2">
+                A receiver can be sent every change as it is found: a JSON body with the new events and the affected protocols, signed the same way.
+              </p>
             </section>
             <section id="addresses" className="scroll-mt-24 py-10">
               <H2>Addresses</H2>
