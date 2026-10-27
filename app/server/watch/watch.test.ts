@@ -121,8 +121,43 @@ describe("store and bot", () => {
 
 describe("check", () => {
   test("takes a program address and nothing else", async () => {
-    const { parseProgram } = await import("./check")
-    expect(parseProgram(" PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu ").toBase58()).toBe("PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu")
-    expect(() => parseProgram("notanaddress")).toThrow("That is not a Solana address.")
+    const { parseAddress } = await import("./check")
+    expect(parseAddress(" PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu ").toBase58()).toBe("PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu")
+    expect(() => parseAddress("notanaddress")).toThrow("That is not a Solana address.")
+  })
+})
+
+describe("tokens", () => {
+  test("reads authorities from a classic mint and Token-2022 extensions", async () => {
+    const { decodeMint, TOKEN_2022 } = await import("./token")
+    const data = Buffer.alloc(166 + 4 + 32 + 4 + 33)
+    data.writeUInt32LE(1, 0); key(1).toBuffer().copy(data, 4) // mint authority
+    data[44] = 6; data[45] = 1 // decimals, initialized
+    data.writeUInt32LE(1, 46); key(2).toBuffer().copy(data, 50) // freeze authority
+    data[165] = 1 // account type: mint
+    let o = 166
+    data.writeUInt16LE(12, o); data.writeUInt16LE(32, o + 2); key(3).toBuffer().copy(data, o + 4); o += 36 // permanent delegate
+    data.writeUInt16LE(26, o); data.writeUInt16LE(33, o + 2); key(4).toBuffer().copy(data, o + 4); data[o + 36] = 1 // pausable, paused
+    const m = decodeMint("m", TOKEN_2022, data)
+    expect(m.authorities).toEqual([
+      { role: "mint", key: key(1).toBase58() },
+      { role: "freeze", key: key(2).toBase58() },
+      { role: "permanent-delegate", key: key(3).toBase58() },
+      { role: "pause", key: key(4).toBase58() },
+    ])
+    expect(m.paused).toBe(true)
+  })
+
+  test("the fastest power over holders decides", async () => {
+    const { tokenVerdict } = await import("./check")
+    const p = (role: "mint" | "metadata", severe: boolean, waitSecs: number | null, control: "single-key" | "squads-v4" = "squads-v4") =>
+      ({ role, does: role, severe, holder: { key: "k", control, threshold: 4, members: ["a", "b", "c", "d", "e"], timeLockSecs: waitSecs ?? 0 }, waitSecs })
+    expect(tokenVerdict([]).assessment).toBe("green")
+    expect(tokenVerdict([p("metadata", false, 0, "single-key")]).assessment).toBe("green")
+    expect(tokenVerdict([p("mint", true, 86_400)]).assessment).toBe("green")
+    expect(tokenVerdict([p("mint", true, 3_600)]).assessment).toBe("amber")
+    expect(tokenVerdict([p("mint", true, 0, "single-key")]).why).toContain("one key")
+    expect(tokenVerdict([p("mint", true, null)]).assessment).toBe("unrated")
+    expect(tokenVerdict([p("mint", true, 86_400)], true).assessment).toBe("red")
   })
 })

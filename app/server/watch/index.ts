@@ -15,7 +15,7 @@ import { mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { Connection } from "@solana/web3.js"
 import { VENUES, type WatchedVenue } from "../../src/data/facts"
-import { CheckError, checkProgram, type CheckResult } from "./check"
+import { CheckError, checkAddress, type CheckResult } from "./check"
 import { diff } from "./diff"
 import { readHistory } from "./history"
 import { readVenue } from "./read"
@@ -114,7 +114,7 @@ async function check(program: string, ip: string): Promise<Response> {
   if (running >= 2) await new Promise<void>((r) => waiting.push(r))
   running++
   try {
-    const result = await checkProgram(conn, program)
+    const result = await checkAddress(conn, program)
     checked.set(program, { at: Date.now(), result })
     if (checked.size > 500) checked.delete(checked.keys().next().value!)
     return json(result)
@@ -133,6 +133,8 @@ const json = (body: unknown, status = 200) =>
 
 Bun.serve({
   port: PORT,
+  // A check traces several keys through their transactions; give it time.
+  idleTimeout: 120,
   hostname: "127.0.0.1",
   fetch(req) {
     const url = new URL(req.url)

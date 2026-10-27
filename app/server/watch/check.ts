@@ -1,52 +1,38 @@
-// Any Solana program, read on request: who can change its code, and when
-// that is a Squads multisig, how many must approve, how long a change waits,
-// what is queued and what it has done before.
-//
-// The upgrade authority alone does not name the multisig behind it: a Squads
-// vault is a PDA with no data. The multisig is found in the vault's own
-// transactions, where it always appears beside it, and is then proven by
-// deriving the vault from it.
-import { Connection, PublicKey, type AccountInfo } from "@solana/web3.js"
-import { MULTISIG_DISCRIMINATOR, SQUADS_V4_ID, decodeMultisig, decodeUpgradeAuthority, vaultPda } from "@pexiz/sdk/src/squads"
+// Any Solana address, read on request. A program: who can change its code,
+// how many must agree, how long a change waits, what is queued and what they
+// changed before. A token: every key that can act on holders (mint, freeze,
+// move, pause, run code on transfers) and who stands behind each one, which
+// covers liquid staking tokens, bridged assets, stablecoins and tokenized
+// stocks with one read.
+import { Connection, PublicKey } from "@solana/web3.js"
 import { findPendingUpgrades } from "@pexiz/sdk/src/upgrades"
-import { assess, type Verdict } from "../../src/data/assess"
+import { vaultPda } from "@pexiz/sdk/src/squads"
+import { assess, type Assessment, type Verdict } from "../../src/data/assess"
 import { VENUES, type WatchedVenue } from "../../src/data/facts"
+import { duration } from "../../src/lib/format"
+import { CheckError, keyControl, programControl, waitOf, type Control, type KeyControl, type ProgramControl } from "./control"
 import { readHistory } from "./history"
+import { TOKEN_2022, TOKEN_PROGRAM, decodeMetaplex, decodeMint, metaplexPda, type Role } from "./token"
 import type { WatchEvent } from "./types"
 
-const LOADER_UPGRADEABLE = "BPFLoaderUpgradeab1e11111111111111111111111"
-const IMMUTABLE_LOADERS = new Set(["BPFLoader1111111111111111111111111111111111", "BPFLoader2111111111111111111111111111111111"])
-const SQUADS_V3 = "SMPLecH534NA9acpos4G6x7uf3LWbCAwZQE9e8ZekMu"
-/** SPL Governance and the forks most DAOs on Solana run. */
-const GOVERNANCE = new Set([
-  "GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw",
-  "GovHgfDPyQ1GwazJTDY2avSVY8GGcpmCapmmCsymRaGe",
-  "GqTPL6qRf5aUuqscLh8Rg2HTxPUXfhhAXDptTLhp1t2J",
-])
+export { CheckError }
+export type { Control }
+
 /** History scans stop this many transactions back, so a busy multisig answers in seconds. */
 const HISTORY_DEPTH = 300n
+/** Time a holder needs to notice and leave; the board's own assumption. */
+const EXIT_SECS = 30 * 60
 
-export type Control =
-  | "immutable"
-  | "squads-v4"
-  | "squads-v3"
-  | "governance"
-  | "single-key"
-  | "program"
+type Public<T> = Omit<T, "m">
+const strip = <T extends { m?: unknown; program?: unknown }>(x: T) => {
+  const { m: _m, ...rest } = x
+  return rest
+}
 
-export interface CheckResult {
-  program: string
+export interface ProgramCheck extends Public<ProgramControl> {
+  kind: "program"
   /** The board's own page, when Pexiz already watches this program. */
   watched?: string
-  control: Control
-  authority: string | null
-  /** Unix seconds of the last deploy, when the RPC still has that block. */
-  deployedAt?: number
-  multisig?: string
-  threshold?: number
-  members?: string[]
-  timeLockSecs?: number
-  txIndex?: number
   pendingUpgrades?: { index: number; approvedAt?: number; readyAt?: number }[]
   verdict: Verdict
   events: WatchEvent[]
@@ -54,13 +40,35 @@ export interface CheckResult {
   historyCut?: boolean
 }
 
-export class CheckError extends Error {
-  constructor(message: string, readonly status = 400) {
-    super(message)
-  }
+export interface TokenPower {
+  role: Role
+  /** What this key can do to a holder, in plain words. */
+  does: string
+  /** True for the powers that can take value from holders. */
+  severe: boolean
+  holder: Omit<KeyControl, "m" | "program"> & { program?: Public<ProgramControl> }
+  /** Seconds between approval and effect; 0 for one key, null when unknown. */
+  waitSecs: number | null
 }
 
-export function parseProgram(input: string): PublicKey {
+export interface TokenCheck {
+  kind: "token"
+  mint: string
+  tokenProgram: "spl-token" | "token-2022"
+  name?: string
+  symbol?: string
+  decimals: number
+  supply: string
+  powers: TokenPower[]
+  hookProgram?: string
+  defaultFrozen?: boolean
+  paused?: boolean
+  verdict: Verdict
+}
+
+export type CheckResult = ProgramCheck | TokenCheck
+
+export function parseAddress(input: string): PublicKey {
   try {
     const key = new PublicKey(input.trim())
     if (key.toBase58() !== input.trim()) throw new Error()
@@ -70,84 +78,31 @@ export function parseProgram(input: string): PublicKey {
   }
 }
 
-/**
- * The Squads multisig whose vault is `authority`, found in the vault's recent
- * transactions. Null when none of them names one.
- */
-export async function findMultisig(conn: Connection, authority: PublicKey, maxTx = 12): Promise<{ multisig: PublicKey; version: 3 | 4 } | null> {
-  const sigs = await conn.getSignaturesForAddress(authority, { limit: 40 })
-  const seen = new Set<string>([authority.toBase58()])
-  for (const s of sigs.filter((x) => !x.err).slice(0, maxTx)) {
-    const tx = await conn.getTransaction(s.signature, { maxSupportedTransactionVersion: 0 })
-    if (!tx) continue
-    const msg = tx.transaction.message
-    const keys = [
-      ...msg.staticAccountKeys,
-      ...(tx.meta?.loadedAddresses?.writable ?? []),
-      ...(tx.meta?.loadedAddresses?.readonly ?? []),
-    ].filter((k) => !seen.has(k.toBase58()))
-    if (!keys.length) continue
-    keys.forEach((k) => seen.add(k.toBase58()))
-    const infos = await conn.getMultipleAccountsInfo(keys, { dataSlice: { offset: 0, length: 8 } })
-    for (let i = 0; i < keys.length; i++) {
-      const info = infos[i]
-      if (!info) continue
-      if (info.owner.equals(SQUADS_V4_ID) && Buffer.from(info.data).equals(MULTISIG_DISCRIMINATOR)) {
-        for (let v = 0; v < 16; v++) if (vaultPda(keys[i], v)[0].equals(authority)) return { multisig: keys[i], version: 4 }
-      }
-      if (info.owner.toBase58() === SQUADS_V3) return { multisig: keys[i], version: 3 }
-    }
-  }
-  return null
+/** A program or a token mint, told apart by the account's owner. */
+export async function checkAddress(conn: Connection, input: string): Promise<CheckResult> {
+  const address = parseAddress(input)
+  const info = await conn.getAccountInfo(address)
+  if (!info) throw new CheckError("No account at that address on mainnet.", 404)
+  const owner = info.owner.toBase58()
+  if (owner === TOKEN_PROGRAM || owner === TOKEN_2022) return checkToken(conn, address, owner, Buffer.from(info.data))
+  if (info.executable) return checkProgram(conn, address)
+  throw new CheckError("That address is neither a program nor a token mint.")
 }
 
-async function classify(conn: Connection, authority: PublicKey, info: AccountInfo<Buffer> | null): Promise<{ control: Control; multisig?: PublicKey }> {
-  if (info && GOVERNANCE.has(info.owner.toBase58())) return { control: "governance" }
-  if (PublicKey.isOnCurve(authority.toBytes())) return { control: "single-key" }
-  const found = await findMultisig(conn, authority)
-  if (found?.version === 4) return { control: "squads-v4", multisig: found.multisig }
-  if (found?.version === 3) return { control: "squads-v3", multisig: found.multisig }
-  return { control: "program" }
-}
-
-const VERDICTS: Record<Exclude<Control, "squads-v4">, Verdict> = {
-  immutable: { assessment: "green", why: "Nobody can change its code: the program is immutable." },
-  "squads-v3": { assessment: "exposed", why: "An older Squads v3 multisig, which has no delay on changes. Approved changes land at once." },
-  governance: { assessment: "unrated", why: "Changes go through a DAO vote; the wait depends on each proposal." },
-  "single-key": { assessment: "exposed", why: "One key can replace the code at any moment, with no approvals and no delay." },
-  program: { assessment: "unrated", why: "Controlled by another program Pexiz cannot read yet." },
-}
-
-export async function checkProgram(conn: Connection, input: string): Promise<CheckResult> {
-  const program = parseProgram(input)
+export async function checkProgram(conn: Connection, program: PublicKey): Promise<ProgramCheck> {
   const id = program.toBase58()
   const watched = VENUES.find((v) => v.program === id)?.id
-  const acc = await conn.getAccountInfo(program, { dataSlice: { offset: 0, length: 36 } })
-  if (!acc) throw new CheckError("No account at that address on mainnet.", 404)
-  if (!acc.executable) throw new CheckError("That address is an account, not a program.")
-  const owner = acc.owner.toBase58()
-  if (IMMUTABLE_LOADERS.has(owner)) return { program: id, watched, control: "immutable", authority: null, verdict: VERDICTS.immutable, events: [] }
-  if (owner !== LOADER_UPGRADEABLE) throw new CheckError("Pexiz reads programs deployed with the upgradeable loader only.")
+  const pc = await programControl(conn, program)
+  const base = { kind: "program" as const, watched, ...strip(pc) }
+  if (pc.control !== "squads-v4" || !pc.m || !pc.multisig || !pc.authority || !pc.programData) {
+    return { ...base, verdict: controlVerdict(pc.control), events: [] }
+  }
 
-  const programData = new PublicKey(Buffer.from(acc.data).subarray(4, 36))
-  const pd = await conn.getAccountInfo(programData, { dataSlice: { offset: 0, length: 45 } })
-  if (!pd) throw new CheckError("The program's data account is missing.", 404)
-  const header = Buffer.from(pd.data)
-  const slot = Number(header.readBigUInt64LE(4))
-  const deployedAt = (await conn.getBlockTime(slot).catch(() => null)) ?? undefined
-  const authority = decodeUpgradeAuthority(header)
-  if (!authority) return { program: id, watched, control: "immutable", authority: null, deployedAt, verdict: VERDICTS.immutable, events: [] }
-
-  const authInfo = await conn.getAccountInfo(authority, { dataSlice: { offset: 0, length: 0 } })
-  const { control, multisig } = await classify(conn, authority, authInfo)
-  const base = { program: id, watched, control, authority: authority.toBase58(), deployedAt, multisig: multisig?.toBase58() }
-  if (control !== "squads-v4" || !multisig) return { ...base, verdict: VERDICTS[control as Exclude<Control, "squads-v4">], events: [] }
-
-  const msInfo = await conn.getAccountInfo(multisig)
-  if (!msInfo) throw new CheckError("The multisig could not be read.", 502)
-  const m = decodeMultisig(Buffer.from(msInfo.data))
+  const multisig = new PublicKey(pc.multisig)
+  const authority = new PublicKey(pc.authority)
+  const m = pc.m
   const vaultIndex = Array.from({ length: 16 }, (_, i) => i).find((i) => vaultPda(multisig, i)[0].equals(authority)) ?? 0
-  const found = await findPendingUpgrades(conn, multisig, m.transactionIndex, vaultIndex, programData, 12)
+  const found = await findPendingUpgrades(conn, multisig, m.transactionIndex, vaultIndex, new PublicKey(pc.programData), 12)
   const pendingUpgrades = found.map((p) => ({ index: Number(p.index), approvedAt: p.approvedAt, readyAt: p.approvedAt !== undefined ? p.approvedAt + m.timeLock : undefined }))
 
   // The board's own rules, with today's read as the baseline: no "it got
@@ -159,8 +114,8 @@ export async function checkProgram(conn: Connection, input: string): Promise<Che
     category: "perps",
     program: id,
     admin: "squads-v4",
-    multisig: multisig.toBase58(),
-    authority: authority.toBase58(),
+    multisig: pc.multisig,
+    authority: pc.authority,
     snapshot: { threshold: m.threshold, members: m.members.length, timeLockSecs: m.timeLock },
     logo: "",
   }
@@ -168,18 +123,129 @@ export async function checkProgram(conn: Connection, input: string): Promise<Che
 
   const to = m.transactionIndex
   const from = to > HISTORY_DEPTH ? to - HISTORY_DEPTH + 1n : 1n
-  const events = to > 0n ? await readHistory(conn, { id: venue.id, multisig: venue.multisig!, program: id }, from, to) : []
+  const events = to > 0n ? await readHistory(conn, { id: venue.id, multisig: pc.multisig, program: id }, from, to) : []
   events.sort((a, b) => b.at - a.at)
+  return { ...base, pendingUpgrades, verdict, events, historyCut: from > 1n }
+}
+
+const VERDICTS: Record<Exclude<Control, "squads-v4">, Verdict> = {
+  immutable: { assessment: "green", why: "Nobody can change its code: the program is immutable." },
+  "squads-v3": { assessment: "exposed", why: "An older Squads v3 multisig, which has no delay on changes. Approved changes land at once." },
+  governance: { assessment: "unrated", why: "Changes go through a DAO vote; the wait depends on each proposal." },
+  "single-key": { assessment: "exposed", why: "One key can replace the code at any moment, with no approvals and no delay." },
+  program: { assessment: "unrated", why: "Controlled by another program Pexiz cannot read yet." },
+  unknown: { assessment: "unrated", why: "Controlled by a key Pexiz could not trace." },
+}
+const controlVerdict = (c: Control): Verdict => (c === "squads-v4" ? { assessment: "unrated", why: "" } : VERDICTS[c])
+
+const ROLES: Record<Role, { does: string; severe: boolean }> = {
+  "permanent-delegate": { does: "Move or burn any holder's tokens", severe: true },
+  mint: { does: "Mint more tokens", severe: true },
+  freeze: { does: "Freeze any holder's account", severe: true },
+  pause: { does: "Pause every transfer", severe: true },
+  "transfer-hook": { does: "Change the code that runs on every transfer", severe: true },
+  multiplier: { does: "Change the balance multiplier or rate", severe: false },
+  "default-frozen": { does: "Keep new accounts frozen until thawed", severe: false },
+  close: { does: "Close the mint", severe: false },
+  metadata: { does: "Edit the name, symbol and logo", severe: false },
+}
+const ORDER = Object.keys(ROLES) as Role[]
+
+export async function checkToken(conn: Connection, mint: PublicKey, owner: string, data: Buffer): Promise<TokenCheck> {
+  const info = decodeMint(mint.toBase58(), owner, data)
+  if (!info.name) {
+    const md = await conn.getAccountInfo(metaplexPda(mint)).catch(() => null)
+    const meta = md ? decodeMetaplex(Buffer.from(md.data)) : null
+    if (meta) {
+      info.name = meta.name
+      info.symbol = meta.symbol
+      info.authorities.push({ role: "metadata", key: meta.updateAuthority })
+    }
+  }
+
+  // One trace per key: an issuer often holds several powers with the same one.
+  const traced = new Map<string, Promise<KeyControl>>()
+  const trace = (k: string) => {
+    if (!traced.has(k)) traced.set(k, keyControl(conn, new PublicKey(k), { followPrograms: true }))
+    return traced.get(k)!
+  }
+  const powers: TokenPower[] = []
+  for (const a of [...info.authorities].sort((x, y) => ORDER.indexOf(x.role) - ORDER.indexOf(y.role))) {
+    const k = await trace(a.key)
+    const wait = waitOf(k)
+    const { m: _m, program, ...holder } = k
+    powers.push({
+      role: a.role,
+      ...ROLES[a.role],
+      holder: { ...holder, program: program ? strip(program) : undefined },
+      waitSecs: wait === undefined ? null : wait === Infinity ? null : wait,
+    })
+  }
+  if (info.defaultFrozen) powers.push({ role: "default-frozen", ...ROLES["default-frozen"], holder: { key: info.mint, control: "unknown" }, waitSecs: null })
 
   return {
-    ...base,
-    threshold: m.threshold,
-    members: m.members.map((x) => x.key.toBase58()),
-    timeLockSecs: m.timeLock,
-    txIndex: Number(m.transactionIndex),
-    pendingUpgrades,
-    verdict,
-    events,
-    historyCut: from > 1n,
+    kind: "token",
+    mint: info.mint,
+    tokenProgram: info.tokenProgram,
+    name: info.name,
+    symbol: info.symbol,
+    decimals: info.decimals,
+    supply: info.supply.toString(),
+    powers,
+    hookProgram: info.hookProgram,
+    defaultFrozen: info.defaultFrozen,
+    paused: info.paused,
+    verdict: tokenVerdict(powers, info.paused),
+  }
+}
+
+/**
+ * The token's reading, from the powers that can take value from holders: the
+ * fastest one decides, in the same bands as the board.
+ */
+export function tokenVerdict(powers: TokenPower[], paused?: boolean): Verdict {
+  if (paused) return { assessment: "red", why: "Transfers are paused right now." }
+  const severe = powers.filter((p) => p.severe)
+  if (!severe.length) return { assessment: "green", why: "Nobody can mint more, freeze, move or pause this token." }
+  // A power held by a program that can never change is as fixed as none.
+  const live = severe.filter((p) => !(p.holder.control === "program" && p.holder.program?.control === "immutable"))
+  if (!live.length) return { assessment: "green", why: "Its powers sit with a program nobody can change." }
+  const now = live.filter((p) => p.waitSecs === 0)
+  if (now.length) {
+    const said = now.slice(0, 3).map((p) => `${p.does.toLowerCase()} (${holderLabel(p.holder)})`)
+    const more = now.length > 3 ? `, and ${now.length - 3} more` : ""
+    return { assessment: "exposed", why: `With no delay, these can happen at any time: ${said.join("; ")}${more}.`, exitWindowSecs: -EXIT_SECS }
+  }
+  if (live.some((p) => p.waitSecs === null)) {
+    return { assessment: "unrated", why: "Some of its powers sit with a DAO or a program Pexiz cannot fully read." }
+  }
+  const fastest = Math.min(...live.map((p) => p.waitSecs!))
+  const win = fastest - EXIT_SECS
+  if (win < 12 * 3600) return { assessment: "amber" as Assessment, why: `The fastest power over holders waits ${duration(fastest)}, under 12 hours to react.`, exitWindowSecs: win }
+  return { assessment: "green", why: `Every power over holders waits at least ${duration(fastest)}.`, exitWindowSecs: win }
+}
+
+/** Who holds a power, in a few words. */
+export function holderLabel(h: TokenPower["holder"]): string {
+  switch (h.control) {
+    case "single-key":
+      return "one key"
+    case "squads-v4":
+      return `multisig ${h.threshold} of ${h.members?.length}${h.timeLockSecs ? "" : ", no delay"}`
+    case "squads-v3":
+      return "old multisig, no delay"
+    case "governance":
+      return "DAO vote"
+    case "program": {
+      const p = h.program
+      if (!p) return "a program"
+      if (p.control === "squads-v4") return `its program, upgradable by multisig ${p.threshold} of ${p.members?.length}${p.timeLockSecs ? "" : " with no delay"}`
+      if (p.control === "single-key") return "its program, upgradable by one key"
+      if (p.control === "squads-v3") return "its program, upgradable by an old multisig"
+      if (p.control === "immutable") return "a program nobody can change"
+      return "its program"
+    }
+    default:
+      return "an untraced key"
   }
 }
