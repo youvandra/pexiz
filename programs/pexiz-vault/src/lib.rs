@@ -45,7 +45,11 @@ pub mod pexiz_vault {
     /// Creates a vault bound to one oracle venue and one canary pool. One
     /// vault per venue; the first caller wins.
     pub fn init_vault(ctx: Context<InitVault>) -> Result<()> {
-        require_keys_eq!(ctx.accounts.venue.params_program, canary_venue::ID, VaultError::VenueMismatch);
+        let watched = ctx.accounts.venue.params_program;
+        require!(
+            watched == canary_venue::ID || watched == pexiz_oracle::FAST_CANARY_PROGRAM,
+            VaultError::VenueMismatch
+        );
         let v = &mut ctx.accounts.vault;
         v.venue = ctx.accounts.venue.key();
         v.pool = ctx.accounts.pool.key();
@@ -863,7 +867,7 @@ pub enum VaultError {
     EmptyVault,
     #[msg("arithmetic overflow")]
     Overflow,
-    #[msg("venue does not watch the canary venue program")]
+    #[msg("venue watches a program this vault cannot hold")]
     VenueMismatch,
     #[msg("minimum output is below the exit slippage floor")]
     SlippageFloor,

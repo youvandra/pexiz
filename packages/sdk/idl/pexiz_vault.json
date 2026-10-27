@@ -1221,7 +1221,7 @@
     {
       "code": 6010,
       "name": "VenueMismatch",
-      "msg": "venue does not watch the canary venue program"
+      "msg": "venue watches a program this vault cannot hold"
     },
     {
       "code": 6011,

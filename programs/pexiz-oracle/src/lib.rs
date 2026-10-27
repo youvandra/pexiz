@@ -21,6 +21,21 @@ pub const MAX_PRESIGNERS: usize = 8;
 /// Approved upgrade proposals remembered per venue. Amber holds while any of
 /// them can still execute.
 pub const MAX_PENDING_UPGRADES: usize = 4;
+/// The one program the oracle times in minutes instead of days. It does
+/// nothing; it exists so its upgrade authority can sit under a devnet
+/// multisig with a one-minute timelock, and a visitor can watch a whole
+/// attack, exit and recovery while they wait. Every other venue runs on
+/// `rules::Timing::STANDARD`.
+pub const FAST_CANARY_PROGRAM: Pubkey = pubkey!("432t9qKLgxBAZjy9LBuPSAuJBtPP52gM6ZW4o1r8fBqj");
+
+/// The durations the rules use for a venue that watches `program`.
+pub fn timing(program: &Pubkey) -> rules::Timing {
+    if *program == FAST_CANARY_PROGRAM {
+        rules::Timing::FAST
+    } else {
+        rules::Timing::STANDARD
+    }
+}
 
 #[program]
 pub mod pexiz_oracle {
@@ -156,7 +171,7 @@ pub mod pexiz_oracle {
             upgrade_pending,
         };
         let mut st = v.rule_state();
-        let from = rules::step(&mut st, &obs, clock.unix_timestamp);
+        let from = rules::step_timed(&mut st, &obs, clock.unix_timestamp, &timing(&v.params_program));
         v.set_rule_state(&st);
 
         v.snapshot = Snapshot {

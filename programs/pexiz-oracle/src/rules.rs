@@ -9,6 +9,27 @@ pub const HARD_MASK: u32 = reason::TIME_LOCK_BELOW_MIN
     | reason::MEMBERS_REPLACED
     | reason::UPGRADE_AUTHORITY_MOVED;
 
+/// How long each rule waits. Every venue runs on `STANDARD` except the fast
+/// canary (`crate::FAST_CANARY_PROGRAM`), which runs on `FAST`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Timing {
+    /// A flag must stay clear this long before it returns to green.
+    pub cool_off: i64,
+    /// Pre-signing that holds this long escalates amber to red.
+    pub amber_escalation: i64,
+    /// Rolling window for counting replaced members.
+    pub members_window: i64,
+}
+
+impl Timing {
+    pub const STANDARD: Timing = Timing {
+        cool_off: COOL_OFF_SECS,
+        amber_escalation: AMBER_ESCALATION_SECS,
+        members_window: MEMBERS_WINDOW_SECS,
+    };
+    pub const FAST: Timing = Timing { cool_off: 5 * 60, amber_escalation: 2 * 60, members_window: 5 * 60 };
+}
+
 /// What an update observed on chain, already reduced to facts.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Observation {
@@ -52,12 +73,18 @@ fn upgrade_only(latched: u32) -> bool {
     latched != 0 && latched & !reason::UPGRADE_PENDING == 0
 }
 
-/// Applies one observation at time `now`. Returns the previous flag.
+/// Applies one observation at time `now` on standard timing. Returns the
+/// previous flag.
 pub fn step(s: &mut RuleState, o: &Observation, now: i64) -> Flag {
+    step_timed(s, o, now, &Timing::STANDARD)
+}
+
+/// Applies one observation at time `now`. Returns the previous flag.
+pub fn step_timed(s: &mut RuleState, o: &Observation, now: i64, t: &Timing) -> Flag {
     let from = s.flag;
 
     // Rolling member-replacement window.
-    if s.replaced_7d > 0 && now - s.replaced_window_start >= MEMBERS_WINDOW_SECS {
+    if s.replaced_7d > 0 && now - s.replaced_window_start >= t.members_window {
         s.replaced_7d = 0;
     }
     if o.newly_replaced > 0 {
@@ -74,7 +101,7 @@ pub fn step(s: &mut RuleState, o: &Observation, now: i64) -> Flag {
     if o.threshold < s.baseline_threshold {
         if s.low_threshold_since == 0 {
             s.low_threshold_since = now;
-        } else if now - s.low_threshold_since >= COOL_OFF_SECS {
+        } else if now - s.low_threshold_since >= t.cool_off {
             s.baseline_threshold = o.threshold;
             s.low_threshold_since = 0;
         }
@@ -100,7 +127,7 @@ pub fn step(s: &mut RuleState, o: &Observation, now: i64) -> Flag {
         if s.amber_since == 0 {
             s.amber_since = now;
         }
-        if now - s.amber_since >= AMBER_ESCALATION_SECS {
+        if now - s.amber_since >= t.amber_escalation {
             active |= reason::AMBER_ESCALATED;
         }
     } else {
@@ -129,7 +156,7 @@ pub fn step(s: &mut RuleState, o: &Observation, now: i64) -> Flag {
         } else {
             Flag::Amber
         }
-    } else if from == Flag::Green || upgrade_only(s.reasons) || now - s.clear_since >= COOL_OFF_SECS {
+    } else if from == Flag::Green || upgrade_only(s.reasons) || now - s.clear_since >= t.cool_off {
         Flag::Green
     } else {
         from
@@ -221,6 +248,32 @@ mod tests {
         step(&mut s, &Observation { newly_replaced: 1, ..healthy() }, T0 + 7 * DAY);
         assert_eq!(s.flag, Flag::Green);
         assert_eq!(s.replaced_7d, 1);
+    }
+
+    #[test]
+    fn fast_timing_runs_the_same_cycle_in_minutes() {
+        let t = Timing::FAST;
+        let mut s = base();
+        let cut = Observation { time_lock_secs: 0, ..healthy() };
+        step_timed(&mut s, &cut, T0, &t);
+        assert_eq!(s.flag, Flag::Red);
+        step_timed(&mut s, &healthy(), T0 + 60, &t);
+        step_timed(&mut s, &healthy(), T0 + 60 + 5 * 60 - 1, &t);
+        assert_eq!(s.flag, Flag::Red);
+        step_timed(&mut s, &healthy(), T0 + 60 + 5 * 60, &t);
+        assert_eq!(s.flag, Flag::Green);
+
+        let o = Observation { presigning: true, ..healthy() };
+        step_timed(&mut s, &o, T0 + DAY, &t);
+        assert_eq!(s.flag, Flag::Amber);
+        step_timed(&mut s, &o, T0 + DAY + 2 * 60, &t);
+        assert_eq!(s.flag, Flag::Red);
+    }
+
+    #[test]
+    fn only_the_fast_canary_gets_fast_timing() {
+        assert_eq!(crate::timing(&crate::FAST_CANARY_PROGRAM), Timing::FAST);
+        assert_eq!(crate::timing(&crate::ID), Timing::STANDARD);
     }
 
     #[test]

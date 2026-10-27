@@ -5,6 +5,8 @@ import { programDataAddress, vaultPda } from "./squads";
 import { flagName, type FlagName } from "./reasons";
 
 export const ORACLE_PROGRAM_ID = new PublicKey(oracleIdl.address);
+/** The one program the oracle times in minutes; see `FAST_CANARY_PROGRAM` in the oracle. */
+export const FAST_CANARY_PROGRAM_ID = new PublicKey("432t9qKLgxBAZjy9LBuPSAuJBtPP52gM6ZW4o1r8fBqj");
 export const oracleCoder = new BorshCoder(oracleIdl as Idl);
 
 const offline = { connection: new Connection("http://127.0.0.1:8899") } as any;

@@ -1,0 +1,17 @@
+[package]
+name = "fast_canary"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+publish = false
+
+# A program that does nothing. The oracle watches its upgrade authority on
+# fast timing (`pexiz_oracle::FAST_CANARY_PROGRAM`). Kept out of the program
+# workspace on purpose: it has no IDL and nothing calls it.
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "2.2"

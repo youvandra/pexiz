@@ -23,9 +23,12 @@ export class World {
   signers = members(5);
   usdcMint!: PublicKey;
   v!: VaultAddresses;
+  /** Program the venue watches: the canary, or the fast canary. */
+  program = CANARY_PROGRAM_ID;
 
-  static async create(opts: { threshold?: number; timeLock?: number; members?: number; minTimeLockSecs?: number; exitTimeSecs?: number; start?: number } = {}): Promise<World> {
+  static async create(opts: { threshold?: number; timeLock?: number; members?: number; minTimeLockSecs?: number; exitTimeSecs?: number; start?: number; program?: PublicKey } = {}): Promise<World> {
     const w = new World();
+    if (opts.program) w.program = opts.program;
     w.signers = members(opts.members ?? 5);
     const { env } = w;
     if (opts.start) env.setTime(opts.start);
@@ -33,11 +36,11 @@ export class World {
     const pool = canaryPool(w.usdcMint);
     env.send([await initPoolIx(env.payer.publicKey, pool)]);
     env.setMultisig(w.multisig, multisigOf(opts.threshold ?? 3, opts.timeLock ?? 86_400, w.signers.map((k) => k.publicKey)));
-    env.setWatchedProgram(CANARY_PROGRAM_ID, vaultPda(w.multisig)[0]);
+    env.setWatchedProgram(w.program, vaultPda(w.multisig)[0]);
     env.send([await registerVenueIx(env.payer.publicKey, {
-      program: CANARY_PROGRAM_ID, multisig: w.multisig, minTimeLockSecs: opts.minTimeLockSecs ?? 3600, exitTimeSecs: opts.exitTimeSecs ?? 600,
+      program: w.program, multisig: w.multisig, minTimeLockSecs: opts.minTimeLockSecs ?? 3600, exitTimeSecs: opts.exitTimeSecs ?? 600,
     })]);
-    w.v = vaultAddresses(venuePda(CANARY_PROGRAM_ID), w.usdcMint);
+    w.v = vaultAddresses(venuePda(w.program), w.usdcMint);
     env.send([await initVaultIx(env.payer.publicKey, w.v)]);
     return w;
   }
@@ -65,7 +68,7 @@ export class World {
   }
 
   updateIx(proofs: PublicKey[] = []) {
-    return updateIx(CANARY_PROGRAM_ID, this.multisig, proofs);
+    return updateIx(this.program, this.multisig, proofs);
   }
 
   async update(proofs: PublicKey[] = []) {
@@ -77,7 +80,7 @@ export class World {
   }
 
   flag() {
-    return this.env.venue(CANARY_PROGRAM_ID).flag;
+    return this.env.venue(this.program).flag;
   }
 
   vault() {

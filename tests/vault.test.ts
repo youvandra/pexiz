@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Keypair } from "@solana/web3.js";
 import {
-  AUM_CAP_USDC, CANARY_PROGRAM_ID, depositIx, exitIx, initVaultIx, parseFlagChanged, parseVaultExited, reenterIx,
+  AUM_CAP_USDC, CANARY_PROGRAM_ID, FAST_CANARY_PROGRAM_ID, depositIx, exitIx, initVaultIx, parseFlagChanged, parseVaultExited, reenterIx,
   registerVenueIx, unvoteIx, vaultAddresses, vaultPda, venuePda, voteReenterIx, withdrawIx,
 } from "@pexiz/sdk";
 import { DAY, Env, members, multisigOf } from "./helpers";
@@ -52,6 +52,44 @@ describe("vault lifecycle against the canary venue", () => {
     expect(env.balance(alice.shares)).toBe(USDC(600));
     await withdraw(w, alice, USDC(600));
     expect(env.balance(alice.lp)).toBe((USDC(999) - 99_900_000n) * 600n / 900n);
+  });
+});
+
+describe("fast canary", () => {
+  test("the same cycle on minutes: cut → exit → restore → 5 min cool-off → vote → reenter", async () => {
+    const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60, minTimeLockSecs: 30 });
+    const alice = w.user(USDC(100));
+    await w.deposit(alice, USDC(100));
+
+    w.setTimeLock(0);
+    w.env.send([await w.updateIx(), await w.exitIx()]);
+    expect(w.flag()).toBe("red");
+    expect(w.vault().exited).toBe(true);
+
+    w.setTimeLock(60);
+    await w.update();
+    w.env.warp(5 * 60 - 1);
+    await w.update();
+    expect(w.flag()).toBe("red");
+    w.env.warp(1);
+    await w.update();
+    expect(w.flag()).toBe("green");
+
+    w.env.send([await voteReenterIx(w.v, alice.kp.publicKey, alice.shares, USDC(100))], [alice.kp]);
+    w.env.send([await reenterIx(w.v)]);
+    expect(w.vault().exited).toBe(false);
+  });
+
+  test("the canary itself keeps the 7-day cool-off", async () => {
+    const w = await World.create();
+    w.setTimeLock(0);
+    await w.update();
+    w.setTimeLock(86_400);
+    w.env.warp(5 * 60);
+    await w.update();
+    w.env.warp(5 * 60);
+    await w.update();
+    expect(w.flag()).toBe("red");
   });
 });
 
