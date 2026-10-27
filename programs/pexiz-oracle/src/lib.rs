@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 pub mod proofs;
 pub mod rules;
 pub mod squads;
+pub mod upgrades;
 
 declare_id!("68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n");
 
@@ -17,6 +18,9 @@ pub const MAX_MEMBERS: usize = 16;
 /// Pre-signing accounts remembered per venue. Amber holds while any of them
 /// is live, so a proof-less update cannot clear it.
 pub const MAX_PRESIGNERS: usize = 8;
+/// Approved upgrade proposals remembered per venue. Amber holds while any of
+/// them can still execute.
+pub const MAX_PENDING_UPGRADES: usize = 4;
 
 #[program]
 pub mod pexiz_oracle {
@@ -58,6 +62,7 @@ pub mod pexiz_oracle {
         };
         v.members = ms.members;
         v.presigners = Vec::new();
+        v.pending_upgrades = Vec::new();
         v.flag = Flag::Green;
         v.baseline_threshold = ms.threshold;
         v.last_update_slot = clock.slot;
@@ -68,21 +73,52 @@ pub mod pexiz_oracle {
     /// Permissionless update. Recomputes every signal from the accounts passed
     /// in and moves the flag.
     ///
-    /// Remaining accounts are pre-signing accounts (System nonce accounts or
-    /// offline-signer program nonces). A new account must prove it is live and
-    /// controlled by a current member; it is then remembered. A remembered
-    /// account is dropped only when it is passed again and no longer proves
-    /// itself (closed, uninitialized, or controlled by a non-member). Absence
-    /// cannot be proven, so leaving proofs out changes nothing: amber holds and
-    /// keeps escalating while any remembered account is live.
+    /// Remaining accounts are proofs of two kinds.
+    ///
+    /// Pre-signing accounts (System nonce accounts or offline-signer program
+    /// nonces). A new account must prove it is live and controlled by a
+    /// current member; it is then remembered. A remembered account is dropped
+    /// only when it is passed again and no longer proves itself (closed,
+    /// uninitialized, or controlled by a non-member). Absence cannot be
+    /// proven, so leaving proofs out changes nothing: amber holds and keeps
+    /// escalating while any remembered account is live.
+    ///
+    /// Pending upgrades: a Squads proposal and its vault transaction. An
+    /// approved proposal whose transaction would upgrade, re-authorise or
+    /// close the program is remembered; it is dropped when its proposal is
+    /// passed executed, cancelled or rejected, or its account is closed.
     pub fn update(ctx: Context<Update>) -> Result<()> {
         let ms = squads::parse_multisig(&ctx.accounts.multisig, MAX_MEMBERS)?;
         let authority = squads::upgrade_authority(&ctx.accounts.program_data);
 
         let clock = Clock::get()?;
         let v = &mut ctx.accounts.venue;
+        let remembered: Vec<(u64, Pubkey)> =
+            v.pending_upgrades.iter().map(|&i| (i, upgrades::proposal_pda(&v.multisig, i))).collect();
+        let (mut approved, mut targeted, mut done) = (Vec::new(), Vec::new(), Vec::new());
         let mut unrecorded_live = false;
         for acc in ctx.remaining_accounts {
+            if upgrades::is_proposal(acc) {
+                let p = upgrades::parse_proposal(acc).ok_or(OracleError::BadUpgradeProof)?;
+                require_keys_eq!(p.multisig, v.multisig, OracleError::BadUpgradeProof);
+                match p.status {
+                    upgrades::Status::Pending => approved.push(p.index),
+                    upgrades::Status::Done => done.push(p.index),
+                    upgrades::Status::Open => {}
+                }
+                continue;
+            }
+            if upgrades::is_vault_transaction(acc) {
+                if let Some(i) = upgrades::targets_program(acc, &v.multisig, v.vault_index, &v.program_data) {
+                    targeted.push(i);
+                }
+                continue;
+            }
+            if let Some(&(i, _)) = remembered.iter().find(|(_, k)| k == acc.key) {
+                // A remembered proposal's address that no longer holds one.
+                done.push(i);
+                continue;
+            }
             let live = proofs::proves_presigning(acc, &ms.members);
             let known = v.presigners.iter().position(|k| k == acc.key);
             match (live, known) {
@@ -96,6 +132,19 @@ pub mod pexiz_oracle {
             }
         }
         let presigning = unrecorded_live || !v.presigners.is_empty();
+        v.pending_upgrades.retain(|i| !done.contains(i));
+        let mut unrecorded_upgrade = false;
+        for i in approved.into_iter().filter(|i| targeted.contains(i) && !done.contains(i)) {
+            if v.pending_upgrades.contains(&i) {
+                continue;
+            }
+            if v.pending_upgrades.len() < MAX_PENDING_UPGRADES {
+                v.pending_upgrades.push(i);
+            } else {
+                unrecorded_upgrade = true;
+            }
+        }
+        let upgrade_pending = unrecorded_upgrade || !v.pending_upgrades.is_empty();
         let newly_replaced = ms.members.iter().filter(|m| !v.members.contains(m)).count() as u16;
         let obs = rules::Observation {
             threshold: ms.threshold,
@@ -104,6 +153,7 @@ pub mod pexiz_oracle {
             newly_replaced,
             authority_moved: authority != Some(v.upgrade_authority),
             presigning,
+            upgrade_pending,
         };
         let mut st = v.rule_state();
         let from = rules::step(&mut st, &obs, clock.unix_timestamp);
@@ -185,6 +235,10 @@ pub struct Venue {
     pub low_threshold_since: i64,
     pub last_update_slot: u64,
     pub bump: u8,
+    /// Squads transaction indices of approved upgrade proposals not yet shown
+    /// executed or dropped. Last, so venues registered before it read empty.
+    #[max_len(MAX_PENDING_UPGRADES)]
+    pub pending_upgrades: Vec<u64>,
 }
 
 impl Venue {
@@ -253,6 +307,7 @@ pub mod reason {
     pub const UPGRADE_AUTHORITY_MOVED: u32 = 1 << 3;
     pub const SIGNER_PRESIGNING: u32 = 1 << 4;
     pub const AMBER_ESCALATED: u32 = 1 << 5;
+    pub const UPGRADE_PENDING: u32 = 1 << 6;
 }
 
 #[derive(Accounts)]
@@ -312,4 +367,6 @@ pub enum OracleError {
     WrongUpgradeAuthority,
     #[msg("multisig has more members than the oracle tracks")]
     TooManyMembers,
+    #[msg("upgrade proof account is not a proposal of the registered multisig")]
+    BadUpgradeProof,
 }

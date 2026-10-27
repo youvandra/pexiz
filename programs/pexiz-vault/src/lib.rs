@@ -11,6 +11,8 @@ declare_id!("3WXGqGargd6Wig3czzD45kstziZGhQdQ5HYYdNJkJGnz");
 /// Hard cap on assets under management in v1, set by measured exit capacity
 /// (JLP sells at 0.64% impact for $10M and 6.7% for $20M, 26 Oct 2026).
 pub const AUM_CAP_USDC: u64 = 10_000_000 * 1_000_000;
+/// Worst price an exit tranche may take, below the pool's value per LP token.
+pub const MAX_EXIT_SLIPPAGE_BPS: u64 = 100;
 
 #[program]
 pub mod pexiz_vault {
@@ -118,41 +120,58 @@ pub mod pexiz_vault {
     }
 
     /// Permissionless. Reads the oracle venue account; if the flag is red,
-    /// redeems all LP tokens to USDC and marks the vault exited. Designed to be
+    /// redeems `lp_amount` of the vault's LP tokens to USDC. Designed to be
     /// called in the same transaction as the oracle update that turns it red.
-    pub fn exit(ctx: Context<Exit>, min_usdc_out: u64) -> Result<()> {
+    ///
+    /// The first call marks the vault exited and opens a re-entry round. When
+    /// the pool cannot absorb the whole position at once, the rest leaves in
+    /// further tranches, in later calls. Each tranche must return at least
+    /// `MAX_EXIT_SLIPPAGE_BPS` below the pool's own value per LP token, so a
+    /// caller cannot force a fire sale.
+    pub fn exit(ctx: Context<Exit>, lp_amount: u64, min_usdc_out: u64) -> Result<()> {
         let a = &ctx.accounts;
-        require!(!a.vault.exited, VaultError::AlreadyExited);
         require!(a.venue.flag == Flag::Red, VaultError::VenueNotRed);
-        let lp = a.vault_lp.amount;
+        let held = a.vault_lp.amount;
+        require!(held > 0, VaultError::AlreadyExited);
+        require!(lp_amount > 0 && lp_amount <= held, VaultError::ZeroAmount);
+        let floor = math::exit_floor(lp_amount, a.pool_reserve.amount, a.pool_lp_mint.supply).ok_or(VaultError::Overflow)?;
+        require!(min_usdc_out >= floor, VaultError::SlippageFloor);
         let usdc_before = a.vault_usdc.amount;
-        if lp > 0 {
-            canary_venue::cpi::remove_liquidity(
-                CpiContext::new_with_signer(
-                    a.canary_program.to_account_info(),
-                    canary_venue::cpi::accounts::RemoveLiquidity {
-                        pool: a.pool.to_account_info(),
-                        lp_mint: a.pool_lp_mint.to_account_info(),
-                        usdc_reserve: a.pool_reserve.to_account_info(),
-                        user_usdc: a.vault_usdc.to_account_info(),
-                        user_lp: a.vault_lp.to_account_info(),
-                        user: a.vault.to_account_info(),
-                        token_program: a.token_program.to_account_info(),
-                    },
-                    &[&a.vault.seeds()],
-                ),
-                lp,
-            )?;
-        }
+        canary_venue::cpi::remove_liquidity(
+            CpiContext::new_with_signer(
+                a.canary_program.to_account_info(),
+                canary_venue::cpi::accounts::RemoveLiquidity {
+                    pool: a.pool.to_account_info(),
+                    lp_mint: a.pool_lp_mint.to_account_info(),
+                    usdc_reserve: a.pool_reserve.to_account_info(),
+                    user_usdc: a.vault_usdc.to_account_info(),
+                    user_lp: a.vault_lp.to_account_info(),
+                    user: a.vault.to_account_info(),
+                    token_program: a.token_program.to_account_info(),
+                },
+                &[&a.vault.seeds()],
+            ),
+            lp_amount,
+        )?;
         ctx.accounts.vault_usdc.reload()?;
         let out = ctx.accounts.vault_usdc.amount - usdc_before;
         require!(out >= min_usdc_out, VaultError::Slippage);
         let clock = Clock::get()?;
         let v = &mut ctx.accounts.vault;
-        v.exited = true;
+        if !v.exited {
+            v.exited = true;
+            v.exits += 1;
+        }
+        // Slot of the latest tranche.
         v.exited_at_slot = clock.slot;
-        v.exits += 1;
-        emit!(VaultExited { vault: v.key(), venue: v.venue, lp_redeemed: lp, usdc_out: out, slot: clock.slot });
+        emit!(VaultExited {
+            vault: v.key(),
+            venue: v.venue,
+            lp_redeemed: lp_amount,
+            usdc_out: out,
+            lp_left: held - lp_amount,
+            slot: clock.slot,
+        });
         Ok(())
     }
 
@@ -454,6 +473,8 @@ pub struct VaultExited {
     pub venue: Pubkey,
     pub lp_redeemed: u64,
     pub usdc_out: u64,
+    /// LP tokens still held after this tranche; zero once fully out.
+    pub lp_left: u64,
     pub slot: u64,
 }
 
@@ -481,4 +502,6 @@ pub enum VaultError {
     Overflow,
     #[msg("venue does not watch the canary venue program")]
     VenueMismatch,
+    #[msg("minimum output is below the exit slippage floor")]
+    SlippageFloor,
 }

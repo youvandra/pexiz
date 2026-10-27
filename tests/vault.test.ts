@@ -21,7 +21,7 @@ describe("vault lifecycle against the canary venue", () => {
     expect(w.holdings()).toEqual({ usdc: 0n, lp: USDC(1000), supply: USDC(1000) });
 
     w.setTimeLock(0);
-    const r = env.send([await w.updateIx(), await exitIx(w.v, USDC(999))]);
+    const r = env.send([await w.updateIx(), await w.exitIx(undefined, USDC(999))]);
     expect(parseFlagChanged(r.logs())[0].to).toBe("red");
     const [ex] = parseVaultExited(r.logs());
     expect(ex.usdcOut).toBe(USDC(999));
@@ -59,7 +59,7 @@ describe("exit", () => {
   test("fails while green", async () => {
     const w = await World.create();
     await w.deposit(w.user(USDC(10)), USDC(10));
-    expect(w.env.expectFail([await exitIx(w.v)])).toContain("VenueNotRed");
+    expect(w.env.expectFail([await w.exitIx()])).toContain("VenueNotRed");
   });
 
   test("fails while amber", async () => {
@@ -67,7 +67,7 @@ describe("exit", () => {
     await w.deposit(w.user(USDC(10)), USDC(10));
     await w.update([w.env.addNonce(w.signers[0].publicKey)]);
     expect(w.flag()).toBe("amber");
-    expect(w.env.expectFail([await exitIx(w.v)])).toContain("VenueNotRed");
+    expect(w.env.expectFail([await w.exitIx()])).toContain("VenueNotRed");
   });
 
   test("update + exit in one transaction succeed together, in one slot", async () => {
@@ -76,7 +76,7 @@ describe("exit", () => {
     const nonce = w.env.addNonce(w.signers[1].publicKey);
     await w.update([nonce]);
     w.env.warp(48 * 3600);
-    const r = w.env.send([await w.updateIx([nonce]), await exitIx(w.v)]);
+    const r = w.env.send([await w.updateIx([nonce]), await w.exitIx()]);
     const [fc] = parseFlagChanged(r.logs());
     const [ex] = parseVaultExited(r.logs());
     expect([fc.from, fc.to]).toEqual(["amber", "red"]);
@@ -87,7 +87,7 @@ describe("exit", () => {
   test("if the update does not turn red, the whole transaction reverts", async () => {
     const w = await World.create();
     await w.deposit(w.user(USDC(50)), USDC(50));
-    expect(w.env.expectFail([await w.updateIx(), await exitIx(w.v)])).toContain("VenueNotRed");
+    expect(w.env.expectFail([await w.updateIx(), await w.exitIx()])).toContain("VenueNotRed");
     expect(w.env.venue(CANARY_PROGRAM_ID).lastUpdateSlot).toBe(1n);
   });
 
@@ -95,22 +95,59 @@ describe("exit", () => {
     const w = await World.create();
     await w.deposit(w.user(USDC(50)), USDC(50));
     w.setTimeLock(0);
-    expect(w.env.expectFail([await w.updateIx(), await exitIx(w.v, USDC(50))])).toContain("Slippage");
+    expect(w.env.expectFail([await w.updateIx(), await w.exitIx(undefined, USDC(50))])).toContain("Slippage");
   });
 
   test("cannot exit twice", async () => {
     const w = await World.create();
     await w.deposit(w.user(USDC(50)), USDC(50));
     w.setTimeLock(0);
-    w.env.send([await w.updateIx(), await exitIx(w.v)]);
-    expect(w.env.expectFail([await exitIx(w.v)])).toContain("AlreadyExited");
+    w.env.send([await w.updateIx(), await w.exitIx()]);
+    expect(w.env.expectFail([await w.exitIx()])).toContain("AlreadyExited");
   });
 
-  test("an empty vault can exit", async () => {
+  test("an empty vault has nothing to exit", async () => {
     const w = await World.create();
     w.setTimeLock(0);
-    w.env.send([await w.updateIx(), await exitIx(w.v)]);
+    await w.update();
+    expect(w.env.expectFail([await exitIx(w.v, 1n, 1n)])).toContain("AlreadyExited");
+  });
+
+  test("a caller cannot set a minimum below the slippage floor", async () => {
+    const w = await World.create();
+    await w.deposit(w.user(USDC(100)), USDC(100));
+    w.setTimeLock(0);
+    // 1% under the pool's value is the worst allowed; ask for 2% under.
+    expect(w.env.expectFail([await w.updateIx(), await w.exitIx(USDC(100), USDC(98))])).toContain("SlippageFloor");
+  });
+
+  test("a large position leaves in tranches, then refuses a further exit", async () => {
+    const w = await World.create();
+    const u = w.user(USDC(1000));
+    await w.deposit(u, USDC(1000));
+    w.setTimeLock(0);
+    const r1 = w.env.send([await w.updateIx(), await w.exitIx(USDC(400))]);
+    const [t1] = parseVaultExited(r1.logs());
+    expect([t1.lpRedeemed, t1.lpLeft]).toEqual([USDC(400), USDC(600)]);
     expect(w.vault().exited).toBe(true);
+    expect(w.vault().exits).toBe(1);
+    // Deposits stay closed between tranches; withdrawals pay the mix.
+    await withdraw(w, u, USDC(100));
+    expect(w.env.balance(u.lp)).toBe(USDC(60));
+    expect(w.env.balance(u.usdc)).toBe((USDC(400) * 999n / 1000n) / 10n);
+    const r2 = w.env.send([await w.exitIx()]);
+    const [t2] = parseVaultExited(r2.logs());
+    expect(t2.lpLeft).toBe(0n);
+    expect(w.vault().exits).toBe(1);
+    expect(w.holdings().lp).toBe(0n);
+    expect(w.env.expectFail([await exitIx(w.v, 1n, 1n)])).toContain("AlreadyExited");
+  });
+
+  test("a tranche larger than the holding is refused", async () => {
+    const w = await World.create();
+    await w.deposit(w.user(USDC(10)), USDC(10));
+    w.setTimeLock(0);
+    expect(w.env.expectFail([await w.updateIx(), await exitIx(w.v, USDC(11), USDC(11))])).toContain("ZeroAmount");
   });
 });
 
@@ -130,7 +167,7 @@ describe("withdraw works in every state", () => {
     expect(w.flag()).toBe("red");
     await withdraw(w, u, USDC(10));
     expect(w.env.balance(u.lp)).toBe(USDC(30));
-    w.env.send([await exitIx(w.v)]);
+    w.env.send([await w.exitIx()]);
     await withdraw(w, u, USDC(70));
     expect(w.env.balance(u.usdc)).toBe(USDC(70) - 70_000n);
     expect(w.holdings()).toEqual({ usdc: 0n, lp: 0n, supply: 0n });
@@ -186,7 +223,7 @@ describe("re-entry vote", () => {
     await w.deposit(b, USDC(49));
     expect(w.env.expectFail([await voteReenterIx(w.v, b.kp.publicKey, b.shares, USDC(1))], [b.kp])).toContain("NotExited");
     w.setTimeLock(0);
-    w.env.send([await w.updateIx(), await exitIx(w.v)]);
+    w.env.send([await w.updateIx(), await w.exitIx()]);
     w.env.send([await voteReenterIx(w.v, b.kp.publicKey, b.shares, USDC(49))], [b.kp]);
     expect(w.env.expectFail([await reenterIx(w.v)])).toContain("VenueNotGreen");
     w.setTimeLock(86_400);
@@ -208,7 +245,7 @@ describe("re-entry vote", () => {
     const a = w.user(USDC(10));
     await w.deposit(a, USDC(10));
     w.setTimeLock(0);
-    w.env.send([await w.updateIx(), await exitIx(w.v)]);
+    w.env.send([await w.updateIx(), await w.exitIx()]);
     w.env.send([await voteReenterIx(w.v, a.kp.publicKey, a.shares, USDC(10))], [a.kp]);
     expect(w.env.balance(a.shares)).toBe(0n);
     w.env.send([await unvoteIx(w.v, a.kp.publicKey, a.shares)], [a.kp]);
@@ -223,7 +260,7 @@ describe("re-entry vote", () => {
     await w.deposit(a, USDC(10));
     await w.deposit(b, USDC(30));
     w.setTimeLock(0);
-    w.env.send([await w.updateIx(), await exitIx(w.v)]);
+    w.env.send([await w.updateIx(), await w.exitIx()]);
     w.env.send([await voteReenterIx(w.v, a.kp.publicKey, a.shares, USDC(10))], [a.kp]);
     expect(w.env.expectFail([await voteReenterIx(w.v, a.kp.publicKey, a.shares, USDC(10))], [a.kp])).toContain("insufficient funds");
   });
@@ -245,7 +282,7 @@ describe("binding checks", () => {
 
   test("exit with another venue account is rejected", async () => {
     const w = await World.create();
-    const ix = await exitIx(w.v);
+    const ix = await w.exitIx();
     ix.keys[1].pubkey = Keypair.generate().publicKey;
     expect(w.env.expectFail([ix])).toMatch(/ConstraintHasOne|AccountNotInitialized/);
   });
@@ -274,7 +311,7 @@ describe("invariant: random sequences never pay out more than the vault holds", 
           await withdraw(w, u, 1n + BigInt(rand(Number(held))));
         } else if (!w.vault().exited) {
           w.setTimeLock(0);
-          w.env.send([await w.updateIx(), await exitIx(w.v)]);
+          w.env.send([await w.updateIx(), await w.exitIx()]);
           continue;
         }
         const after = pps();

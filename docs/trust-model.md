@@ -30,6 +30,14 @@ differs from the stored one, so idle cycles cost nothing.
 
 ## Known gaps
 
+- **What an upgrade does.** The oracle sees that an approved proposal would
+  upgrade the program and warns (amber). It cannot judge the new code, so
+  the vault never exits on an upgrade alone. See
+  [exits-and-losses.md](exits-and-losses.md).
+- **Tranche sizing on priced pools.** The program enforces a 1% floor per
+  exit tranche; the crank sizes tranches for the fixed-rate canary pool
+  only.
+
 - **Venue-level admin keys.** v1 watches the program upgrade authority and
   the multisig that holds it. A venue whose admin key in its own state
   differs from that multisig needs that admin's multisig registered, which

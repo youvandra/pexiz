@@ -16,6 +16,7 @@ Each `update` recomputes these from the accounts passed in.
 | `1 << 3` | `UPGRADE_AUTHORITY_MOVED` | the program-data authority is not the registered Squads vault, or is None |
 | `1 << 4` | `SIGNER_PRESIGNING` | the venue remembers at least one live pre-signing account: a System nonce account (owner System, 80 bytes, `state == 1`) whose authority is a current member |
 | `1 << 5` | `AMBER_ESCALATED` | `SIGNER_PRESIGNING` has held continuously for 48 h |
+| `1 << 6` | `UPGRADE_PENDING` | the venue remembers an approved Squads proposal whose vault transaction would upgrade, re-authorise or close the program |
 
 Member replacement counts members present now that were absent at the
 previous update. The count accumulates in a window that opens with the first
@@ -27,10 +28,14 @@ to 16; measured venues have 7 or 8) to make this count.
 
 - **Red** if any of `TIME_LOCK_BELOW_MIN`, `THRESHOLD_DROPPED`,
   `MEMBERS_REPLACED`, `UPGRADE_AUTHORITY_MOVED` or `AMBER_ESCALATED` holds.
-- **Amber** if only `SIGNER_PRESIGNING` holds. A red flag never steps down
-  to amber.
+- **Amber** if only `SIGNER_PRESIGNING` or `UPGRADE_PENDING` holds. A red
+  flag never steps down to amber.
 - **Green** only once no condition has held for `COOL_OFF_SECS` (7 days),
   tracked by `clear_since`. Any condition during the cool-off restarts it.
+  One exception: an amber raised only by `UPGRADE_PENDING` returns to green
+  as soon as the proposal is executed, cancelled, rejected or closed.
+  Upgrades are routine; a week of paused deposits after each one would teach
+  depositors to ignore the flag.
 
 `reasons` latches every bit seen since the flag last left green, so a red
 flag always carries the reason that raised it, even during the cool-off.
@@ -59,6 +64,30 @@ amber keeps escalating to red after 48 h and cannot clear. Someone who
 controls the nonce, and spams updates without it, changes nothing. The
 crank passes every remembered account each cycle, which is how dead ones
 are cleared.
+
+Pending upgrades work the same way. The proof is a pair of Squads accounts:
+a `Proposal` with status Approved or Executing, and its `VaultTransaction`
+from the registered vault index, holding a BPF upgradeable loader
+instruction (Upgrade, SetAuthority, Close or SetAuthorityChecked) whose
+first account is the venue's program data. Both accounts must be owned by
+Squads v4 and name the registered multisig; a proposal of another multisig
+fails the transaction (`BadUpgradeProof`). If the first account comes from
+an address lookup table it cannot be resolved on chain and is counted:
+hiding the target is itself the warning. Up to 4 indices are remembered in
+`pending_upgrades`. One is dropped only when its proposal is passed
+executed, cancelled or rejected, or its address is passed holding no
+proposal.
+
+`UPGRADE_PENDING` never turns the flag red and never triggers an exit. The
+oracle cannot tell a routine upgrade from a malicious one; it can only say
+that one is coming and when it can land. Deposits pause, and every
+depositor sees the warning while the timelock still stands between the
+approval and their money.
+
+On 27 Oct 2026 this already finds something on mainnet: Jupiter Perps
+proposal #20, an upgrade of the Perps program approved on 7 Aug 2026, is
+still waiting. Its buffer exists, so a member can execute it at any time
+with no delay left.
 
 A cranker who misses a new proof can delay amber. No input can produce a
 false red: every red bit is computed from the multisig, the program data,

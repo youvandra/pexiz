@@ -43,7 +43,10 @@ export function registerVenueIx(payer: PublicKey, p: VenueParams): Promise<Trans
     .instruction();
 }
 
-/** `update` with pre-signing proof accounts appended as remaining accounts. */
+/**
+ * `update` with proof accounts appended as remaining accounts: pre-signing
+ * accounts, and the proposal and vault transaction of each pending upgrade.
+ */
 export function updateIx(program: PublicKey, multisig: PublicKey, proofs: PublicKey[] = []): Promise<TransactionInstruction> {
   const remaining: AccountMeta[] = proofs.map((pubkey) => ({ pubkey, isSigner: false, isWritable: false }));
   return oracleProgram.methods
@@ -59,6 +62,8 @@ export interface Venue {
   programData: PublicKey;
   multisig: PublicKey;
   upgradeAuthority: PublicKey;
+  /** Squads vault index holding the upgrade authority. */
+  vaultIndex: number;
   minTimeLockSecs: number;
   exitTimeSecs: number;
   threshold: number;
@@ -66,6 +71,8 @@ export interface Venue {
   members: PublicKey[];
   /** Pre-signing accounts proven live and not yet shown dead. */
   presigners: PublicKey[];
+  /** Squads transaction indices of approved upgrade proposals still pending. */
+  pendingUpgrades: bigint[];
   baselineThreshold: number;
   lowThresholdSince: number;
   flag: FlagName;
@@ -89,12 +96,14 @@ export function decodeVenue(data: Buffer, address?: PublicKey): Venue {
     programData: v.program_data,
     multisig: v.multisig,
     upgradeAuthority: v.upgrade_authority,
+    vaultIndex: v.vault_index,
     minTimeLockSecs: v.min_time_lock_secs,
     exitTimeSecs: v.exit_time_secs,
     threshold: v.snapshot.threshold,
     timeLockSecs: v.snapshot.time_lock_secs,
     members: v.members,
     presigners: v.presigners,
+    pendingUpgrades: (v.pending_upgrades ?? []).map((x: BN) => BigInt(x.toString())),
     baselineThreshold: v.baseline_threshold,
     lowThresholdSince: num(v.low_threshold_since),
     flag: flagName(v.flag),

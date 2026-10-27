@@ -66,8 +66,20 @@ export function withdrawIx(v: VaultAddresses, user: PublicKey, a: { userShares: 
   }).instruction();
 }
 
-export function exitIx(v: VaultAddresses, minUsdcOut = 0n): Promise<TransactionInstruction> {
-  return vaultProgram.methods.exit(bn(minUsdcOut)).accountsStrict(poolAccounts(v)).instruction();
+/** Most an exit tranche may lose against the pool's value per LP token, mirrored from MAX_EXIT_SLIPPAGE_BPS. */
+export const MAX_EXIT_SLIPPAGE_BPS = 100n;
+
+/** Least USDC the program accepts as `minUsdcOut` for `lp` (reserve and supply of the pool). */
+export function exitFloor(lp: bigint, reserve: bigint, lpSupply: bigint): bigint {
+  if (lpSupply === 0n) return 0n;
+  const num = lp * reserve * (10_000n - MAX_EXIT_SLIPPAGE_BPS);
+  const den = lpSupply * 10_000n;
+  return (num + den - 1n) / den;
+}
+
+/** Redeems `lp` of the vault's LP tokens; the first tranche marks the vault exited. */
+export function exitIx(v: VaultAddresses, lp: bigint, minUsdcOut: bigint): Promise<TransactionInstruction> {
+  return vaultProgram.methods.exit(bn(lp), bn(minUsdcOut)).accountsStrict(poolAccounts(v)).instruction();
 }
 
 export function voteReenterIx(v: VaultAddresses, user: PublicKey, userShares: PublicKey, shares: bigint) {
@@ -111,6 +123,9 @@ export function parseVaultExited(logs: string[]) {
     .filter((e) => e.name === "VaultExited")
     .map((e) => {
       const d = e.data as any;
-      return { vault: d.vault as PublicKey, lpRedeemed: BigInt(d.lp_redeemed.toString()), usdcOut: BigInt(d.usdc_out.toString()), slot: BigInt(d.slot.toString()) };
+      return {
+        vault: d.vault as PublicKey, lpRedeemed: BigInt(d.lp_redeemed.toString()), usdcOut: BigInt(d.usdc_out.toString()),
+        lpLeft: BigInt((d.lp_left ?? 0).toString()), slot: BigInt(d.slot.toString()),
+      };
     });
 }

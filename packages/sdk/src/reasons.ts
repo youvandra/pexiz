@@ -6,6 +6,7 @@ export const Reason = {
   UPGRADE_AUTHORITY_MOVED: 1 << 3,
   SIGNER_PRESIGNING: 1 << 4,
   AMBER_ESCALATED: 1 << 5,
+  UPGRADE_PENDING: 1 << 6,
 } as const;
 
 const TEXT: Record<number, string> = {
@@ -15,6 +16,7 @@ const TEXT: Record<number, string> = {
   [Reason.UPGRADE_AUTHORITY_MOVED]: "the program upgrade authority moved away from the registered multisig vault",
   [Reason.SIGNER_PRESIGNING]: "a multisig member controls a durable-nonce account, so approvals can be pre-signed and landed later",
   [Reason.AMBER_ESCALATED]: "the pre-signing warning has been unresolved for 48 hours",
+  [Reason.UPGRADE_PENDING]: "an approved multisig proposal will upgrade or re-authorise the program once its timelock ends",
 };
 
 export function reasonNames(bits: number): string[] {

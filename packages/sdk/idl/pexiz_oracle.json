@@ -79,13 +79,20 @@
         "Permissionless update. Recomputes every signal from the accounts passed",
         "in and moves the flag.",
         "",
-        "Remaining accounts are pre-signing accounts (System nonce accounts or",
-        "offline-signer program nonces). A new account must prove it is live and",
-        "controlled by a current member; it is then remembered. A remembered",
-        "account is dropped only when it is passed again and no longer proves",
-        "itself (closed, uninitialized, or controlled by a non-member). Absence",
-        "cannot be proven, so leaving proofs out changes nothing: amber holds and",
-        "keeps escalating while any remembered account is live."
+        "Remaining accounts are proofs of two kinds.",
+        "",
+        "Pre-signing accounts (System nonce accounts or offline-signer program",
+        "nonces). A new account must prove it is live and controlled by a",
+        "current member; it is then remembered. A remembered account is dropped",
+        "only when it is passed again and no longer proves itself (closed,",
+        "uninitialized, or controlled by a non-member). Absence cannot be",
+        "proven, so leaving proofs out changes nothing: amber holds and keeps",
+        "escalating while any remembered account is live.",
+        "",
+        "Pending upgrades: a Squads proposal and its vault transaction. An",
+        "approved proposal whose transaction would upgrade, re-authorise or",
+        "close the program is remembered; it is dropped when its proposal is",
+        "passed executed, cancelled or rejected, or its account is closed."
       ],
       "discriminator": [
         219,
@@ -191,6 +198,11 @@
       "code": 6005,
       "name": "TooManyMembers",
       "msg": "multisig has more members than the oracle tracks"
+    },
+    {
+      "code": 6006,
+      "name": "BadUpgradeProof",
+      "msg": "upgrade proof account is not a proposal of the registered multisig"
     }
   ],
   "types": [
@@ -420,6 +432,16 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "pending_upgrades",
+            "docs": [
+              "Squads transaction indices of approved upgrade proposals not yet shown",
+              "executed or dropped. Last, so venues registered before it read empty."
+            ],
+            "type": {
+              "vec": "u64"
+            }
           }
         ]
       }

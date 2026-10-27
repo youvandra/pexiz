@@ -25,6 +25,18 @@ pub fn majority(votes: u64, supply: u64) -> bool {
     supply > 0 && votes as u128 * 2 >= supply as u128
 }
 
+/// Least USDC an exit tranche of `lp` may return: the pool's own value per LP
+/// token (`reserve / lp_supply`) less `MAX_EXIT_SLIPPAGE_BPS`, rounded up.
+pub fn exit_floor(lp: u64, reserve: u64, lp_supply: u64) -> Option<u64> {
+    if lp_supply == 0 {
+        return None;
+    }
+    let keep = 10_000 - crate::MAX_EXIT_SLIPPAGE_BPS as u128;
+    let num = lp as u128 * reserve as u128 * keep;
+    let den = lp_supply as u128 * 10_000;
+    u64::try_from(num.div_ceil(den)).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -38,6 +50,22 @@ mod tests {
     #[test]
     fn empty_nav_with_shares_refuses_deposit() {
         assert_eq!(shares_for_deposit(5, 0, 10), None);
+    }
+
+    #[test]
+    fn exit_floor_is_one_percent_under_pool_value() {
+        // 1:1 pool: 1,000 LP must fetch at least 990 USDC.
+        assert_eq!(exit_floor(1_000, 5_000, 5_000), Some(990));
+        // Pool worth 2 USDC per LP.
+        assert_eq!(exit_floor(1_000, 10_000, 5_000), Some(1_980));
+        assert_eq!(exit_floor(1, 1, 0), None);
+    }
+
+    #[test]
+    fn canary_redemption_clears_the_floor() {
+        // Canary pays 1:1 less 10 bps; the floor allows 100 bps.
+        let lp = 1_000_000_000;
+        assert!(canary_venue::redeem_amount(lp) >= exit_floor(lp, lp, lp).unwrap());
     }
 
     #[test]

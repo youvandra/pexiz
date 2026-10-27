@@ -19,6 +19,8 @@ pub struct Observation {
     pub newly_replaced: u16,
     pub authority_moved: bool,
     pub presigning: bool,
+    /// An approved proposal would upgrade, re-authorise or close the program.
+    pub upgrade_pending: bool,
 }
 
 /// The part of `Venue` the rules read and write.
@@ -41,6 +43,13 @@ pub struct RuleState {
     pub replaced_window_base: u16,
     /// When the threshold first fell below the baseline; 0 while it is not.
     pub low_threshold_since: i64,
+}
+
+/// An amber raised only by a pending upgrade. Upgrades are routine, so once
+/// the proposal is executed or dropped the flag returns to green at once,
+/// without the cool-off.
+fn upgrade_only(latched: u32) -> bool {
+    latched != 0 && latched & !reason::UPGRADE_PENDING == 0
 }
 
 /// Applies one observation at time `now`. Returns the previous flag.
@@ -98,6 +107,10 @@ pub fn step(s: &mut RuleState, o: &Observation, now: i64) -> Flag {
         s.amber_since = 0;
     }
 
+    if o.upgrade_pending {
+        active |= reason::UPGRADE_PENDING;
+    }
+
     if active == 0 {
         if s.clear_since == 0 {
             s.clear_since = now;
@@ -109,13 +122,14 @@ pub fn step(s: &mut RuleState, o: &Observation, now: i64) -> Flag {
     let to = if active & (HARD_MASK | reason::AMBER_ESCALATED) != 0 {
         Flag::Red
     } else if active != 0 {
-        // Only pre-signing: amber, but a red flag never steps down to amber.
+        // Only pre-signing or a pending upgrade: amber, but a red flag never
+        // steps down to amber.
         if from == Flag::Red {
             Flag::Red
         } else {
             Flag::Amber
         }
-    } else if from == Flag::Green || now - s.clear_since >= COOL_OFF_SECS {
+    } else if from == Flag::Green || upgrade_only(s.reasons) || now - s.clear_since >= COOL_OFF_SECS {
         Flag::Green
     } else {
         from
@@ -313,15 +327,54 @@ mod tests {
         assert_eq!(s.active_reasons, reason::TIME_LOCK_BELOW_MIN);
     }
 
+    #[test]
+    fn pending_upgrade_is_amber_and_never_red_alone() {
+        let mut s = base();
+        let o = Observation { upgrade_pending: true, ..healthy() };
+        step(&mut s, &o, T0);
+        assert_eq!(s.flag, Flag::Amber);
+        assert_eq!(s.active_reasons, reason::UPGRADE_PENDING);
+        step(&mut s, &o, T0 + 10 * DAY);
+        assert_eq!(s.flag, Flag::Amber);
+    }
+
+    #[test]
+    fn executed_upgrade_returns_green_at_once() {
+        let mut s = base();
+        step(&mut s, &Observation { upgrade_pending: true, ..healthy() }, T0);
+        step(&mut s, &healthy(), T0 + DAY);
+        assert_eq!(s.flag, Flag::Green);
+        assert_eq!(s.reasons, 0);
+    }
+
+    #[test]
+    fn upgrade_with_presigning_still_needs_cool_off() {
+        let mut s = base();
+        step(&mut s, &Observation { upgrade_pending: true, presigning: true, ..healthy() }, T0);
+        step(&mut s, &healthy(), T0 + DAY);
+        assert_eq!(s.flag, Flag::Amber);
+        step(&mut s, &healthy(), T0 + DAY + COOL_OFF_SECS);
+        assert_eq!(s.flag, Flag::Green);
+    }
+
+    #[test]
+    fn red_stays_red_through_a_pending_upgrade() {
+        let mut s = base();
+        step(&mut s, &Observation { time_lock_secs: 0, ..healthy() }, T0);
+        step(&mut s, &Observation { upgrade_pending: true, ..healthy() }, T0 + DAY);
+        assert_eq!(s.flag, Flag::Red);
+    }
+
     fn arb_obs() -> impl Strategy<Value = Observation> {
-        (1u16..8, prop_oneof![Just(0u32), Just(1800), Just(3600), Just(86_400)], 0u16..3, any::<bool>(), any::<bool>())
-            .prop_map(|(threshold, time_lock_secs, newly_replaced, authority_moved, presigning)| Observation {
+        (1u16..8, prop_oneof![Just(0u32), Just(1800), Just(3600), Just(86_400)], 0u16..3, any::<bool>(), any::<bool>(), any::<bool>())
+            .prop_map(|(threshold, time_lock_secs, newly_replaced, authority_moved, presigning, upgrade_pending)| Observation {
                 threshold,
                 time_lock_secs,
                 member_count: 8,
                 newly_replaced,
                 authority_moved: authority_moved && threshold % 3 == 0,
                 presigning,
+                upgrade_pending,
             })
     }
 
@@ -338,6 +391,7 @@ mod tests {
             for (o, dt) in seq {
                 now += dt;
                 let clear_since = if s.active_reasons == 0 { s.clear_since } else { 0 };
+                let latched = s.reasons;
                 let from = step(&mut s, &o, now);
                 if s.flag == Flag::Red {
                     prop_assert!(s.reasons & (HARD_MASK | reason::AMBER_ESCALATED) != 0);
@@ -347,7 +401,7 @@ mod tests {
                 }
                 if s.flag == Flag::Green {
                     prop_assert_eq!(s.active_reasons, 0);
-                    if from != Flag::Green {
+                    if from != Flag::Green && !upgrade_only(latched) {
                         prop_assert!(clear_since != 0 && now - clear_since >= COOL_OFF_SECS);
                     }
                 }

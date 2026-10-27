@@ -3,7 +3,7 @@
 // and the escape vault.
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import {
-  CANARY_PROGRAM_ID, canaryPool, depositIx, initPoolIx, initVaultIx, registerVenueIx, updateIx, vaultAddresses,
+  CANARY_PROGRAM_ID, canaryPool, depositIx, exitFloor, exitIx, initPoolIx, initVaultIx, registerVenueIx, updateIx, vaultAddresses,
   vaultPda, venuePda, decodeVault, type VaultAddresses,
 } from "@pexiz/sdk";
 import { Env, members, multisigOf } from "./env";
@@ -55,6 +55,13 @@ export class World {
 
   async deposit(u: User, amount: bigint) {
     return this.env.send([await depositIx(this.v, u.kp.publicKey, u.usdc, u.shares, amount)], [u.kp]);
+  }
+
+  /** `exit` for `lp` (default: all the vault holds) at the program's slippage floor unless `minOut` is given. */
+  exitIx(lp?: bigint, minOut?: bigint) {
+    const amount = lp ?? this.env.balance(this.v.vaultLp);
+    const floor = exitFloor(amount, this.env.balance(this.v.pool.usdcReserve), this.env.supply(this.v.pool.lpMint));
+    return exitIx(this.v, amount, minOut ?? floor);
   }
 
   updateIx(proofs: PublicKey[] = []) {

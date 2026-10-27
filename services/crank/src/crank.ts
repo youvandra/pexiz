@@ -7,8 +7,9 @@ import {
   type TransactionInstruction,
 } from "@solana/web3.js";
 import {
-  VAULT_PROGRAM_ID, decodeMultisig, decodeVault, decodeVenue, exitIx, fetchVenues, findPresigningAccounts,
-  reasonNames, updateIx, vaultAddresses, withBackoff, type Venue,
+  VAULT_PROGRAM_ID, decodeMultisig, decodeVault, decodeVenue, exitFloor, exitIx, fetchVenues, findPendingUpgrades,
+  findPresigningAccounts, programDataAddress, proposalPda, reasonNames, transactionPda, updateIx, vaultAddresses,
+  withBackoff, type Venue,
 } from "@pexiz/sdk";
 
 /** Canary redemption fee (10 bps) plus 50 bps of slippage headroom. */
@@ -58,12 +59,18 @@ export class Crank {
   async crankVenue(v: Venue): Promise<CycleResult> {
     const ms = await withBackoff(() => this.conn.getAccountInfo(v.multisig));
     if (!ms) throw new Error("multisig account missing");
-    const members = decodeMultisig(ms.data).members.map((m) => m.key);
+    const multisig = decodeMultisig(ms.data);
+    const members = multisig.members.map((m) => m.key);
     const presigning = await withBackoff(() => findPresigningAccounts(this.conn, members, { delayMs: this.opts.memberDelayMs }));
     // Live accounts found now, plus every remembered one: passing a remembered
     // account that has since closed or left member control is what clears it.
     const proofs = [...presigning.map((p) => p.address)];
     for (const k of v.presigners) if (!proofs.some((p) => p.equals(k))) proofs.push(k);
+    // Approved upgrade proposals, and every remembered one: passing a
+    // remembered proposal once it has executed or closed is what clears it.
+    const pending = await withBackoff(() => findPendingUpgrades(this.conn, v.multisig, multisig.transactionIndex, v.vaultIndex, programDataAddress(v.program)));
+    const indices = new Set([...pending.map((p) => p.index), ...v.pendingUpgrades]);
+    for (const i of indices) proofs.push(proposalPda(v.multisig, i), transactionPda(v.multisig, i));
     const update = await updateIx(v.program, v.multisig, proofs);
 
     const sim = await this.simulate([update], v.address!);
@@ -95,17 +102,28 @@ export class Crank {
     return decodeVenue(Buffer.from(acc.data[0], "base64"), venue);
   }
 
-  /** `exit` for the venue's vault, or null when there is none or it already exited. */
+  /**
+   * `exit` for the next tranche of the venue's vault, or null when there is
+   * none or nothing is left to sell. The canary pool redeems at a fixed rate,
+   * so one tranche takes everything; a pool with price impact would size the
+   * tranche from a quote so that it clears the program's slippage floor.
+   */
   private async exitFor(venue: PublicKey): Promise<TransactionInstruction | null> {
     const vaultKey = PublicKey.findProgramAddressSync([Buffer.from("vault"), venue.toBuffer()], VAULT_PROGRAM_ID)[0];
     const info = await withBackoff(() => this.conn.getAccountInfo(vaultKey));
     if (!info) return null;
     const vault = decodeVault(info.data);
-    if (vault.exited) return null;
     const addrs = vaultAddresses(venue, vault.usdcMint);
-    const lp = await withBackoff(() => this.conn.getTokenAccountBalance(addrs.vaultLp));
-    const minOut = (BigInt(lp.value.amount) * EXIT_MIN_OUT_BPS) / 10_000n;
-    return exitIx(addrs, minOut);
+    const [lpBal, reserve, supply] = await withBackoff(() => Promise.all([
+      this.conn.getTokenAccountBalance(addrs.vaultLp),
+      this.conn.getTokenAccountBalance(addrs.pool.usdcReserve),
+      this.conn.getTokenSupply(addrs.pool.lpMint),
+    ]));
+    const lp = BigInt(lpBal.value.amount);
+    if (lp === 0n) return null;
+    const floor = exitFloor(lp, BigInt(reserve.value.amount), BigInt(supply.value.amount));
+    const quoted = (lp * EXIT_MIN_OUT_BPS) / 10_000n;
+    return exitIx(addrs, lp, quoted > floor ? quoted : floor);
   }
 }
 
@@ -113,6 +131,7 @@ function changed(a: Venue, b: Venue): boolean {
   return a.flag !== b.flag || a.reasons !== b.reasons || a.activeReasons !== b.activeReasons
     || a.amberSince !== b.amberSince || (b.flag !== "green" && a.clearSince !== b.clearSince) || a.threshold !== b.threshold
     || a.timeLockSecs !== b.timeLockSecs || a.members.length !== b.members.length
+    || a.pendingUpgrades.length !== b.pendingUpgrades.length || a.presigners.length !== b.presigners.length
     || a.members.some((m, i) => !m.equals(b.members[i]));
 }
 

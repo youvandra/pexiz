@@ -4,7 +4,7 @@
 // in for the drained venue's program.
 import { FailedTransactionMetadata } from "litesvm";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { CANARY_PROGRAM_ID, exitIx, parseFlagChanged, parseVaultExited, reasonNames, type FlagChanged } from "@pexiz/sdk";
+import { CANARY_PROGRAM_ID, parseFlagChanged, parseVaultExited, reasonNames, type FlagChanged } from "@pexiz/sdk";
 import { USDC, World } from "@pexiz/localnet";
 
 const utc = (s: string) => Math.floor(Date.parse(`${s}Z`) / 1000);
@@ -98,7 +98,7 @@ export async function runReplay(opts: { presigning?: boolean } = {}): Promise<Re
     let logs: string[];
     const update = await w.updateIx(proofs);
     if (!w.vault().exited) {
-      const r = w.env.trySend([update, await exitIx(w.v)]);
+      const r = w.env.trySend([update, await w.exitIx()]);
       if (r instanceof FailedTransactionMetadata) {
         logs = w.env.send([await w.updateIx(proofs)]).logs();
       } else {

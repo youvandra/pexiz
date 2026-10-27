@@ -103,8 +103,14 @@
       "name": "exit",
       "docs": [
         "Permissionless. Reads the oracle venue account; if the flag is red,",
-        "redeems all LP tokens to USDC and marks the vault exited. Designed to be",
-        "called in the same transaction as the oracle update that turns it red."
+        "redeems `lp_amount` of the vault's LP tokens to USDC. Designed to be",
+        "called in the same transaction as the oracle update that turns it red.",
+        "",
+        "The first call marks the vault exited and opens a re-entry round. When",
+        "the pool cannot absorb the whole position at once, the rest leaves in",
+        "further tranches, in later calls. Each tranche must return at least",
+        "`MAX_EXIT_SLIPPAGE_BPS` below the pool's own value per LP token, so a",
+        "caller cannot force a fire sale."
       ],
       "discriminator": [
         234,
@@ -165,6 +171,10 @@
         }
       ],
       "args": [
+        {
+          "name": "lp_amount",
+          "type": "u64"
+        },
         {
           "name": "min_usdc_out",
           "type": "u64"
@@ -751,6 +761,11 @@
       "code": 6010,
       "name": "VenueMismatch",
       "msg": "venue does not watch the canary venue program"
+    },
+    {
+      "code": 6011,
+      "name": "SlippageFloor",
+      "msg": "minimum output is below the exit slippage floor"
     }
   ],
   "types": [
@@ -923,6 +938,13 @@
             "type": "u64"
           },
           {
+            "name": "lp_left",
+            "docs": [
+              "LP tokens still held after this tranche; zero once fully out."
+            ],
+            "type": "u64"
+          },
+          {
             "name": "slot",
             "type": "u64"
           }
@@ -1051,6 +1073,16 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "pending_upgrades",
+            "docs": [
+              "Squads transaction indices of approved upgrade proposals not yet shown",
+              "executed or dropped. Last, so venues registered before it read empty."
+            ],
+            "type": {
+              "vec": "u64"
+            }
           }
         ]
       }

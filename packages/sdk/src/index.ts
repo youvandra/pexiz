@@ -2,6 +2,7 @@
 // multisig and System nonce decoding shared by the crank, alerts and replay.
 export * from "./squads";
 export * from "./nonce";
+export * from "./upgrades";
 export * from "./reasons";
 export * from "./oracle";
 export * from "./canary";
