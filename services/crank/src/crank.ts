@@ -1,12 +1,16 @@
 // One crank cycle: for each registered venue, read the multisig, find
 // pre-signing accounts, simulate `update`, and send it when it changes
 // anything. If the simulated flag is red and a vault for the venue has not
-// exited, `update` and `exit` go in one transaction.
+// exited, `update` and `exit` go in one transaction. Then every holder who
+// guarded their own LP with that venue is taken out, a few per transaction,
+// with the crank's own USDC account named for the keeper fee.
 import {
   ComputeBudgetProgram, Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction,
   type TransactionInstruction,
 } from "@solana/web3.js";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import {
+  EXIT_PROGRAM_ID, autoExitCanaryIx, canaryBacking, canaryPool, decodeGuard, exitCoder,
   VAULT_PROGRAM_ID, decodeMultisig, decodeVault, decodeVenue, exitFloor, exitIx, fetchVenues, findPendingUpgrades,
   findPresigningAccounts, programDataAddress, proposalPda, reasonNames, transactionPda, updateIx, vaultAddresses,
   withBackoff, type Venue,
@@ -24,6 +28,8 @@ export interface CycleResult {
   proofs: number;
   action: "none" | "update" | "update+exit";
   signature?: string;
+  /** Holders taken out through their guards this cycle, and the signatures. */
+  guardExits?: { holder: PublicKey; signature: string }[];
   error?: string;
 }
 
@@ -84,11 +90,51 @@ export class Crank {
         result.action = "update+exit";
       }
     }
-    if (result.action === "none" && !changed(v, sim)) return result;
-    if (result.action === "none") result.action = "update";
-    ixs.unshift(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }));
-    result.signature = await withBackoff(() => sendAndConfirmTransaction(this.conn, new Transaction().add(...ixs), [this.payer], { commitment: "confirmed" }));
+    if (result.action !== "none" || changed(v, sim)) {
+      if (result.action === "none") result.action = "update";
+      ixs.unshift(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }));
+      result.signature = await withBackoff(() => sendAndConfirmTransaction(this.conn, new Transaction().add(...ixs), [this.payer], { commitment: "confirmed" }));
+    }
+    if (sim.flag === "red") result.guardExits = await this.exitGuards(v.address!);
     return result;
+  }
+
+  /**
+   * Runs `exit_canary` for every canary guard on the venue that still has
+   * something delegated. JLP guards need Jupiter's custody accounts and are
+   * left to a JLP-aware keeper.
+   */
+  async exitGuards(venue: PublicKey): Promise<{ holder: PublicKey; signature: string }[]> {
+    const found = await withBackoff(() => this.conn.getProgramAccounts(EXIT_PROGRAM_ID, {
+      filters: [
+        { memcmp: exitCoder.accounts.memcmp("Guard") },
+        { memcmp: { offset: 8 + 32, bytes: venue.toBase58() } },
+      ],
+    }));
+    const out: { holder: PublicKey; signature: string }[] = [];
+    for (const { account } of found) {
+      const g = decodeGuard(account.data);
+      if (g.kind !== "canary") continue;
+      const info = await this.conn.getAccountInfo(g.pool);
+      if (!info) continue;
+      const pool = canaryPool(new PublicKey(info.data.subarray(8, 40)));
+      const holderLp = getAssociatedTokenAddressSync(pool.lpMint, g.holder, true);
+      const lp = await this.conn.getAccountInfo(holderLp);
+      // Delegate option at 72, delegated amount at 121: nothing to take, no transaction.
+      if (!lp || lp.data.readUInt32LE(72) !== 1 || lp.data.readBigUInt64LE(121) === 0n || lp.data.readBigUInt64LE(64) === 0n) continue;
+      const keeperUsdc = getAssociatedTokenAddressSync(pool.usdcMint, this.payer.publicKey);
+      try {
+        const signature = await sendAndConfirmTransaction(this.conn, new Transaction().add(
+          await autoExitCanaryIx(g, pool, holderLp, keeperUsdc),
+        ), [this.payer], { commitment: "confirmed" });
+        out.push({ holder: g.holder, signature });
+        this.log(`guard exit holder=${g.holder.toBase58()} sig=${signature}`);
+      } catch (e: any) {
+        const why = (e?.logs as string[] | undefined)?.filter((l) => l.includes("Error")).pop() ?? String(e?.message ?? e).split("\n")[0];
+        this.log(`guard exit holder=${g.holder.toBase58()} failed: ${why}`);
+      }
+    }
+    return out;
   }
 
   /** Simulates instructions and returns the venue account as it would be after them. */
@@ -121,7 +167,7 @@ export class Crank {
     ]));
     const lp = BigInt(lpBal.value.amount);
     if (lp === 0n) return null;
-    const floor = exitFloor(lp, BigInt(reserve.value.amount), BigInt(supply.value.amount));
+    const floor = exitFloor(lp, canaryBacking(BigInt(reserve.value.amount), BigInt(supply.value.amount)), BigInt(supply.value.amount));
     const quoted = (lp * EXIT_MIN_OUT_BPS) / 10_000n;
     return exitIx(addrs, lp, quoted > floor ? quoted : floor);
   }

@@ -1,12 +1,14 @@
 // Integration test on a local solana-test-validator: the crank finds a real
 // System nonce account (amber), then sees the timelock cut and sends the
-// oracle update and the vault exit in one transaction.
+// oracle update and the vault exit in one transaction, then takes a holder
+// who guarded their own LP out to their wallet.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { Keypair, NONCE_ACCOUNT_LENGTH, PublicKey, SystemProgram } from "@solana/web3.js";
 import {
   createAssociatedTokenAccountIdempotentInstruction, createMint, getAssociatedTokenAddressSync, mintTo,
 } from "@solana/spl-token";
 import {
+  addLiquidityIx, openRouteIx, parseGuardExited, protectCanaryIxs,
   CANARY_PROGRAM_ID, Permission, SQUADS_V4_ID, VAULT_PROGRAM_ID, canaryPool, decodeMultisig, decodeVault, depositIx,
   initPoolIx, initVaultIx, registerVenueIx, vaultAddresses, vaultPda, venuePda, encodeMultisig, type Multisig,
 } from "@pexiz/sdk";
@@ -54,6 +56,20 @@ test("crank: green no-op, nonce → amber, timelock cut → update+exit in one t
   await mintTo(conn, payer, usdc, userUsdc, payer, 5_000_000_000n);
   await send(v, [await depositIx(va, payer.publicKey, userUsdc, userShares, 5_000_000_000n)]);
 
+  // A holder keeps 300 USDC of canary LP in their own wallet and guards it.
+  const holder = Keypair.generate();
+  await conn.confirmTransaction(await conn.requestAirdrop(holder.publicKey, 1_000_000_000), "confirmed");
+  const holderUsdc = getAssociatedTokenAddressSync(usdc, holder.publicKey);
+  const holderLp = getAssociatedTokenAddressSync(pool.lpMint, holder.publicKey);
+  await send(v, [
+    createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, holderUsdc, holder.publicKey, usdc),
+    createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, holderLp, holder.publicKey, pool.lpMint),
+    await openRouteIx(payer.publicKey, usdc),
+  ]);
+  await mintTo(conn, payer, usdc, holderUsdc, payer, 300_000_000n);
+  await send(v, [await addLiquidityIx(pool, { user: holder.publicKey, userUsdc: holderUsdc, userLp: holderLp }, 300_000_000n)], [holder]);
+  await send(v, await protectCanaryIxs(holder.publicKey, venuePda(CANARY_PROGRAM_ID), pool, holderLp, holderUsdc, 300_000_000n), [holder]);
+
   // The alerts service polls the oracle in the background.
   const alerts: string[] = [];
   const stopAlerts = new AbortController();
@@ -89,6 +105,13 @@ test("crank: green no-op, nonce → amber, timelock cut → update+exit in one t
   expect(vault.exitedAtSlot).toBe(BigInt(tx!.slot));
   expect((await conn.getTokenAccountBalance(va.vaultUsdc)).value.amount).toBe("4995000000");
 
+  // The same cycle took the guarded holder out: 300 LP at 99.9%, less the crank's 0.1%.
+  expect(r[0].guardExits?.length).toBe(1);
+  const gx = await conn.getTransaction(r[0].guardExits![0].signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  expect(parseGuardExited(gx!.meta!.logMessages!)[0].usdcOut).toBe(299_700_000n);
+  expect((await conn.getTokenAccountBalance(holderLp)).value.amount).toBe("0");
+  expect((await conn.getTokenAccountBalance(holderUsdc)).value.amount).toBe(String(299_700_000n - 299_700n));
+
   // Cycle 4: already red and exited; nothing to send.
   r = await crank.cycle();
   expect(r[0]).toMatchObject({ from: "red", to: "red", action: "none" });
@@ -100,6 +123,8 @@ test("crank: green no-op, nonce → amber, timelock cut → update+exit in one t
   expect(alerts[0]).toContain("AMBER");
   expect(alerts[1]).toContain("RED");
 
-  expect(lines.length).toBe(4);
-  for (const l of lines) expect(l).toMatch(/venue=CHpLfS2B.* flag=\S+ reasons=\S+ proofs=\d action=\S+/);
+  const cycleLines = lines.filter((l) => !l.startsWith("guard exit"));
+  expect(cycleLines.length).toBe(4);
+  expect(lines.filter((l) => l.startsWith("guard exit")).length).toBe(1);
+  for (const l of cycleLines) expect(l).toMatch(/venue=CHpLfS2B.* flag=\S+ reasons=\S+ proofs=\d action=\S+/);
 }, 120_000);

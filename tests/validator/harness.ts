@@ -4,7 +4,7 @@ import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, Transact
 import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CANARY_PROGRAM_ID, ORACLE_PROGRAM_ID, SQUADS_V4_ID, VAULT_PROGRAM_ID, encodeMultisig, type Multisig } from "@pexiz/sdk";
+import { CANARY_PROGRAM_ID, EXIT_PROGRAM_ID, ORACLE_PROGRAM_ID, SQUADS_V4_ID, VAULT_PROGRAM_ID, encodeMultisig, type Multisig } from "@pexiz/sdk";
 
 const ROOT = join(import.meta.dir, "../..");
 export const STUB_SO = join(ROOT, "tests/squads-stub/target/deploy/squads_stub.so");
@@ -42,6 +42,7 @@ export async function startValidator(opts: ValidatorOptions): Promise<Validator>
     "--dynamic-port-range", `${port + 3000}-${port + 3030}`,
     "--bpf-program", ORACLE_PROGRAM_ID.toBase58(), join(ROOT, "target/deploy/pexiz_oracle.so"),
     "--bpf-program", VAULT_PROGRAM_ID.toBase58(), join(ROOT, "target/deploy/pexiz_vault.so"),
+    "--bpf-program", EXIT_PROGRAM_ID.toBase58(), join(ROOT, "target/deploy/pexiz_exit.so"),
     "--bpf-program", SQUADS_V4_ID.toBase58(), STUB_SO,
     "--upgradeable-program", CANARY_PROGRAM_ID.toBase58(), join(ROOT, "target/deploy/canary_venue.so"), opts.canaryAuthority.toBase58(),
   ];

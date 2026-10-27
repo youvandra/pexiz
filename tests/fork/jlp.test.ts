@@ -25,9 +25,8 @@ import {
   reenterJlpIx, vaultCoder, withdrawIx, type JlpVaultAddresses,
 } from "@pexiz/sdk/src/vault";
 import {
-  EXIT_PROGRAM_ID, autoExitJlpIx, decodeGuard, guardPda, openRouteIx, parseGuardExited, protectJlpIxs,
+  autoExitJlpIx, decodeGuard, guardPda, openRouteIx, parseGuardExited, protectJlpIxs,
 } from "@pexiz/sdk/src/exit";
-import { join as joinPath } from "node:path";
 import { startValidator, send, type PreloadedAccount, type Validator } from "../validator/harness";
 
 const DIR = join(import.meta.dir, "../fixtures/jlp");
@@ -129,7 +128,6 @@ const owner = Keypair.generate();
 /** A JLP holder who never deposits anywhere: they approve the exit program and keep the JLP in their wallet. */
 const holder = Keypair.generate();
 const keeper = Keypair.generate();
-const EXIT_SO = joinPath(import.meta.dir, "../../target/deploy/pexiz_exit.so");
 
 beforeAll(async () => {
   if (!ready) return;
@@ -165,7 +163,7 @@ beforeAll(async () => {
   ];
   v = await startValidator({
     canaryAuthority: PublicKey.default,
-    programs: [[JUPITER_PERPS_ID, SO], [PROBE_ID, PROBE_SO], [EXIT_PROGRAM_ID, EXIT_SO]],
+    programs: [[JUPITER_PERPS_ID, SO], [PROBE_ID, PROBE_SO]],
     accountFiles: files.map((f) => ({ address: new PublicKey(f.replace(/\.json$/, "")), file: join(DIR, f) })),
     accounts: [
       // The JLP each owner is about to burn, and the account the wSOL comes back to.

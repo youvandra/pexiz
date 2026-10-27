@@ -91,7 +91,7 @@ export function decodeGuard(data: Buffer): GuardState {
   const g = exitCoder.accounts.decode("Guard", data);
   return {
     holder: g.holder, venue: g.venue, pool: g.pool, lpMint: g.lp_mint, usdcDest: g.usdc_dest,
-    kind: "canary" in g.kind ? "canary" : "jupiter", exits: g.exits, lastExitSlot: BigInt(g.last_exit_slot.toString()),
+    kind: Object.keys(g.kind)[0].toLowerCase() === "canary" ? "canary" : "jupiter", exits: g.exits, lastExitSlot: BigInt(g.last_exit_slot.toString()),
   };
 }
 
