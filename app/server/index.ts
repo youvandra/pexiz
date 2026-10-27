@@ -1,21 +1,15 @@
 // Production server: the built app, the mainnet RPC relay, the devnet faucet
 // and protocol share cards.
-//   PEXIZ_MAINNET_RPC_URL  mainnet RPC the board reads through (public RPC by default)
+//   PEXIZ_MAINNET_RPC_URL  mainnet RPC the board reads through (see relay.ts)
 //   PEXIZ_FAUCET_KEYPAIR   mint authority of the test USDC
 //   PEXIZ_PUBLIC_URL       public origin for link-preview image URLs (behind a proxy)
 //   PORT                   default 5261
 import { join } from "node:path"
 import { faucet } from "./faucet"
+import { relay } from "./relay"
 import { ogCard, ogMeta } from "./og"
 
 const DIST = join(import.meta.dir, "../dist")
-const MAINNET = process.env.PEXIZ_MAINNET_RPC_URL ?? "https://api.mainnet-beta.solana.com"
-
-async function relay(req: Request): Promise<Response> {
-  if (req.method !== "POST") return new Response("POST only", { status: 405 })
-  const res = await fetch(MAINNET, { method: "POST", headers: { "content-type": "application/json" }, body: await req.text() })
-  return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
-}
 
 /** The app shell, with link-preview tags for a protocol page. */
 async function shell(url: URL): Promise<Response> {
@@ -52,7 +46,7 @@ const server = Bun.serve({
   async fetch(req, srv) {
     const url = new URL(req.url)
     const ip = req.headers.get("x-real-ip") ?? srv.requestIP(req)?.address ?? "?"
-    if (url.pathname === "/rpc/mainnet") return relay(req)
+    if (url.pathname === "/rpc/mainnet") return relay(req, ip)
     if (url.pathname === "/api/faucet") return faucet(req, ip)
     const og = url.pathname.match(/^\/og\/([a-z0-9-]+)\.png$/)
     if (og) return ogCard(og[1])

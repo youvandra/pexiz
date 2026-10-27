@@ -4,11 +4,24 @@ import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import type { Plugin } from "vite"
 
-/** Serves the devnet faucet and share cards from the dev server, same handlers as production. */
+/** Serves the mainnet relay, the devnet faucet and share cards from the dev server, same handlers as production. */
 function faucetDev(): Plugin {
   return {
     name: "pexiz-faucet",
     configureServer(server) {
+      server.middlewares.use("/rpc/mainnet", async (req, res, next) => {
+        try {
+          const { relay } = await server.ssrLoadModule("/server/relay.ts")
+          const chunks: Buffer[] = []
+          for await (const c of req) chunks.push(c as Buffer)
+          const r: Response = await relay(new Request("http://dev/rpc/mainnet", { method: req.method, body: req.method === "POST" ? Buffer.concat(chunks) : undefined }), req.socket.remoteAddress ?? "?")
+          res.statusCode = r.status
+          res.setHeader("content-type", r.headers.get("content-type") ?? "text/plain")
+          res.end(await r.text())
+        } catch (e) {
+          next(e)
+        }
+      })
       server.middlewares.use("/og", async (req, res, next) => {
         try {
           const id = req.url?.match(/^\/([a-z0-9-]+)\.png$/)?.[1]
@@ -46,14 +59,5 @@ export default defineConfig({
   server: {
     port: 5260,
     host: "127.0.0.1",
-    // The public mainnet RPC refuses browser origins; relay it server-side in dev.
-    proxy: {
-      "/rpc/mainnet": {
-        target: process.env.PEXIZ_MAINNET_RPC_URL ?? "https://api.mainnet-beta.solana.com",
-        changeOrigin: true,
-        rewrite: () => "",
-        configure: (proxy) => proxy.on("proxyReq", (req) => { req.removeHeader("origin"); req.removeHeader("referer") }),
-      },
-    },
   },
 })
