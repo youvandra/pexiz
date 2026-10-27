@@ -11,6 +11,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { Connection, Keypair, PublicKey } from "@solana/web3.js"
 import * as multisig from "@sqds/multisig"
 import { Crank } from "@pexiz/crank"
@@ -52,7 +53,7 @@ function keyfile(path: string): Keypair {
 }
 
 function setup() {
-  const dir = process.env.PEXIZ_DEMO_KEYS ?? join(import.meta.dir, "../../keys")
+  const dir = process.env.PEXIZ_DEMO_KEYS ?? fileURLToPath(new URL("../../keys", import.meta.url))
   if (!existsSync(join(dir, "fast-squads-create-key.json"))) return null
   const members = [0, 1, 2, 3, 4].map((i) => keyfile(join(dir, `member-${i}.json`)))
   const createKey = keyfile(join(dir, "fast-squads-create-key.json"))
