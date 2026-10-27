@@ -52,27 +52,47 @@ function useOutside(open: boolean, close: () => void) {
   return ref
 }
 
-export function TopBar() {
+/** Desktop navigation: a fixed column on the left. */
+export function Sidebar() {
   const [loc] = useLocation()
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-cream/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-6 px-4 md:px-8">
-        <Link href="~/" aria-label="Pexiz home" className="shrink-0"><Logo /></Link>
-        <nav className="hidden items-center gap-1 md:flex">
-          {NAV.map((n) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              className={cn(
-                "flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
-                n.match(loc) ? "bg-ink text-cream" : "text-ink-2 hover:bg-sand hover:text-ink",
-              )}
-            >
-              <Svg>{n.icon}</Svg>
-              {n.label}
-            </Link>
-          ))}
-        </nav>
+    <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-paper px-4 py-5 md:flex">
+      <Link href="~/" aria-label="Pexiz home" className="px-2"><Logo /></Link>
+      <nav className="mt-8 flex flex-col gap-1">
+        {NAV.map((n) => (
+          <Link
+            key={n.href}
+            href={n.href}
+            className={cn(
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+              n.match(loc) ? "bg-ink text-cream" : "text-ink-2 hover:bg-sand hover:text-ink",
+            )}
+          >
+            <Svg>{n.icon}</Svg>
+            {n.label}
+          </Link>
+        ))}
+      </nav>
+      <div className="mt-auto space-y-4">
+        <div className="rounded-xl border border-line bg-cream p-3.5 text-xs leading-relaxed text-ink-2">
+          <div className="mb-1.5 flex items-center gap-2 font-semibold text-ink"><span className="live-dot text-warn" />Devnet beta</div>
+          Vaults use free test USDC. Protocol data is read live from mainnet.
+        </div>
+        <div className="flex flex-col gap-0.5 px-1 text-sm">
+          <Link href="~/docs" className="rounded-lg px-2 py-1.5 text-ink-2 hover:bg-sand hover:text-ink">Docs</Link>
+          <Link href="~/" className="rounded-lg px-2 py-1.5 text-ink-2 hover:bg-sand hover:text-ink">Back to site</Link>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+/** Wallet and network on the right; the logo stands in for the sidebar on phones. */
+export function Header() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-line bg-cream/90 backdrop-blur-md">
+      <div className="flex h-16 items-center gap-3 px-4 md:px-8">
+        <Link href="~/" aria-label="Pexiz home" className="md:hidden"><Logo /></Link>
         <div className="ml-auto flex items-center gap-2">
           <NetworkChip />
           <WalletButton />

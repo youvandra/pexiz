@@ -49,7 +49,7 @@ function Canary() {
         {v ? <FlagPill flag={v.flag} live className="px-3.5 py-1.5 text-sm" /> : <Skeleton className="h-8 w-28 rounded-full" />}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0 space-y-6">
           {state ? (
             <div className={cn("rounded-[var(--radius-card)] p-5", state.tone)}>
@@ -63,7 +63,7 @@ function Canary() {
             </div>
           ) : <Skeleton className="h-24 w-full rounded-[var(--radius-card)]" />}
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <StatTile label="TVL" value={data ? usd(data.nav) : null} />
             <StatTile label="Share price" value={data ? `$${data.pricePerShare.toFixed(4)}` : null} />
             <StatTile label="Exits so far" value={data ? String(data.vault.exits) : null} />
