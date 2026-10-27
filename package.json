@@ -15,6 +15,8 @@
     "replay": "bun run services/replay/src/index.ts",
     "build:stub": "cd tests/squads-stub && cargo build-sbf",
     "test:validator": "bun test tests/validator --timeout 180000",
+    "test:fork": "bun test tests/fork --timeout 180000",
+    "build:probe": "cd tests/cpi-probe && cargo build-sbf --offline",
     "typecheck": "tsc --noEmit -p .",
     "alerts:dry-run": "bun run services/alerts/src/index.ts --dry-run --from-replay"
   },

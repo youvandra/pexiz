@@ -1,7 +1,7 @@
 // Jupiter Perps JLP liquidity instructions, for the M8 JLP path. Account order
 // and argument layout follow the Jupiter Perps IDL as published in
 // @exponent-labs/jupiter-perps-idl 0.9.30 (third party, not vendored here).
-// Not yet exercised against a mainnet fork; see docs/open-questions.md.
+// Exercised against the real program on a mainnet fork by tests/fork/jlp.test.ts.
 import { createHash } from "node:crypto";
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -29,8 +29,8 @@ export interface JlpAccounts {
   custodyPythnetPriceAccount: PublicKey;
   custodyTokenAccount: PublicKey;
   /**
-   * Remaining accounts the pool needs to value its AUM (expected: every
-   * custody and its price accounts). Unconfirmed until the fork test runs.
+   * Remaining accounts the pool needs to value its AUM: every custody, then
+   * every custody's Doves price account, in that order.
    */
   remaining?: PublicKey[];
 }

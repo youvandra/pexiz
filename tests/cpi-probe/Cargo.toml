@@ -1,0 +1,17 @@
+[package]
+name = "cpi_probe"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+publish = false
+
+# Asks one question on a local validator: does a program accept a CPI caller
+# whose owner account is a PDA? Never deployed anywhere else. Kept out of the
+# program workspace on purpose.
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "2.2"

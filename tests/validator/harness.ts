@@ -23,7 +23,16 @@ export interface Validator {
   stop(): void;
 }
 
-export async function startValidator(opts: { canaryAuthority: PublicKey; accounts: PreloadedAccount[] }): Promise<Validator> {
+export interface ValidatorOptions {
+  canaryAuthority: PublicKey;
+  accounts: PreloadedAccount[];
+  /** Extra non-upgradeable programs, as [program id, path to .so]. */
+  programs?: [PublicKey, string][];
+  /** Accounts already dumped to disk in `solana account --output-file` form. */
+  accountFiles?: { address: PublicKey; file: string }[];
+}
+
+export async function startValidator(opts: ValidatorOptions): Promise<Validator> {
   if (!existsSync(STUB_SO)) throw new Error("build the Squads test double first: bun run build:stub");
   const dir = mkdtempSync(join(process.env.PEXIZ_TMP ?? tmpdir(), "pexiz-validator-"));
   const port = 18_000 + Math.floor(Math.random() * 1000) * 2;
@@ -36,6 +45,8 @@ export async function startValidator(opts: { canaryAuthority: PublicKey; account
     "--bpf-program", SQUADS_V4_ID.toBase58(), STUB_SO,
     "--upgradeable-program", CANARY_PROGRAM_ID.toBase58(), join(ROOT, "target/deploy/canary_venue.so"), opts.canaryAuthority.toBase58(),
   ];
+  for (const [id, so] of opts.programs ?? []) args.push("--bpf-program", id.toBase58(), so);
+  for (const a of opts.accountFiles ?? []) args.push("--account", a.address.toBase58(), a.file);
   for (const a of opts.accounts) {
     const file = join(dir, `${a.address.toBase58()}.json`);
     writeFileSync(file, JSON.stringify({
