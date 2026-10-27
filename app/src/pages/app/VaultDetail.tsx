@@ -1,6 +1,6 @@
 import { Link, useParams } from "wouter"
 import { cn } from "@/lib/cn"
-import { ago, duration, short, usd } from "@/lib/format"
+import { ago, duration, money, short } from "@/lib/format"
 import { DEVNET, VAULTS, explorer } from "@/data/facts"
 import { AUM_CAP, canary, useVault } from "@/data/vault"
 import { useActivity } from "@/data/activity"
@@ -12,8 +12,8 @@ import { ActionPanel } from "@/components/app/ActionPanel"
 
 const STATE = {
   green: { tone: "bg-safe-soft", title: "Holding Canary LP", body: "The protocol reads Safe. Deposits are open, and the vault earns what the LP earns." },
-  amber: { tone: "bg-warn-soft", title: "Watching: deposits paused", body: "A warning condition holds. Your position stays in the LP, and you can withdraw at any time. Left unresolved for 48 hours, it turns red." },
-  red: { tone: "bg-danger-soft", title: "Red: the vault leaves", body: "The next crank update exits the vault to USDC in the same transaction." },
+  amber: { tone: "bg-warn-soft", title: "Warning open", body: "Your position stays in the LP while the warning holds. If it is still open after 48 hours, the vault leaves for USDC." },
+  red: { tone: "bg-danger-soft", title: "Leaving now", body: "The next crank update exits the vault to USDC in the same transaction." },
   exited: { tone: "bg-danger-soft", title: "Exited to USDC", body: "The vault sold its LP when the flag turned red. Withdraw your USDC, or vote to re-enter once the protocol reads Safe again." },
 }
 
@@ -31,7 +31,7 @@ function Canary() {
   const v = data?.venue
   const state = data ? (data.vault.exited ? STATE.exited : STATE[data.venue.flag]) : null
   const flagEvents = events?.filter((e) => e.kind === "flag" || e.kind === "exit") ?? null
-  const money = events?.filter((e) => e.kind !== "check" && e.kind !== "flag") ?? null
+  const transfers = events?.filter((e) => e.kind !== "check" && e.kind !== "flag") ?? null
 
   return (
     <div>
@@ -42,11 +42,11 @@ function Canary() {
           <div>
             <h1 className="tracking-display text-4xl font-medium md:text-5xl">Canary Pool</h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-ink-3">
-              <span>Solana devnet</span>·<span>holds Canary LP</span>·<span>{data ? `updated ${ago(data.readAt)}` : error ? "devnet unreachable" : "reading…"}</span>
+              <span>Holds Canary LP</span>·<span>{data ? `updated ${ago(data.readAt)}` : error ? "network unreachable" : "reading…"}</span>
             </div>
           </div>
         </div>
-        {v ? <FlagPill flag={v.flag} live className="px-3.5 py-1.5 text-sm" /> : <Skeleton className="h-8 w-28 rounded-full" />}
+        {v ? <FlagPill flag={v.flag} size="md" /> : <Skeleton className="h-8 w-28 rounded-md" />}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -55,19 +55,14 @@ function Canary() {
             <div className={cn("rounded-[var(--radius-card)] p-5", state.tone)}>
               <div className="font-semibold">{state.title}</div>
               <p className="mt-1 text-sm text-ink-2">{state.body}</p>
-              {data?.reasons.length ? (
-                <ul className="mt-3 space-y-1 text-sm">
-                  {data.reasons.map((r) => <li key={r} className="flex gap-2"><span className="mt-2 size-1 shrink-0 rounded-full bg-current" />{r[0].toUpperCase() + r.slice(1)}.</li>)}
-                </ul>
-              ) : null}
             </div>
           ) : <Skeleton className="h-24 w-full rounded-[var(--radius-card)]" />}
 
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <StatTile label="TVL" value={data ? usd(data.nav) : null} />
-            <StatTile label="Share price" value={data ? `$${data.pricePerShare.toFixed(4)}` : null} />
+          <div className="grid grid-cols-2 gap-3 2xl:grid-cols-4">
+            <StatTile label="TVL" value={data ? money(data.nav, 0) : null} />
+            <StatTile label="Share price" value={data ? `$${data.pricePerShare.toFixed(3)}` : null} />
             <StatTile label="Exits so far" value={data ? String(data.vault.exits) : null} />
-            <StatTile label="Cap" value="$10M" sub={data ? `${usd(AUM_CAP - data.nav)} room` : undefined} />
+            <StatTile label="Room left" value={data ? money(AUM_CAP - data.nav, 0) : null} sub="of a $10M cap" />
           </div>
 
           <section className="card p-0">
@@ -105,7 +100,7 @@ function Canary() {
 
           <section className="card p-0">
             <div className="border-b border-line px-5 py-4 font-semibold">Recent deposits and withdrawals</div>
-            <EventList events={money?.slice(0, 6) ?? null} empty="No deposits yet. Be the first." />
+            <EventList events={transfers?.slice(0, 6) ?? null} empty="No deposits yet. Be the first." />
           </section>
 
           <section className="card p-0">
@@ -129,7 +124,6 @@ function Canary() {
 
         <aside className="-order-1 lg:sticky lg:top-24 lg:order-none lg:self-start">
           <ActionPanel />
-          <p className="mt-3 px-1 text-xs text-ink-3">Test USDC on devnet. No real funds move.</p>
         </aside>
       </div>
     </div>
@@ -146,7 +140,7 @@ function Planned({ id }: { id: string }) {
           glyph={<DoorGlyph className="size-16" tint="#E9C22E" />}
           title={`${v.name} vault is planned`}
           body={`${v.blurb} It opens on mainnet after the canary vault has run a full exit and re-entry cycle.`}
-          action={<div className="flex flex-wrap justify-center gap-2"><LinkButton href={`/monitor/${v.monitorId}`}>Watch the protocol</LinkButton><LinkButton href="/vault/canary" variant="line">Try the canary vault</LinkButton></div>}
+          action={<div className="flex flex-wrap justify-center gap-2"><LinkButton href={`/monitor/${v.monitorId}`}><Svg>{Icon.monitor}</Svg>Watch the protocol</LinkButton><LinkButton href="/vault/canary" variant="line"><Svg>{Icon.vault}</Svg>Try the canary vault</LinkButton></div>}
         />
       </div>
     </div>

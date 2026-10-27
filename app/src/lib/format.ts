@@ -21,3 +21,15 @@ export function ago(ms: number): string {
 
 export const usd = (n: number, digits = 0) =>
   n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: digits })
+
+/** Dollars that fit a tile: exact below $100K, then $1.2M style. */
+export const money = (n: number, digits = 2) =>
+  Math.abs(n) < 100_000
+    ? n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: digits })
+    : n.toLocaleString("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 2 })
+
+/** Token amounts that fit a tile: exact below 100K, then 1.2M style. */
+export const amount = (n: number, digits = 2) =>
+  Math.abs(n) < 100_000
+    ? n.toLocaleString("en-US", { maximumFractionDigits: digits })
+    : n.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 2 })

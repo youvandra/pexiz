@@ -19,7 +19,7 @@ export function Activity() {
   const shown = events && (kinds ? events.filter((e) => kinds.includes(e.kind)) : events)
   return (
     <div>
-      <PageHead title="Activity" sub="Every oracle update, exit and deposit on the canary vault, read from devnet." />
+      <PageHead title="Activity" sub="Every flag change, exit and deposit on the canary vault." />
       <div className="mb-4 flex flex-wrap gap-1.5">
         {FILTERS.map((x) => (
           <button key={x.id} onClick={() => setF(x.id)} className={cn("h-9 rounded-full border px-3.5 text-sm font-medium transition-colors", f === x.id ? "border-ink bg-ink text-cream" : "border-line bg-paper text-ink-2 hover:text-ink")}>
@@ -29,7 +29,7 @@ export function Activity() {
       </div>
       <div className="card p-0">
         {error && !events ? (
-          <div className="px-5 py-10 text-center text-sm text-ink-2">Devnet did not answer. Retrying every 30 seconds.</div>
+          <div className="px-5 py-10 text-center text-sm text-ink-2">The network did not answer. Retrying every 30 seconds.</div>
         ) : (
           <EventList events={shown} empty="Nothing in this view yet." />
         )}

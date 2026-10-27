@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Link } from "wouter"
 import { cn } from "@/lib/cn"
 import { LinkButton, Logo } from "@/components/ui/kit"
+import { Icon, Svg } from "@/components/ui/icons"
 
 const LINKS = [
   { href: "/#how", label: "How it works" },
@@ -27,7 +28,7 @@ export function Nav() {
           {LINKS.map((l) => (l.href.startsWith("/#") ? <a key={l.href} href={l.href} className="hover:text-ink">{l.label}</a> : <Link key={l.href} href={l.href} className="hover:text-ink">{l.label}</Link>))}
         </nav>
         <div className="flex items-center gap-2">
-          <LinkButton href="/app" className="h-10 px-4 text-sm">Open app</LinkButton>
+          <LinkButton href="/app" className="h-10 px-4 text-sm">Open app<Svg>{Icon.arrowUpRight}</Svg></LinkButton>
           <button onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open} className="grid size-10 place-items-center rounded-xl border border-line-2 bg-paper md:hidden">
             <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">{open ? <path d="m4 4 8 8M12 4l-8 8" /> : <path d="M2.5 5h11M2.5 11h11" />}</svg>
           </button>

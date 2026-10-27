@@ -3,34 +3,14 @@ import { Link, useLocation } from "wouter"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { WalletReadyState } from "@solana/wallet-adapter-base"
 import { cn } from "@/lib/cn"
-import { short } from "@/lib/format"
+import { amount, short } from "@/lib/format"
 import { explorer } from "@/data/facts"
 import { useToasts, explain } from "@/lib/solana"
 import { useVault } from "@/data/vault"
 import { Button, Logo } from "@/components/ui/kit"
+import { Icon, Svg } from "@/components/ui/icons"
 
-export const Icon = {
-  vault: <><rect x="2.5" y="3" width="11" height="10" rx="2.5" /><circle cx="8" cy="8" r="2" /><path d="M8 6v-.5M10 8h.5" /></>,
-  monitor: <><path d="M1.8 8c1.6-2.9 3.7-4.3 6.2-4.3s4.6 1.4 6.2 4.3c-1.6 2.9-3.7 4.3-6.2 4.3S3.4 10.9 1.8 8Z" /><circle cx="8" cy="8" r="1.9" /></>,
-  portfolio: <><path d="M2.5 5.5h11v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1Z" /><path d="M5.5 5.5V4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5" /></>,
-  activity: <path d="M1.8 8h2.6l1.8-4.2 3.2 8.4 1.8-4.2h3" />,
-  copy: <><rect x="5" y="5" width="8.5" height="8.5" rx="2" /><path d="M3 10.5V4a1.5 1.5 0 0 1 1.5-1.5H10" /></>,
-  out: <><path d="M6 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h2" /><path d="m10 5 3 3-3 3M13 8H6" /></>,
-  ext: <><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5" /><path d="M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3" /></>,
-  drop: <path d="M8 2.2c2.4 3 3.8 5.1 3.8 6.8a3.8 3.8 0 0 1-7.6 0c0-1.7 1.4-3.8 3.8-6.8Z" />,
-  check: <path d="m3.5 8.3 2.8 2.8 6.2-6.2" />,
-  x: <path d="m4 4 8 8M12 4l-8 8" />,
-  chevron: <path d="m4.5 6.2 3.5 3.5 3.5-3.5" />,
-  wallet: <><rect x="2" y="4" width="12" height="9" rx="2" /><path d="M2 6.5h12M10.5 9.5h1" /></>,
-}
-
-export function Svg({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" className={cn("size-4 shrink-0", className)} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {children}
-    </svg>
-  )
-}
+export { Icon, Svg }
 
 const NAV = [
   { href: "/", label: "Vaults", icon: Icon.vault, match: (l: string) => l === "/" || l.startsWith("/vault") },
@@ -73,11 +53,7 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
-      <div className="mt-auto space-y-4">
-        <div className="rounded-xl border border-line bg-cream p-3.5 text-xs leading-relaxed text-ink-2">
-          <div className="mb-1.5 flex items-center gap-2 font-semibold text-ink"><span className="live-dot text-warn" />Devnet beta</div>
-          Vaults use free test USDC. Protocol data is read live from mainnet.
-        </div>
+      <div className="mt-auto">
         <div className="flex flex-col gap-0.5 px-1 text-sm">
           <Link href="~/docs" className="rounded-lg px-2 py-1.5 text-ink-2 hover:bg-sand hover:text-ink">Docs</Link>
           <Link href="~/" className="rounded-lg px-2 py-1.5 text-ink-2 hover:bg-sand hover:text-ink">Back to site</Link>
@@ -203,7 +179,7 @@ function WalletPicker({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       )}
-      <p className="mt-5 text-xs text-ink-3">Pexiz runs on Solana devnet. Your wallet only signs; Pexiz never holds your keys.</p>
+      <p className="mt-5 text-xs text-ink-3">Your wallet only signs. Pexiz never holds your keys.</p>
     </Modal>
   )
 }
@@ -226,13 +202,13 @@ function AccountMenu() {
       {open && (
         <div className="card absolute right-0 top-12 w-80 p-2">
           <div className="rounded-xl bg-sand/60 p-4">
-            <div className="text-xs text-ink-3">Connected · devnet</div>
+            <div className="text-xs text-ink-3">Connected</div>
             <div className="mt-1 font-mono text-sm">{short(addr, 8)}</div>
             <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-              {[["SOL", h?.sol.toFixed(3)], ["USDC", h?.usdc.toLocaleString("en-US", { maximumFractionDigits: 2 })], ["Shares", h?.shares.toLocaleString("en-US", { maximumFractionDigits: 2 })]].map(([k, v]) => (
-                <div key={k}>
+              {[["SOL", h ? amount(h.sol, 3) : undefined], ["USDC", h ? amount(h.usdc) : undefined], ["Shares", h ? amount(h.shares) : undefined]].map(([k, v]) => (
+                <div key={k} className="min-w-0">
                   <div className="text-[11px] uppercase tracking-[0.08em] text-ink-3">{k}</div>
-                  <div className="tabular font-semibold">{v ?? "…"}</div>
+                  <div className="tabular truncate font-semibold">{v ?? "…"}</div>
                 </div>
               ))}
             </div>

@@ -4,7 +4,7 @@ import { Button, FlagPill, flagColor } from "@/components/ui/kit"
 import type { Assessment } from "@/data/chain"
 import { Nav } from "@/components/landing/Nav"
 import { Display, LinkButton } from "@/components/ui/kit"
-import { Arrow } from "@/components/landing/Hero"
+import { Icon, Svg } from "@/components/ui/icons"
 
 interface Step {
   at: string
@@ -52,7 +52,7 @@ export function Replay() {
         </div>
         {
           <div className="flex gap-2">
-            <Button variant="line" className="h-10" onClick={() => { setI(0); setPlaying(false) }}>Reset</Button>
+            <Button variant="line" className="h-10" onClick={() => { setI(0); setPlaying(false) }}><Svg>{Icon.undo}</Svg>Reset</Button>
             <Button className="h-10" onClick={() => { if (i >= STEPS.length - 1) setI(0); setPlaying((p) => !p) }}>{playing ? "Pause" : "Play"}</Button>
           </div>
         }
@@ -84,7 +84,7 @@ export function Replay() {
           <div className="text-xs uppercase tracking-[0.08em] text-ink-3">On chain</div>
           <div key={s.chain} className="mt-2 text-2xl font-semibold tracking-tight">{s.chain}</div>
           <div className="mt-6 flex items-center gap-3">
-            <FlagPill flag={s.flag} live className="text-sm" />
+            <FlagPill flag={s.flag} size="md" />
             <span className="text-sm text-ink-2">Pexiz oracle</span>
           </div>
           <p className="mt-3 font-mono text-xs leading-relaxed text-ink-2">{s.reason}</p>
@@ -106,9 +106,9 @@ export function Replay() {
       <div className="card mt-12 flex flex-wrap items-center justify-between gap-4 p-6 md:p-8">
         <div>
           <div className="text-2xl font-semibold tracking-tight">Run the same rules on a live vault</div>
-          <p className="mt-1 text-ink-2">The canary vault on devnet is watched by the deployed oracle.</p>
+          <p className="mt-1 text-ink-2">The test vault is watched by the deployed oracle.</p>
         </div>
-        <LinkButton href="/app/vault/canary">Open the canary vault <Arrow /></LinkButton>
+        <LinkButton href="/app/vault/canary"><Svg>{Icon.vault}</Svg>Open the test vault</LinkButton>
       </div>
       </main>
     </div>

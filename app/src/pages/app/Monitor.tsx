@@ -2,11 +2,11 @@ import { useState } from "react"
 import { Link, useLocation } from "wouter"
 import { cn } from "@/lib/cn"
 import { ago, duration } from "@/lib/format"
-import { MEASURED_ON } from "@/data/facts"
 import { useBoard, type Assessment, type BoardRow } from "@/data/chain"
 import { useVault } from "@/data/vault"
 import { FlagPill, Skeleton, VenueLogo, flagLabel } from "@/components/ui/kit"
 import { DoorGlyph } from "@/components/ui/glyphs"
+import { Icon, Svg } from "@/components/ui/icons"
 import { PageHead } from "@/components/app/chrome"
 
 interface Row {
@@ -24,6 +24,8 @@ interface Row {
   category: "perps" | "prediction"
 }
 
+const ADMIN_SHORT = { "squads-v4": "Multisig", "squads-v3": "Squads v3", governance: "DAO vote", dormant: "Single key" } as const
+
 const windowText = (s: number | undefined) => (s === undefined ? "—" : s <= 0 ? "None" : duration(s))
 
 function fromBoard(r: BoardRow): Row {
@@ -32,7 +34,7 @@ function fromBoard(r: BoardRow): Row {
     href: `/monitor/${r.venue.id}`,
     name: r.venue.name,
     kind: r.venue.kind,
-    admin: r.threshold ? `${r.threshold} of ${r.members} signers` : r.venue.note ?? "—",
+    admin: r.threshold ? `${r.threshold} of ${r.members}` : ADMIN_SHORT[r.venue.admin],
     delay: r.timeLockSecs !== undefined ? duration(r.timeLockSecs) : r.venue.admin === "squads-v3" ? "None" : "—",
     window: windowText(r.exitWindowSecs),
     flag: r.assessment,
@@ -58,8 +60,8 @@ export function Monitor() {
         id: "canary",
         href: "/vault/canary",
         name: "Canary Pool",
-        kind: "Test protocol · devnet",
-        admin: `${data.venue.threshold} of ${data.venue.members.length} signers`,
+        kind: "Test protocol",
+        admin: `${data.venue.threshold} of ${data.venue.members.length}`,
         delay: duration(data.venue.timeLockSecs),
         window: windowText(data.venue.exitWindowSecs),
         flag: data.venue.flag,
@@ -112,15 +114,16 @@ export function Monitor() {
           <thead className="text-xs uppercase tracking-[0.08em] text-ink-3">
             <tr className="border-b border-line">
               <th className="px-5 py-3.5 font-medium">Protocol</th>
-              <th className="px-5 py-3.5 font-medium">Admin</th>
-              <th className="px-5 py-3.5 font-medium">Delay</th>
+              <th className="px-5 py-3.5 font-medium">Signers</th>
+              <th className="px-5 py-3.5 font-medium">Admin delay</th>
               <th className="px-5 py-3.5 font-medium">Exit window</th>
-              <th className="px-5 py-3.5 font-medium">Status</th>
+              <th className="px-5 py-3.5 text-right font-medium">Status</th>
+              <th className="w-10" />
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {!shown
-              ? Array.from({ length: 6 }).map((_, k) => <tr key={k}><td colSpan={5} className="px-5 py-5"><Skeleton className="h-8 w-full" /></td></tr>)
+              ? Array.from({ length: 6 }).map((_, k) => <tr key={k}><td colSpan={6} className="px-5 py-5"><Skeleton className="h-8 w-full" /></td></tr>)
               : shown.map((r) => (
                   <tr key={r.id} onClick={() => go(r.href)} className="cursor-pointer transition-colors hover:bg-sand/50">
                     <td className="px-5 py-4">
@@ -132,13 +135,11 @@ export function Monitor() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-ink-2">{r.admin}</td>
-                    <td className="tabular px-5 py-4">{r.delay}</td>
-                    <td className="tabular px-5 py-4 text-lg font-medium">{r.window}</td>
-                    <td className="px-5 py-4">
-                      <FlagPill flag={r.flag} live={r.live} />
-                      <div className="mt-1 max-w-[260px] text-xs text-ink-3">{r.why}</div>
-                    </td>
+                    <td className="tabular px-5 py-4 text-ink-2">{r.admin}</td>
+                    <td className="tabular px-5 py-4 text-ink-2">{r.delay}</td>
+                    <td className="tabular px-5 py-4 font-semibold">{r.window}</td>
+                    <td className="px-5 py-4 text-right"><FlagPill flag={r.flag} /></td>
+                    <td className="pr-4 text-ink-3"><Svg className="-rotate-90">{Icon.chevron}</Svg></td>
                   </tr>
                 ))}
           </tbody>
@@ -160,18 +161,18 @@ export function Monitor() {
                       <div className="text-sm text-ink-3">{r.kind}</div>
                     </div>
                   </div>
-                  <FlagPill flag={r.flag} live={r.live} />
+                  <FlagPill flag={r.flag} />
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-                  <div><div className="text-xs text-ink-3">Admin</div><div className="font-medium">{r.admin.split(" signers")[0]}</div></div>
-                  <div><div className="text-xs text-ink-3">Delay</div><div className="tabular font-medium">{r.delay}</div></div>
+                  <div><div className="text-xs text-ink-3">Signers</div><div className="tabular font-medium">{r.admin}</div></div>
+                  <div><div className="text-xs text-ink-3">Admin delay</div><div className="tabular font-medium">{r.delay}</div></div>
                   <div><div className="text-xs text-ink-3">Exit window</div><div className="tabular font-medium">{r.window}</div></div>
                 </div>
               </Link>
             ))}
       </div>
 
-      <p className="mt-4 text-xs text-ink-3">Exit window = admin delay minus 30 minutes to notice and withdraw. Squads v4 venues are read live; others use the {MEASURED_ON} snapshot.</p>
+      <p className="mt-4 text-xs text-ink-3">Exit window: the admin delay minus the 30 minutes you need to withdraw.</p>
     </div>
   )
 }

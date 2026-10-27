@@ -1,15 +1,14 @@
 import { Link } from "wouter"
 import { useWallet } from "@solana/wallet-adapter-react"
-import { duration, usd } from "@/lib/format"
+import { amount, duration, money } from "@/lib/format"
 import { VAULTS } from "@/data/facts"
 import { useVault, AUM_CAP } from "@/data/vault"
 import { useBoard } from "@/data/chain"
-import { FlagPill, Skeleton, VenueLogo, flagLabel } from "@/components/ui/kit"
-import { DoorGlyph, EyeGlyph, BellGlyph } from "@/components/ui/glyphs"
-import { Faucet, PageHead, WalletButton } from "@/components/app/chrome"
+import { FlagPill, LinkButton, Skeleton, VenueLogo, flagLabel } from "@/components/ui/kit"
+import { DoorGlyph } from "@/components/ui/glyphs"
+import { Faucet, Icon, PageHead, Svg, WalletButton } from "@/components/app/chrome"
 import { cn } from "@/lib/cn"
 import { StatTile } from "@/components/app/bits"
-import { Arrow } from "@/components/landing/Hero"
 
 export function Vaults() {
   const { publicKey } = useWallet()
@@ -25,11 +24,11 @@ export function Vaults() {
       <div className="grid gap-3 sm:grid-cols-3">
         <StatTile
           label="Your deposits"
-          value={!publicKey ? "—" : h && data ? usd(h.shares * data.pricePerShare, 2) : null}
-          sub={!publicKey ? "Connect a wallet to see yours" : h ? `${h.shares.toLocaleString("en-US", { maximumFractionDigits: 2 })} shares` : "Reading…"}
+          value={!publicKey ? "—" : h && data ? money(h.shares * data.pricePerShare) : null}
+          sub={!publicKey ? "Connect a wallet to see yours" : h ? `${amount(h.shares)} shares` : "Reading…"}
         />
-        <StatTile label="Protected in vaults" value={data ? usd(data.nav) : null} sub="Test USDC on devnet" />
-        <StatTile label="Protocols watched" value={rows ? rows.length : null} sub="Read live from Solana mainnet" />
+        <StatTile label="Protected in vaults" value={data ? money(data.nav, 0) : null} sub="Across all vaults" />
+        <StatTile label="Protocols watched" value={rows ? rows.length : null} sub="Perps and prediction markets" />
       </div>
 
       <GetStarted />
@@ -46,16 +45,16 @@ export function Vaults() {
                   {v.logo ? <VenueLogo src={v.logo} name={v.name} className="size-12 rounded-2xl" /> : <span className="grid size-12 place-items-center rounded-2xl border border-line bg-paper"><DoorGlyph className="size-8" /></span>}
                   <div>
                     <div className="text-lg font-semibold">{v.name}</div>
-                    <div className="text-sm text-ink-3">{v.network === "devnet" ? "Solana devnet" : "Solana mainnet"} · holds {v.holds}</div>
+                    <div className="text-sm text-ink-3">Holds {v.holds}</div>
                   </div>
                 </div>
-                {live ? (flag ? <FlagPill flag={flag} live /> : <Skeleton className="h-6 w-20 rounded-full" />) : <span className="rounded-full bg-sand px-2.5 py-1 text-xs font-semibold text-ink-2">Planned</span>}
+                {live ? (flag ? <FlagPill flag={flag} /> : <Skeleton className="h-6 w-20 rounded-md" />) : <span className="rounded-md border border-line-2 px-2 py-1 text-xs font-semibold text-ink-2">Planned</span>}
               </div>
               <p className="mt-5 text-sm text-ink-2">{v.blurb}</p>
               <div className="mt-6 grid grid-cols-3 gap-4 border-t border-line pt-5">
                 {live ? (
                   <>
-                    <Metric k="TVL" v={data ? usd(data.nav) : null} />
+                    <Metric k="TVL" v={data ? money(data.nav, 0) : null} />
                     <Metric k="State" v={data ? (data.vault.exited ? "In USDC" : "In LP") : null} />
                     <Metric k="Cap used" v={data ? `${((data.nav / AUM_CAP) * 100).toFixed(data.nav / AUM_CAP < 0.01 ? 3 : 1)}%` : null} />
                   </>
@@ -68,29 +67,13 @@ export function Vaults() {
                 )}
               </div>
               <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold">
-                {live ? "Open vault" : "See the protocol"} <Arrow className="transition-transform group-hover:translate-x-0.5" />
+                {live ? "Open vault" : "See the protocol"}<Svg>{Icon.arrow}</Svg>
               </span>
             </Link>
           )
         })}
       </div>
 
-      <h2 className="mt-14 text-lg font-semibold">How a vault protects you</h2>
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        {[
-          { g: <EyeGlyph className="size-11" />, t: "It watches the admin", b: "Every update re-reads the protocol's signers and change delay from chain." },
-          { g: <DoorGlyph className="size-11" />, t: "It leaves on red", b: "The exit lands in the same transaction as the flag. No one has to be awake." },
-          { g: <BellGlyph className="size-11" tint="#C564C4" />, t: "You decide the way back", b: "Withdraw any time. Re-entry needs a Safe flag and half the shares voting yes." },
-        ].map((x) => (
-          <div key={x.t} className="card flex gap-4 p-5">
-            {x.g}
-            <div>
-              <div className="font-semibold">{x.t}</div>
-              <p className="mt-1 text-sm text-ink-2">{x.b}</p>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
@@ -112,9 +95,9 @@ function GetStarted() {
   if (h && h.shares + h.voted > 0) return null
   const open = data?.venue.flag === "green" && !data.vault.exited
   const steps = [
-    { title: "Connect a wallet", body: "Phantom, Solflare or Backpack, set to devnet.", done: !!publicKey, action: <WalletButton className="h-9 px-3 text-xs" /> },
+    { title: "Connect a wallet", body: "Phantom, Solflare or Backpack, on devnet.", done: !!publicKey, action: <WalletButton className="h-9 px-3 text-xs" /> },
     { title: "Get test USDC", body: "Free from the faucet, once every 12 hours.", done: !!h && h.usdc > 0, action: publicKey ? <Faucet owner={publicKey.toBase58()} onDone={refresh} variant="button" /> : null },
-    { title: "Deposit into a vault", body: open ? "The canary vault is open for deposits." : "Opens while the vault reads Safe to stay.", done: false, action: <Link href="/vault/canary" className="text-sm font-semibold underline decoration-line-2 underline-offset-4">Open vault</Link> },
+    { title: "Deposit into a vault", body: open ? "The canary vault is open for deposits." : "Opens when the vault reads Safe.", done: false, action: <LinkButton href="/vault/canary" variant="line" className="h-9 px-3 text-xs"><Svg>{Icon.vault}</Svg>Open vault</LinkButton> },
   ]
   const next = steps.findIndex((s) => !s.done)
   return (

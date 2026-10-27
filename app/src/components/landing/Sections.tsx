@@ -5,7 +5,7 @@ import { ATTACK, HEADLINE, JLP_SUPPLY, MEASURED_ON } from "@/data/facts"
 import { SNAPSHOT_BOARD, useBoard, useCanary } from "@/data/chain"
 import { FlagPill, LinkButton, Logo, Skeleton, VenueLogo } from "@/components/ui/kit"
 import { DoorGlyph, EyeGlyph, ProofGlyph } from "@/components/ui/glyphs"
-import { Arrow } from "./Hero"
+import { Icon, Svg } from "@/components/ui/icons"
 
 function SectionHead({ kicker, title, body, id }: { kicker: string; title: string; body?: string; id?: string }) {
   return (
@@ -88,7 +88,7 @@ export function Problem() {
             ))}
           </ol>
           <div className="border-t border-line px-5 py-4">
-            <Link href="/replay" className="inline-flex items-center gap-1.5 text-sm font-semibold">Step through the timeline <Arrow /></Link>
+            <Link href="/replay" className="inline-flex items-center gap-1.5 text-sm font-semibold">Step through the timeline<Svg>{Icon.arrow}</Svg></Link>
           </div>
         </div>
       </div>
@@ -134,12 +134,12 @@ export function How() {
 
         <div className="mt-12 grid gap-4 md:grid-cols-3">
           {([
-            ["green", "Safe to stay", "Every check passes. Deposits are open and your vault holds the LP token."],
+            ["green", "Safe", "Every check passes. Deposits are open and your vault holds the LP token."],
             ["amber", "Watch", "A warning sign appeared. Deposits pause. If it is still there after 48 hours, it becomes Get out."],
             ["red", "Get out", "The vault swaps to USDC. You can withdraw any time, and vote to go back once it is safe."],
           ] as const).map(([f, t, b]) => (
             <div key={f} className="flex gap-4">
-              <FlagPill flag={f} label={t} className="h-fit shrink-0" />
+              <FlagPill flag={f} label={t} className="mt-0.5" />
               <p className="text-sm text-ink-2">{b}</p>
             </div>
           ))}
@@ -156,7 +156,7 @@ export function Venues() {
     <section className="mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <SectionHead id="venues" kicker="Protocols we watch" title="Would you have time to leave?" body="The exit window is how long you have between an admin change being approved and it taking effect, minus the time you need to withdraw." />
-        <LinkButton href="/app/monitor" variant="line" className="shrink-0">See all details <Arrow /></LinkButton>
+        <LinkButton href="/app/monitor" variant="line" className="shrink-0">Open the monitor<Svg>{Icon.arrow}</Svg></LinkButton>
       </div>
       <div className="card mt-12 divide-y divide-line p-0">
         {list.map((r) => (
@@ -172,7 +172,7 @@ export function Venues() {
                 {rows === null ? <Skeleton className="h-5 w-16" /> : r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "None" : duration(r.exitWindowSecs)}
               </div>
             </div>
-            <div className="w-32"><FlagPill flag={r.assessment} /></div>
+            <div className="flex w-28 justify-end"><FlagPill flag={r.assessment} /></div>
           </Link>
         ))}
       </div>
@@ -188,11 +188,11 @@ export function TryIt() {
       <div className="card grid gap-10 p-6 md:p-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div>
           <div className="text-sm font-semibold text-ink-3">Try it now</div>
-          <h2 className="tracking-display mt-3 text-4xl font-medium leading-[1.05] md:text-5xl">A live vault on devnet, with free test funds.</h2>
+          <h2 className="tracking-display mt-3 text-4xl font-medium leading-[1.05] md:text-5xl">A live test vault, with free test funds.</h2>
           <p className="mt-4 text-lg text-ink-2">Connect any Solana wallet, get test USDC from the built-in faucet, and watch the vault react to a real multisig.</p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <LinkButton href="/app/vault/canary" className="h-12 px-5">Open the test vault</LinkButton>
-            <LinkButton href="/docs" variant="line" className="h-12 px-5">Read the docs</LinkButton>
+            <LinkButton href="/app/vault/canary" className="h-12 px-5"><Svg>{Icon.vault}</Svg>Open the test vault</LinkButton>
+            <LinkButton href="/docs" variant="line" className="h-12 px-5"><Svg>{Icon.book}</Svg>Read the docs</LinkButton>
           </div>
         </div>
         <div className="rounded-[var(--radius-card)] border border-line bg-cream p-5">
@@ -201,10 +201,10 @@ export function TryIt() {
               <DoorGlyph className="size-10" />
               <div>
                 <div className="font-semibold">Canary Pool</div>
-                <div className="text-sm text-ink-3">Live on devnet</div>
+                <div className="text-sm text-ink-3">Test vault</div>
               </div>
             </div>
-            {data ? <FlagPill flag={data.venue.flag} /> : <Skeleton className="h-6 w-20 rounded-full" />}
+            {data ? <FlagPill flag={data.venue.flag} /> : <Skeleton className="h-6 w-20 rounded-md" />}
           </div>
           <div className="mt-5 grid grid-cols-3 gap-2">
             {[

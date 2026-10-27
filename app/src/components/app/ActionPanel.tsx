@@ -1,11 +1,11 @@
 import { useState } from "react"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { cn } from "@/lib/cn"
-import { usd } from "@/lib/format"
+import { amount, money, usd } from "@/lib/format"
 import { useSend } from "@/lib/solana"
 import { AUM_CAP, buildDeposit, buildReenter, buildUnvote, buildVote, buildWithdraw, useVault, type VaultView } from "@/data/vault"
-import { Button, FlagPill, Skeleton } from "@/components/ui/kit"
-import { Faucet, WalletButton } from "./chrome"
+import { Button, Skeleton } from "@/components/ui/kit"
+import { Icon, Svg, WalletButton } from "./chrome"
 
 type Tab = "deposit" | "withdraw" | "reenter"
 
@@ -52,9 +52,9 @@ function Position() {
         <Skeleton className="mt-2 h-9 w-32" />
       ) : (
         <>
-          <div className="tabular tracking-display mt-1 text-4xl font-medium">{usd(value, 2)}</div>
+          <div className="tabular tracking-display mt-1 truncate text-[2rem] font-medium leading-tight" title={usd(value, 2)}>{money(value)}</div>
           <div className="mt-1 text-sm text-ink-2">
-            {fmt(h.shares)} shares{h.voted > 0 && ` · ${fmt(h.voted)} in re-entry vote`}
+            {amount(h.shares)} shares{h.voted > 0 && ` · ${amount(h.voted)} voting`}
           </div>
         </>
       )}
@@ -88,10 +88,10 @@ function Line({ k, v }: { k: string; v: string }) {
   return <div className="flex justify-between text-sm"><span className="text-ink-2">{k}</span><span className="tabular font-medium">{v}</span></div>
 }
 
-function Blocked({ title, body, flag }: { title: string; body: string; flag?: VaultView["venue"]["flag"] }) {
+function Blocked({ title, body }: { title: string; body: string }) {
   return (
     <div className="rounded-xl bg-sand/70 p-4">
-      <div className="flex items-center gap-2 font-semibold">{flag && <FlagPill flag={flag} />}{title}</div>
+      <div className="font-semibold">{title}</div>
       <p className="mt-1.5 text-sm text-ink-2">{body}</p>
     </div>
   )
@@ -109,7 +109,7 @@ function Deposit({ v }: { v: VaultView }) {
   const shares = v.supply > 0 && v.nav > 0 ? (n * v.supply) / v.nav : n
 
   if (v.venue.flag !== "green") {
-    return <Blocked flag={v.venue.flag} title="Deposits paused" body="New deposits open only while the protocol reads Safe. Withdrawals stay open in every state." />
+    return <Blocked title="Deposits paused" body="They reopen when the protocol reads Safe. Withdrawals stay open." />
   }
   const problem = !publicKey ? null : !h ? "Loading balances…" : n <= 0 ? "Enter an amount" : n > h.usdc ? "Not enough test USDC" : n > room ? "Above the vault cap" : h.sol < 0.001 ? "Need SOL for the fee" : null
 
@@ -132,13 +132,7 @@ function Deposit({ v }: { v: VaultView }) {
       {!publicKey ? (
         <WalletButton className="h-12 w-full justify-center" label="Connect to deposit" />
       ) : (
-        <Button className="h-12 w-full justify-center" disabled={!!problem || busy} onClick={go}>{busy ? "Depositing…" : problem ?? "Deposit"}</Button>
-      )}
-      {publicKey && h && h.usdc < 1 && (
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-lemon/15 p-3 text-sm">
-          <span>No test USDC yet.</span>
-          <Faucet owner={publicKey.toBase58()} variant="button" />
-        </div>
+        <Button className="h-12 w-full justify-center" disabled={!!problem || busy} onClick={go}>{!problem && !busy && <Svg>{Icon.deposit}</Svg>}{busy ? "Depositing…" : problem ?? "Deposit"}</Button>
       )}
     </div>
   )
@@ -177,7 +171,7 @@ function Withdraw({ v }: { v: VaultView }) {
       {!publicKey ? (
         <WalletButton className="h-12 w-full justify-center" label="Connect to withdraw" />
       ) : (
-        <Button className="h-12 w-full justify-center" disabled={!!problem || busy} onClick={go}>{busy ? "Withdrawing…" : problem ?? "Withdraw"}</Button>
+        <Button className="h-12 w-full justify-center" disabled={!!problem || busy} onClick={go}>{!problem && !busy && <Svg>{Icon.withdraw}</Svg>}{busy ? "Withdrawing…" : problem ?? "Withdraw"}</Button>
       )}
       {h && h.voted > 0 && <p className="text-xs text-ink-3">{fmt(h.voted)} shares sit in the re-entry vote. Take them back from the Re-entry tab to withdraw them.</p>}
     </div>
@@ -211,19 +205,19 @@ function Reentry({ v }: { v: VaultView }) {
           <div className="h-full rounded-full bg-ink transition-[width] duration-500" style={{ width: `${pct}%` }} />
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className={cn("rounded-full px-2.5 py-1 font-semibold", green ? "bg-safe-soft text-safe" : "bg-sand text-ink-2")}>{green ? "✓" : "○"} Protocol reads Safe</span>
-          <span className={cn("rounded-full px-2.5 py-1 font-semibold", majority ? "bg-safe-soft text-safe" : "bg-sand text-ink-2")}>{majority ? "✓" : "○"} Majority voted</span>
+          <span className={cn("rounded-md px-2 py-1 font-semibold", green ? "bg-safe-soft text-safe" : "bg-sand text-ink-2")}>{green ? "✓" : "○"} Protocol reads Safe</span>
+          <span className={cn("rounded-md px-2 py-1 font-semibold", majority ? "bg-safe-soft text-safe" : "bg-sand text-ink-2")}>{majority ? "✓" : "○"} Majority voted</span>
         </div>
       </div>
       {!publicKey ? (
         <WalletButton className="h-12 w-full justify-center" label="Connect to vote" />
       ) : green && majority ? (
-        <Button className="h-12 w-full justify-center" disabled={busy} onClick={() => run("Re-enter the protocol", buildReenter)}>{busy ? "Sending…" : "Re-enter now"}</Button>
+        <Button className="h-12 w-full justify-center" disabled={busy} onClick={() => run("Re-enter the protocol", buildReenter)}><Svg>{Icon.door}</Svg>{busy ? "Sending…" : "Re-enter now"}</Button>
       ) : h && h.voted > 0 ? (
-        <Button variant="line" className="h-12 w-full justify-center" disabled={busy} onClick={() => run("Take back your vote", () => buildUnvote(publicKey))}>{busy ? "Sending…" : `Take back ${fmt(h.voted)} shares`}</Button>
+        <Button variant="line" className="h-12 w-full justify-center" disabled={busy} onClick={() => run("Take back your vote", () => buildUnvote(publicKey))}><Svg>{Icon.undo}</Svg>{busy ? "Sending…" : `Take back ${fmt(h.voted)} shares`}</Button>
       ) : (
         <Button className="h-12 w-full justify-center" disabled={busy || !h || h.shares <= 0} onClick={() => run("Vote to re-enter", () => buildVote(publicKey, h!.shares))}>
-          {busy ? "Sending…" : h && h.shares > 0 ? `Vote with ${fmt(h.shares)} shares` : "No shares to vote with"}
+          {h && h.shares > 0 && !busy && <Svg>{Icon.vote}</Svg>}{busy ? "Sending…" : h && h.shares > 0 ? `Vote with ${fmt(h.shares)} shares` : "No shares to vote with"}
         </Button>
       )}
       <p className="text-xs text-ink-3">Voting holds your shares in escrow. Take them back any time.</p>

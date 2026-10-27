@@ -10,10 +10,10 @@ import { Icon, Svg } from "./chrome"
 
 export function StatTile({ label, value, sub, className }: { label: string; value: ReactNode; sub?: ReactNode; className?: string }) {
   return (
-    <div className={cn("card p-5", className)}>
-      <div className="text-xs uppercase tracking-[0.08em] text-ink-3">{label}</div>
-      <div className="tabular tracking-display mt-2 text-3xl font-medium md:text-[2.1rem]">{value ?? <Skeleton className="h-9 w-24" />}</div>
-      {sub && <div className="mt-1 text-sm text-ink-2">{sub}</div>}
+    <div className={cn("card min-w-0 p-5", className)}>
+      <div className="truncate text-xs uppercase tracking-[0.08em] text-ink-3">{label}</div>
+      <div className="tabular tracking-display mt-2 truncate text-[1.75rem] font-medium leading-tight md:text-[2rem]" title={typeof value === "string" ? value : undefined}>{value ?? <Skeleton className="h-9 w-24" />}</div>
+      {sub && <div className="mt-1 truncate text-sm text-ink-2">{sub}</div>}
     </div>
   )
 }

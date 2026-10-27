@@ -39,7 +39,7 @@ export function MonitorVenue() {
           <div className="mt-2 text-sm text-ink-3">{venue.kind} · {ADMIN_LABEL[venue.admin]} · {r?.live && readAt ? `read from mainnet ${ago(readAt)}` : r ? "snapshot" : "reading…"}</div>
           </div>
         </div>
-        {r ? <FlagPill flag={r.assessment} live={r.live} className="px-3.5 py-1.5 text-sm" /> : <Skeleton className="h-8 w-28 rounded-full" />}
+        {r ? <FlagPill flag={r.assessment} size="md" /> : <Skeleton className="h-8 w-28 rounded-full" />}
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">

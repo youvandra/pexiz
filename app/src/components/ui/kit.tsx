@@ -21,18 +21,37 @@ export function A(p: AnchorHTMLAttributes<HTMLAnchorElement>) {
   return <a target="_blank" rel="noreferrer" {...p} className={cn("underline decoration-line-2 underline-offset-4 hover:decoration-ink", p.className)} />
 }
 
-const FLAG: Record<Assessment, { label: string; cls: string; dot: string }> = {
-  green: { label: "Safe to stay", cls: "bg-safe-soft text-safe", dot: "text-safe" },
-  amber: { label: "Watch", cls: "bg-warn-soft text-warn", dot: "text-warn" },
-  red: { label: "Get out", cls: "bg-danger-soft text-danger", dot: "text-danger" },
-  unrated: { label: "Unrated", cls: "bg-sand text-ink-2", dot: "text-ink-3" },
+const FLAG: Record<Assessment, { label: string; level: number; fg: string; bg: string; edge: string }> = {
+  green: { label: "Safe", level: 1, fg: "var(--safe)", bg: "var(--safe-soft)", edge: "color-mix(in srgb, var(--safe) 28%, transparent)" },
+  amber: { label: "Watch", level: 2, fg: "var(--warn)", bg: "var(--warn-soft)", edge: "color-mix(in srgb, var(--warn) 30%, transparent)" },
+  red: { label: "Get out", level: 3, fg: "var(--danger)", bg: "var(--danger-soft)", edge: "color-mix(in srgb, var(--danger) 30%, transparent)" },
+  unrated: { label: "Unrated", level: 0, fg: "var(--ink-3)", bg: "var(--paper)", edge: "var(--line-2)" },
 }
 
-export function FlagPill({ flag, label, live = false, className }: { flag: Assessment; label?: string; live?: boolean; className?: string }) {
+/** Three rising bars: how close the exit is. Filled up to the flag's level. */
+function RiskLadder({ level }: { level: number }) {
+  return (
+    <svg viewBox="0 0 12 12" className="size-3 shrink-0" aria-hidden>
+      {[4, 7, 10].map((h, i) => (
+        <rect key={i} x={i * 4.2} y={12 - h} width="3" height={h} rx="1" fill="currentColor" opacity={i < level ? 1 : 0.22} />
+      ))}
+    </svg>
+  )
+}
+
+/** The Pexiz status mark: a risk ladder and a word, on the flag's tint. */
+export function FlagPill({ flag, label, size = "sm", className }: { flag: Assessment; label?: string; live?: boolean; size?: "sm" | "md"; className?: string }) {
   const f = FLAG[flag]
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold", f.cls, className)}>
-      <span className={cn(live ? "live-dot" : "size-1.5 rounded-full bg-current", f.dot)} />
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border font-semibold leading-none",
+        size === "md" ? "h-8 px-2.5 text-sm" : "h-6 px-2 text-xs",
+        className,
+      )}
+      style={{ color: f.fg, background: f.bg, borderColor: f.edge }}
+    >
+      <RiskLadder level={f.level} />
       {label ?? f.label}
     </span>
   )

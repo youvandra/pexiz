@@ -1,7 +1,8 @@
 import { cn } from "@/lib/cn"
 import { VENUES } from "@/data/facts"
-import { LinkButton } from "@/components/ui/kit"
+import { FlagPill, LinkButton } from "@/components/ui/kit"
 import { DoorGlyph } from "@/components/ui/glyphs"
+import { Icon, Svg } from "@/components/ui/icons"
 
 export function Hero() {
   return (
@@ -13,7 +14,7 @@ export function Hero() {
         <div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-medium text-ink-2">
             <img src="/logos/solana.svg" alt="" className="size-3.5" />
-            Built on Solana · open on devnet
+            Built on Solana
           </div>
           <h1 className="tracking-display text-[clamp(2.6rem,6vw,4.6rem)] font-medium leading-[1.02]">
             Your LP position, protected from admin takeovers.
@@ -22,8 +23,8 @@ export function Hero() {
             Pexiz watches who holds the admin keys of the protocols you provide liquidity to. If those keys get weaker, your vault moves to USDC on its own, before anyone can drain the pool.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <LinkButton href="/app" className="h-12 px-5">Open app</LinkButton>
-            <LinkButton href="/#how" variant="line" className="h-12 px-5">How it works</LinkButton>
+            <LinkButton href="/app/monitor" className="h-12 px-5"><Svg>{Icon.monitor}</Svg>Check a protocol</LinkButton>
+            <LinkButton href="/#how" variant="line" className="h-12 px-5">How it works<Svg>{Icon.arrowDown}</Svg></LinkButton>
           </div>
         </div>
         <HeroCard />
@@ -61,7 +62,7 @@ function HeroCard() {
             <div className="text-xs text-ink-3">Example of a warning</div>
           </div>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-warn-soft px-2.5 py-1 text-xs font-semibold text-warn"><span className="live-dot" />Watch</span>
+        <FlagPill flag="amber" />
       </div>
       <div className="p-5">
         <div className="text-xs uppercase tracking-[0.08em] text-ink-3">Your position</div>
