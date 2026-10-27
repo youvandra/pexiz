@@ -19,6 +19,9 @@ export interface BoardRow {
   live: boolean
   threshold?: number
   members?: number
+  memberKeys?: string[]
+  /** Squads transactions created so far: the multisig's activity count. */
+  txIndex?: number
   timeLockSecs?: number
   authorityMatches?: boolean
   exitWindowSecs?: number
@@ -59,6 +62,8 @@ async function readVenue(v: WatchedVenue): Promise<BoardRow> {
     live: true,
     threshold: m.threshold,
     members: m.members.length,
+    memberKeys: m.members.map((x) => x.key.toBase58()),
+    txIndex: Number(m.transactionIndex),
     timeLockSecs: m.timeLock,
     authorityMatches: auth?.toBase58() === v.authority,
     ...assess(v, m.timeLock),

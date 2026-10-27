@@ -100,7 +100,7 @@ export function BoardPreview() {
         </div>
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {list.slice(0, 3).map((r) => (
-            <Link key={r.venue.id} href={`/app/venue/${r.venue.id}`} className="card group block p-6 transition-transform hover:-translate-y-0.5">
+            <Link key={r.venue.id} href={`/app/monitor/${r.venue.id}`} className="card group block p-6 transition-transform hover:-translate-y-0.5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-lg font-semibold">{r.venue.name}</div>
@@ -230,7 +230,7 @@ export function LiveDevnet() {
           <Display top="A real multisig." bottom="A real flag." className="mt-5 text-5xl md:text-7xl" />
           <p className="mt-6 max-w-md text-ink-2">A canary venue on devnet under a 3-of-5 Squads multisig. One signer opened a pre-signing account; the oracle caught it.</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <LinkButton href="/app/vault">See the vault <Arrow /></LinkButton>
+            <LinkButton href="/app/vault/canary">See the vault <Arrow /></LinkButton>
             <LinkButton href="/docs" variant="line">Read the rules</LinkButton>
           </div>
         </div>
@@ -301,7 +301,7 @@ export function Footer() {
         <Display top="Stay in the room." bottom="Keep the door in sight." className="text-5xl md:text-7xl" />
         <div className="mt-10 flex flex-wrap gap-3">
           <LinkButton href="/app">Open the board <Arrow /></LinkButton>
-          <LinkButton href="/app/replay" variant="line">Watch the replay</LinkButton>
+          <LinkButton href="/replay" variant="line">Watch the replay</LinkButton>
         </div>
         <div className="mt-20 flex flex-wrap items-center justify-between gap-4 border-t border-ink/10 pt-6 text-sm text-ink-2">
           <span>Pexiz · built on Solana</span>

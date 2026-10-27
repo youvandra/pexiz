@@ -1,12 +1,10 @@
-import { useLayoutEffect } from "react"
+import { Suspense, lazy, useLayoutEffect } from "react"
 import { Route, Switch, useLocation } from "wouter"
 import { Landing } from "@/pages/Landing"
-import { AppShell } from "@/pages/app/Shell"
-import { Board } from "@/pages/app/Board"
-import { Replay } from "@/pages/app/Replay"
-import { VaultPage } from "@/pages/app/Vault"
-import { VenuePage } from "@/pages/app/Venue"
+import { Replay } from "@/pages/Replay"
 import { Docs } from "@/pages/Docs"
+
+const AppRoutes = lazy(() => import("@/pages/app"))
 
 function ScrollTop() {
   const [loc] = useLocation()
@@ -23,15 +21,11 @@ export function App() {
       <Switch>
         <Route path="/" component={Landing} />
         <Route path="/docs" component={Docs} />
+        <Route path="/replay" component={Replay} />
         <Route path="/app" nest>
-          <AppShell>
-            <Switch>
-              <Route path="/" component={Board} />
-              <Route path="/replay" component={Replay} />
-              <Route path="/vault" component={VaultPage} />
-              <Route path="/venue/:id" component={VenuePage} />
-            </Switch>
-          </AppShell>
+          <Suspense fallback={<div className="min-h-screen" />}>
+            <AppRoutes />
+          </Suspense>
         </Route>
         <Route>
           <div className="grid min-h-screen place-items-center text-ink-2">Page not found.</div>

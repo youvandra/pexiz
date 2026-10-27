@@ -2,9 +2,32 @@ import path from "node:path"
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
+import type { Plugin } from "vite"
+
+/** Serves the devnet faucet from the dev server, same handler as production. */
+function faucetDev(): Plugin {
+  return {
+    name: "pexiz-faucet",
+    configureServer(server) {
+      server.middlewares.use("/api/faucet", async (req, res, next) => {
+        try {
+          const { faucet } = await server.ssrLoadModule("/server/faucet.ts")
+          const chunks: Buffer[] = []
+          for await (const c of req) chunks.push(c as Buffer)
+          const r: Response = await faucet(new Request("http://dev/api/faucet", { method: req.method, body: req.method === "POST" ? Buffer.concat(chunks) : undefined }), req.socket.remoteAddress ?? "?")
+          res.statusCode = r.status
+          res.setHeader("content-type", "application/json")
+          res.end(await r.text())
+        } catch (e) {
+          next(e)
+        }
+      })
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), faucetDev()],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   define: { "process.env": {} },
   server: {

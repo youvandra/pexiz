@@ -69,8 +69,8 @@ export function Hero() {
             Pexiz reads who can move the money in a Solana venue, and moves yours out before a weakened admin can.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
-            <LinkButton href="/app">Open the board <Arrow /></LinkButton>
-            <LinkButton href="/app/replay" variant="line">Watch the April replay</LinkButton>
+            <LinkButton href="/app">Launch app <Arrow /></LinkButton>
+            <LinkButton href="/replay" variant="line">Watch the April replay</LinkButton>
           </div>
         </div>
 

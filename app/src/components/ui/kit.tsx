@@ -45,6 +45,8 @@ export function FlagPill({ flag, label, live = false, className }: { flag: Asses
   )
 }
 
+export const flagLabel = (f: Assessment) => FLAG[f].label
+
 export const flagColor = (f: Assessment) =>
   f === "green" ? "var(--safe)" : f === "amber" ? "var(--warn)" : f === "red" ? "var(--danger)" : "var(--ink-3)"
 

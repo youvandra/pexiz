@@ -73,3 +73,17 @@ PEXIZ_RPC_URL=<mainnet rpc> python3 scripts/measure/fixtures.py [nonce_account]
 
 This writes `tests/fixtures/{jupiter,drift}.json`. The oracle tests then use
 the real multisig accounts in place of synthetic ones.
+
+## Web app
+
+```sh
+bun run --cwd app dev      # http://127.0.0.1:5260
+bun run --cwd app build
+bun run --cwd app start    # serves app/dist on :5261 (PORT to change)
+```
+
+The app reads mainnet through `/rpc/mainnet` (set `PEXIZ_MAINNET_RPC_URL`)
+and the canary vault straight from devnet. `/api/faucet` mints 1,000 test
+USDC per wallet every 12 hours, plus 0.05 SOL when the wallet has none; it
+signs with the test USDC mint authority at `PEXIZ_FAUCET_KEYPAIR` (default
+`~/.config/solana/id.json`).

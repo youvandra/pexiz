@@ -2,7 +2,9 @@ import { useEffect, useState } from "react"
 import { cn } from "@/lib/cn"
 import { Button, FlagPill, flagColor } from "@/components/ui/kit"
 import type { Assessment } from "@/data/chain"
-import { PageHead } from "./Shell"
+import { Nav } from "@/components/landing/Nav"
+import { Display, LinkButton } from "@/components/ui/kit"
+import { Arrow } from "@/components/landing/Hero"
 
 interface Step {
   at: string
@@ -40,16 +42,21 @@ export function Replay() {
   const s = STEPS[i]
 
   return (
-    <div className="mx-auto max-w-[1100px]">
-      <PageHead
-        title="April replay"
-        right={
+    <div className="min-h-screen">
+      <Nav />
+      <main className="mx-auto max-w-[1100px] px-5 pb-24 pt-10 md:px-8 md:pt-16">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <Display as="h1" top="Nine days of warning." bottom="Replayed with Pexiz." className="text-5xl md:text-7xl" />
+          <p className="mt-5 max-w-xl text-ink-2">The March–April 2026 admin takeover, step by step: what was on chain, what the Pexiz oracle would read, and where an LP ends up with and without the vault.</p>
+        </div>
+        {
           <div className="flex gap-2">
             <Button variant="line" className="h-10" onClick={() => { setI(0); setPlaying(false) }}>Reset</Button>
             <Button className="h-10" onClick={() => { if (i >= STEPS.length - 1) setI(0); setPlaying((p) => !p) }}>{playing ? "Pause" : "Play"}</Button>
           </div>
         }
-      />
+      </div>
 
       <div className="card p-5 md:p-7">
         <div className="relative pt-2">
@@ -96,6 +103,14 @@ export function Replay() {
         </div>
       </div>
       <p className="mt-4 text-xs text-ink-3">Dates and parameters from the April 2026 takeover. Flag and vault states follow the rules the deployed programs enforce.</p>
+      <div className="card mt-12 flex flex-wrap items-center justify-between gap-4 p-6 md:p-8">
+        <div>
+          <div className="text-2xl font-semibold tracking-tight">Run the same rules on a live vault</div>
+          <p className="mt-1 text-ink-2">The canary vault on devnet is watched by the deployed oracle.</p>
+        </div>
+        <LinkButton href="/app/vault/canary">Open the canary vault <Arrow /></LinkButton>
+      </div>
+      </main>
     </div>
   )
 }

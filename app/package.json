@@ -6,10 +6,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "start": "bun server/index.ts"
   },
   "dependencies": {
     "@pexiz/sdk": "workspace:*",
+    "@solana/spl-token": "0.4.13",
+    "@solana/wallet-adapter-base": "0.9.27",
+    "@solana/wallet-adapter-react": "0.15.39",
     "@solana/web3.js": "^1.98.0",
     "buffer": "^6.0.3",
     "clsx": "^2.1.1",

@@ -122,3 +122,36 @@ export const DEVNET = {
 
 export const explorer = (addr: string, cluster: "devnet" | "mainnet" = "mainnet", kind: "address" | "tx" = "address") =>
   `https://explorer.solana.com/${kind}/${addr}${cluster === "devnet" ? "?cluster=devnet" : ""}`
+
+export interface VaultListing {
+  id: string
+  name: string
+  /** What the vault holds while the flag is green. */
+  holds: string
+  network: "devnet" | "mainnet"
+  status: "live" | "planned"
+  /** Monitor entry for the venue the vault watches. */
+  monitorId: string
+  blurb: string
+}
+
+export const VAULTS: VaultListing[] = [
+  {
+    id: "canary",
+    name: "Canary Pool",
+    holds: "Canary LP",
+    network: "devnet",
+    status: "live",
+    monitorId: "canary",
+    blurb: "A test venue under a real Squads multisig with a 24h timelock. Every flag change here is a real on-chain event.",
+  },
+  {
+    id: "jlp",
+    name: "Jupiter JLP",
+    holds: "JLP",
+    network: "mainnet",
+    status: "planned",
+    monitorId: "jupiter-perps",
+    blurb: "Holds JLP while Jupiter Perps reads Safe. Capped at $10M, the size JLP can exit under 1% impact.",
+  },
+]

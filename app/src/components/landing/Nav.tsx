@@ -16,9 +16,9 @@ export function Nav() {
       <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between px-5 md:px-8">
         <Link href="/" aria-label="Pexiz home"><Logo /></Link>
         <nav className="hidden items-center gap-8 text-[0.93rem] text-ink-2 md:flex">
-          <a href="#warning" className="hover:text-ink">The warning</a>
-          <a href="#board" className="hover:text-ink">Venues</a>
-          <a href="#how" className="hover:text-ink">How it works</a>
+          <a href="/#warning" className="hover:text-ink">The warning</a>
+          <a href="/#board" className="hover:text-ink">Venues</a>
+          <a href="/#how" className="hover:text-ink">How it works</a>
           <Link href="/docs" className="hover:text-ink">Docs</Link>
         </nav>
         <LinkButton href="/app" variant="line" className="h-10 px-4 text-sm">Launch app</LinkButton>
