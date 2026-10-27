@@ -4,6 +4,7 @@ import { VENUES } from "@/data/facts"
 import { FlagPill, LinkButton } from "@/components/ui/kit"
 import { DoorGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
+import { Reveal } from "@/components/ui/reveal"
 
 export function Hero() {
   return (
@@ -12,7 +13,7 @@ export function Hero() {
       style={{ background: "radial-gradient(80% 70% at 85% 0%, #e3f1e4 0%, transparent 60%), radial-gradient(70% 60% at 0% 100%, #f8ecc4 0%, transparent 60%), var(--cream)" }}
     >
       <div className="mx-auto grid max-w-[1180px] gap-14 px-5 pb-16 pt-14 md:px-8 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:pb-24 lg:pt-24">
-        <div>
+        <Reveal>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-medium text-ink-2">
             <img src="/logos/solana.svg" alt="" className="size-3.5" />
             Built on Solana
@@ -24,11 +25,16 @@ export function Hero() {
             Pexiz watches who holds the admin keys of the protocols you provide liquidity to. If those keys get weaker, your vault moves to USDC on its own, before anyone can drain the pool.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <LinkButton href="/app/monitor" className="h-12 px-5"><Svg>{Icon.monitor}</Svg>Check a protocol</LinkButton>
-            <LinkButton href="/#how" variant="line" className="h-12 px-5">How it works<Svg>{Icon.arrowDown}</Svg></LinkButton>
+            <LinkButton href="/app" className="h-12 px-5">Open the app<Svg>{Icon.arrowUpRight}</Svg></LinkButton>
+            <a href="#how" className="inline-flex h-12 items-center gap-2 rounded-full px-5 text-sm font-semibold text-ink-2 transition-colors hover:text-ink">
+              See how it works
+              <span className="grid size-7 place-items-center rounded-full border border-line-2 motion-safe:animate-[nudge_2.4s_ease-in-out_infinite]"><Svg className="size-3.5">{Icon.arrowDown}</Svg></span>
+            </a>
           </div>
-        </div>
-        <HeroCard />
+        </Reveal>
+        <Reveal delay={120}>
+          <HeroCard />
+        </Reveal>
       </div>
 
       <WatchStrip />
@@ -39,36 +45,39 @@ export function Hero() {
 /**
  * The protocols Pexiz watches, by name only. Their status lives in the app,
  * one click away: the strip answers "is mine covered?", the app answers
- * "is it safe?".
+ * "is it safe?". One button for all of them, since every name is already a
+ * link to its own page.
  */
 function WatchStrip() {
   return (
     <div id="protocols" className="scroll-mt-16 border-t border-line bg-paper/70">
       <div className="mx-auto max-w-[1180px] px-5 py-10 md:px-8">
-        <div className="text-center">
+        <Reveal className="text-center">
           <div className="text-lg font-semibold tracking-tight">Is your protocol on the list?</div>
-          <p className="mt-1 text-sm text-ink-2">Pexiz watches {VENUES.length} perps and prediction markets on Solana. Pick one to see if you would get out in time.</p>
-        </div>
+          <p className="mt-1 text-sm text-ink-2">Pexiz watches {VENUES.length} perps and prediction markets on Solana.</p>
+        </Reveal>
         <ul className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-          {VENUES.map((v) => (
-            <li key={v.id}>
-              <Link href={`/app/monitor/${v.id}`} className="group flex h-full flex-col items-center gap-2.5 rounded-[var(--radius-card)] border border-line bg-cream px-3 py-4 text-center transition-colors hover:border-ink">
+          {VENUES.map((v, i) => (
+            <Reveal as="li" key={v.id} delay={40 * i}>
+              <Link href={`/app/monitor/${v.id}`} className="flex h-full flex-col items-center gap-2.5 rounded-[var(--radius-card)] border border-line bg-cream px-3 py-4 text-center transition-[transform,border-color] hover:-translate-y-0.5 hover:border-ink">
                 <img src={v.logo} alt="" className="size-10 rounded-xl object-contain" />
                 <div>
                   <div className="text-sm font-semibold">{v.name}</div>
                   <div className="text-xs text-ink-3">{v.category === "prediction" ? "Prediction market" : "Perps"}</div>
                 </div>
-                <span className="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-ink-2 group-hover:text-ink">Check status<Svg className="size-3">{Icon.arrow}</Svg></span>
               </Link>
-            </li>
+            </Reveal>
           ))}
         </ul>
+        <Reveal className="mt-7 flex justify-center">
+          <LinkButton href="/app/monitor" variant="line" className="h-11 px-5"><Svg>{Icon.monitor}</Svg>Check a protocol</LinkButton>
+        </Reveal>
       </div>
     </div>
   )
 }
 
-/** A still picture of the product: one vault, its checks, its state. */
+/** A still picture of the product, on the protocol most people hold: Jupiter. */
 function HeroCard() {
   const checks: [string, boolean][] = [
     ["Changes wait longer than you need to exit", true],
@@ -81,7 +90,7 @@ function HeroCard() {
         <div className="flex items-center gap-3">
           <DoorGlyph className="size-9" />
           <div>
-            <div className="font-semibold">Your vault</div>
+            <div className="font-semibold">Jupiter Perps vault</div>
             <div className="text-xs text-ink-3">Example of a warning</div>
           </div>
         </div>

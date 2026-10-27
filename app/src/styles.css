@@ -137,3 +137,18 @@
 
 /* A status dot. Still, so it never pulls the eye. */
 .live-dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; flex-shrink: 0; }
+
+/* A single nudge, on the one control that asks you to scroll. Motion on this
+   page is entrance only; nothing else moves while you read. */
+@keyframes nudge {
+  0%, 72%, 100% { transform: translateY(0); }
+  82% { transform: translateY(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
