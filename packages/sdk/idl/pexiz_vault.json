@@ -100,6 +100,116 @@
       ]
     },
     {
+      "name": "deposit_jlp",
+      "docs": [
+        "Deposit USDC into a JLP vault; the vault buys JLP from Jupiter itself.",
+        "The same guards as `deposit`, with the JLP it already holds valued at",
+        "the pool's own AUM per token rather than counted as dollars."
+      ],
+      "discriminator": [
+        90,
+        57,
+        228,
+        24,
+        82,
+        102,
+        238,
+        63
+      ],
+      "accounts": [
+        {
+          "name": "vault"
+        },
+        {
+          "name": "venue",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_usdc",
+          "writable": true
+        },
+        {
+          "name": "user_shares",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "signer": true
+        },
+        {
+          "name": "jupiter",
+          "accounts": [
+            {
+              "name": "vault_usdc",
+              "writable": true
+            },
+            {
+              "name": "vault_lp",
+              "writable": true
+            },
+            {
+              "name": "jlp_pool",
+              "writable": true
+            },
+            {
+              "name": "jlp_mint",
+              "writable": true
+            },
+            {
+              "name": "transfer_authority"
+            },
+            {
+              "name": "perpetuals"
+            },
+            {
+              "name": "custody",
+              "writable": true
+            },
+            {
+              "name": "custody_doves_price_account"
+            },
+            {
+              "name": "custody_pythnet_price_account"
+            },
+            {
+              "name": "custody_token_account",
+              "writable": true
+            },
+            {
+              "name": "event_authority"
+            },
+            {
+              "name": "token_program",
+              "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+            },
+            {
+              "name": "jupiter_program",
+              "address": "PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu"
+            }
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "usdc_amount",
+          "type": "u64"
+        },
+        {
+          "name": "min_lp_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "exit",
       "docs": [
         "Permissionless. Reads the oracle venue account; if the flag is red,",
@@ -216,57 +326,56 @@
           ]
         },
         {
-          "name": "vault_usdc",
-          "writable": true,
-          "relations": [
-            "vault"
+          "name": "jupiter",
+          "accounts": [
+            {
+              "name": "vault_usdc",
+              "writable": true
+            },
+            {
+              "name": "vault_lp",
+              "writable": true
+            },
+            {
+              "name": "jlp_pool",
+              "writable": true
+            },
+            {
+              "name": "jlp_mint",
+              "writable": true
+            },
+            {
+              "name": "transfer_authority"
+            },
+            {
+              "name": "perpetuals"
+            },
+            {
+              "name": "custody",
+              "writable": true
+            },
+            {
+              "name": "custody_doves_price_account"
+            },
+            {
+              "name": "custody_pythnet_price_account"
+            },
+            {
+              "name": "custody_token_account",
+              "writable": true
+            },
+            {
+              "name": "event_authority"
+            },
+            {
+              "name": "token_program",
+              "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+            },
+            {
+              "name": "jupiter_program",
+              "address": "PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu"
+            }
           ]
-        },
-        {
-          "name": "vault_lp",
-          "writable": true,
-          "relations": [
-            "vault"
-          ]
-        },
-        {
-          "name": "jlp_pool",
-          "writable": true
-        },
-        {
-          "name": "jlp_mint",
-          "writable": true
-        },
-        {
-          "name": "transfer_authority"
-        },
-        {
-          "name": "perpetuals"
-        },
-        {
-          "name": "custody",
-          "writable": true
-        },
-        {
-          "name": "custody_doves_price_account"
-        },
-        {
-          "name": "custody_pythnet_price_account"
-        },
-        {
-          "name": "custody_token_account",
-          "writable": true
-        },
-        {
-          "name": "event_authority"
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "jupiter_program",
-          "address": "PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu"
         }
       ],
       "args": [
@@ -279,6 +388,165 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "init_jlp_vault",
+      "docs": [
+        "Creates a vault that holds JLP, bound to one oracle venue watching",
+        "Jupiter Perps. The pool and the custody the vault takes its USDC out of",
+        "are checked against each other on chain, so the vault cannot be pointed",
+        "at a pool that does not hold the token it claims."
+      ],
+      "discriminator": [
+        217,
+        122,
+        32,
+        231,
+        78,
+        230,
+        143,
+        253
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue"
+        },
+        {
+          "name": "jlp_pool"
+        },
+        {
+          "name": "usdc_custody"
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "lp_mint",
+          "address": "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4"
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_usdc",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_lp",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  112
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     },
     {
       "name": "init_vault",

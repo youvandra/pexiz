@@ -93,6 +93,7 @@ def main():
         entry={"address":c,"mint":b58(cd[40:72]),"tokenAccount":b58(cd[72:104]),
                "decimals":cd[104],"priceAccounts":price_accounts(cd)}
         accounts[c]=cv
+        accounts[entry["mint"]]=account(entry["mint"])
         accounts[entry["tokenAccount"]]=account(entry["tokenAccount"])
         for p in entry["priceAccounts"]: accounts[p["address"]]=account(p["address"])
         dump["custodies"].append(entry)

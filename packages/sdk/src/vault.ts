@@ -3,6 +3,8 @@ import { Connection, PublicKey, SystemProgram, type TransactionInstruction } fro
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import vaultIdl from "../idl/pexiz_vault.json";
 import { CANARY_PROGRAM_ID, bn, canaryPool, type CanaryPool } from "./canary";
+// The one LP token a v1 vault may hold; the program pins the same mint.
+import { JLP_MINT } from "./jlp";
 
 export const VAULT_PROGRAM_ID = new PublicKey(vaultIdl.address);
 export const vaultCoder = new BorshCoder(vaultIdl as Idl);
@@ -60,7 +62,7 @@ export function depositIx(v: VaultAddresses, user: PublicKey, userUsdc: PublicKe
     .instruction();
 }
 
-export function withdrawIx(v: VaultAddresses, user: PublicKey, a: { userShares: PublicKey; userUsdc: PublicKey; userLp: PublicKey }, shares: bigint) {
+export function withdrawIx(v: VaultAddresses | JlpVaultAddresses, user: PublicKey, a: { userShares: PublicKey; userUsdc: PublicKey; userLp: PublicKey }, shares: bigint) {
   return vaultProgram.methods.withdraw(bn(shares)).accountsStrict({
     vault: v.vault, shareMint: v.shareMint, vaultUsdc: v.vaultUsdc, vaultLp: v.vaultLp, ...a, user, tokenProgram: TOKEN_PROGRAM_ID,
   }).instruction();
@@ -82,10 +84,34 @@ export function exitIx(v: VaultAddresses, lp: bigint, minUsdcOut: bigint): Promi
   return vaultProgram.methods.exit(bn(lp), bn(minUsdcOut)).accountsStrict(poolAccounts(v)).instruction();
 }
 
-/** Accounts Jupiter Perps needs for `removeLiquidity2`, beside the vault's own. */
-export interface JlpExitAccounts {
-  pool: PublicKey;
-  lpMint: PublicKey;
+/** Addresses of a vault that holds JLP rather than the canary LP token. */
+export function jlpVaultAddresses(venue: PublicKey, usdcMint: PublicKey, pool: PublicKey) {
+  const vault = pda([Buffer.from("vault"), venue.toBuffer()]);
+  return {
+    vault,
+    venue,
+    pool,
+    usdcMint,
+    lpMint: JLP_MINT,
+    shareMint: pda([Buffer.from("shares"), vault.toBuffer()]),
+    vaultUsdc: pda([Buffer.from("usdc"), vault.toBuffer()]),
+    vaultLp: pda([Buffer.from("lp"), vault.toBuffer()]),
+    shareEscrow: pda([Buffer.from("escrow"), vault.toBuffer()]),
+  };
+}
+export type JlpVaultAddresses = ReturnType<typeof jlpVaultAddresses>;
+
+/** Creates a vault bound to the Jupiter pool and the custody it exits into. */
+export function initJlpVaultIx(payer: PublicKey, v: JlpVaultAddresses, usdcCustody: PublicKey): Promise<TransactionInstruction> {
+  return vaultProgram.methods.initJlpVault().accountsStrict({
+    vault: v.vault, venue: v.venue, jlpPool: v.pool, usdcCustody, usdcMint: v.usdcMint, lpMint: v.lpMint,
+    shareMint: v.shareMint, vaultUsdc: v.vaultUsdc, vaultLp: v.vaultLp, shareEscrow: v.shareEscrow, payer,
+    tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+  }).instruction();
+}
+
+/** Accounts Jupiter Perps needs to add or remove liquidity, beside the vault's own. */
+export interface JlpLiquidityAccounts {
   transferAuthority: PublicKey;
   perpetuals: PublicKey;
   custody: PublicKey;
@@ -98,18 +124,38 @@ export interface JlpExitAccounts {
   aumAccounts: PublicKey[];
 }
 
-/** Redeems `lp` of the vault's JLP through Jupiter Perps itself. */
-export function exitJlpIx(v: VaultAddresses, j: JlpExitAccounts, lp: bigint, minUsdcOut: bigint): Promise<TransactionInstruction> {
-  return vaultProgram.methods.exitJlp(bn(lp), bn(minUsdcOut))
-    .accountsStrict({
-      vault: v.vault, venue: v.venue, vaultUsdc: v.vaultUsdc, vaultLp: v.vaultLp,
-      jlpPool: j.pool, jlpMint: j.lpMint, transferAuthority: j.transferAuthority, perpetuals: j.perpetuals,
-      custody: j.custody, custodyDovesPriceAccount: j.custodyDovesPriceAccount,
-      custodyPythnetPriceAccount: j.custodyPythnetPriceAccount, custodyTokenAccount: j.custodyTokenAccount,
-      eventAuthority: j.eventAuthority, tokenProgram: TOKEN_PROGRAM_ID, jupiterProgram: j.jupiterProgram,
-    })
-    .remainingAccounts(j.aumAccounts.map((pubkey) => ({ pubkey, isSigner: false, isWritable: true })))
+const jupiterAccounts = (v: JlpVaultAddresses, j: JlpLiquidityAccounts) => ({
+  vaultUsdc: v.vaultUsdc, vaultLp: v.vaultLp, jlpPool: v.pool, jlpMint: v.lpMint,
+  transferAuthority: j.transferAuthority, perpetuals: j.perpetuals, custody: j.custody,
+  custodyDovesPriceAccount: j.custodyDovesPriceAccount, custodyPythnetPriceAccount: j.custodyPythnetPriceAccount,
+  custodyTokenAccount: j.custodyTokenAccount, eventAuthority: j.eventAuthority,
+  tokenProgram: TOKEN_PROGRAM_ID, jupiterProgram: j.jupiterProgram,
+})
+
+const aumRemaining = (j: JlpLiquidityAccounts) => j.aumAccounts.map((pubkey) => ({ pubkey, isSigner: false, isWritable: true }));
+
+/** Deposits USDC into a JLP vault; the vault buys JLP from Jupiter itself. */
+export function depositJlpIx(
+  v: JlpVaultAddresses, j: JlpLiquidityAccounts, user: PublicKey, userUsdc: PublicKey, userShares: PublicKey,
+  usdc: bigint, minLpOut = 0n,
+): Promise<TransactionInstruction> {
+  return vaultProgram.methods.depositJlp(bn(usdc), bn(minLpOut))
+    .accountsStrict({ vault: v.vault, venue: v.venue, shareMint: v.shareMint, userUsdc, userShares, user, jupiter: jupiterAccounts(v, j) })
+    .remainingAccounts(aumRemaining(j))
     .instruction();
+}
+
+/** Redeems `lp` of the vault's JLP through Jupiter Perps itself. */
+export function exitJlpIx(v: JlpVaultAddresses, j: JlpLiquidityAccounts, lp: bigint, minUsdcOut: bigint): Promise<TransactionInstruction> {
+  return vaultProgram.methods.exitJlp(bn(lp), bn(minUsdcOut))
+    .accountsStrict({ vault: v.vault, venue: v.venue, jupiter: jupiterAccounts(v, j) })
+    .remainingAccounts(aumRemaining(j))
+    .instruction();
+}
+
+/** What the vault is worth in USDC, mirrored from the program's own `jlp_nav`. */
+export function jlpNav(usdc: bigint, lp: bigint, aum: bigint, lpSupply: bigint): bigint {
+  return usdc + (lpSupply === 0n ? 0n : (lp * aum) / lpSupply);
 }
 
 export function voteReenterIx(v: VaultAddresses, user: PublicKey, userShares: PublicKey, shares: bigint) {

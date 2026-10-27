@@ -17,9 +17,20 @@ pub const MAX_EXIT_SLIPPAGE_BPS: u64 = 100;
 
 /// Jupiter Perps, whose JLP pool is the first live venue the vault can hold.
 pub const JUPITER_PERPS_ID: Pubkey = pubkey!("PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu");
+/// The one LP token a vault may hold in v1. Its exit capacity is the measured
+/// one behind `AUM_CAP_USDC`, so another pool's token would carry a cap that
+/// was never measured for it.
+pub const JLP_MINT: Pubkey = pubkey!("27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4");
 /// `remove_liquidity2 { lp_amount_in, min_amount_out }`: the Anchor
 /// discriminator, `sha256("global:remove_liquidity2")[..8]`.
 const REMOVE_LIQUIDITY2: [u8; 8] = [230, 215, 82, 127, 241, 101, 227, 146];
+/// `add_liquidity2 { token_amount_in, min_lp_amount_out, token_amount_pre_swap }`.
+const ADD_LIQUIDITY2: [u8; 8] = [228, 162, 78, 28, 70, 219, 116, 115];
+/// Where a Jupiter Perps `Custody` account keeps the pool it belongs to and
+/// the token it holds. Read from the live custodies on 27 Oct 2026;
+/// `tests/fork/jlp.test.ts` fails if either moves.
+const CUSTODY_POOL_OFFSET: usize = 8;
+const CUSTODY_MINT_OFFSET: usize = 40;
 /// Where the Jupiter Perps `Pool` account keeps `aum_usd`, a u128 with six
 /// decimals. Read from the live pool on 27 Oct 2026 and checked against a
 /// redemption on a mainnet fork: 844,315,343,474,555 over a supply of
@@ -45,6 +56,95 @@ pub mod pexiz_vault {
         v.vault_lp = ctx.accounts.vault_lp.key();
         v.share_escrow = ctx.accounts.share_escrow.key();
         v.bump = ctx.bumps.vault;
+        Ok(())
+    }
+
+    /// Creates a vault that holds JLP, bound to one oracle venue watching
+    /// Jupiter Perps. The pool and the custody the vault takes its USDC out of
+    /// are checked against each other on chain, so the vault cannot be pointed
+    /// at a pool that does not hold the token it claims.
+    pub fn init_jlp_vault(ctx: Context<InitJlpVault>) -> Result<()> {
+        let a = &ctx.accounts;
+        require_keys_eq!(a.venue.params_program, JUPITER_PERPS_ID, VaultError::VenueMismatch);
+        let custody = a.usdc_custody.try_borrow_data()?;
+        require!(custody.len() >= CUSTODY_MINT_OFFSET + 32, VaultError::NotJupiterPool);
+        require_keys_eq!(
+            Pubkey::try_from(&custody[CUSTODY_POOL_OFFSET..CUSTODY_POOL_OFFSET + 32]).unwrap(),
+            a.jlp_pool.key(),
+            VaultError::NotJupiterPool
+        );
+        require_keys_eq!(
+            Pubkey::try_from(&custody[CUSTODY_MINT_OFFSET..CUSTODY_MINT_OFFSET + 32]).unwrap(),
+            a.usdc_mint.key(),
+            VaultError::NotJupiterPool
+        );
+        drop(custody);
+        // The pool has to be able to price itself before anyone deposits.
+        require!(jlp_aum_usdc(&a.jlp_pool)? > 0, VaultError::NotJupiterPool);
+
+        let v = &mut ctx.accounts.vault;
+        v.venue = ctx.accounts.venue.key();
+        v.pool = ctx.accounts.jlp_pool.key();
+        v.usdc_mint = ctx.accounts.usdc_mint.key();
+        v.lp_mint = ctx.accounts.lp_mint.key();
+        v.share_mint = ctx.accounts.share_mint.key();
+        v.vault_usdc = ctx.accounts.vault_usdc.key();
+        v.vault_lp = ctx.accounts.vault_lp.key();
+        v.share_escrow = ctx.accounts.share_escrow.key();
+        v.bump = ctx.bumps.vault;
+        Ok(())
+    }
+
+    /// Deposit USDC into a JLP vault; the vault buys JLP from Jupiter itself.
+    /// The same guards as `deposit`, with the JLP it already holds valued at
+    /// the pool's own AUM per token rather than counted as dollars.
+    pub fn deposit_jlp<'info>(ctx: Context<'_, '_, 'info, 'info, DepositJlp<'info>>, usdc_amount: u64, min_lp_out: u64) -> Result<()> {
+        let a = &ctx.accounts;
+        require!(usdc_amount > 0, VaultError::ZeroAmount);
+        require!(!a.vault.exited, VaultError::AlreadyExited);
+        require!(a.venue.flag == Flag::Green, VaultError::VenueNotGreen);
+        a.jupiter.bound_to(&a.vault)?;
+        let nav = jlp_nav(a.jupiter.vault_usdc.amount, a.jupiter.vault_lp.amount, &a.jupiter.jlp_pool, a.jupiter.jlp_mint.supply)?;
+        require!(nav.checked_add(usdc_amount).ok_or(VaultError::Overflow)? <= AUM_CAP_USDC, VaultError::AumCap);
+        let shares = math::shares_for_deposit(usdc_amount, nav, a.share_mint.supply).ok_or(VaultError::EmptyVault)?;
+        require!(shares > 0, VaultError::ZeroAmount);
+
+        token::transfer(
+            CpiContext::new(
+                a.jupiter.token_program.to_account_info(),
+                Transfer {
+                    from: a.user_usdc.to_account_info(),
+                    to: a.jupiter.vault_usdc.to_account_info(),
+                    authority: a.user.to_account_info(),
+                },
+            ),
+            usdc_amount,
+        )?;
+
+        let lp_before = a.jupiter.vault_lp.amount;
+        let mut data = Vec::with_capacity(25);
+        data.extend_from_slice(&ADD_LIQUIDITY2);
+        data.extend_from_slice(&usdc_amount.to_le_bytes());
+        data.extend_from_slice(&min_lp_out.to_le_bytes());
+        data.push(0); // token_amount_pre_swap: None
+        jupiter_liquidity_cpi(&a.jupiter, &a.vault, ctx.remaining_accounts, data)?;
+
+        ctx.accounts.jupiter.vault_lp.reload()?;
+        let a = &ctx.accounts;
+        require!(a.jupiter.vault_lp.amount - lp_before >= min_lp_out, VaultError::Slippage);
+
+        token::mint_to(
+            CpiContext::new_with_signer(
+                a.jupiter.token_program.to_account_info(),
+                MintTo {
+                    mint: a.share_mint.to_account_info(),
+                    to: a.user_shares.to_account_info(),
+                    authority: a.vault.to_account_info(),
+                },
+                &[&a.vault.seeds()],
+            ),
+            shares,
+        )?;
         Ok(())
     }
 
@@ -199,58 +299,25 @@ pub mod pexiz_vault {
     /// where the money goes.
     pub fn exit_jlp<'info>(ctx: Context<'_, '_, 'info, 'info, ExitJlp<'info>>, lp_amount: u64, min_usdc_out: u64) -> Result<()> {
         let a = &ctx.accounts;
+        a.jupiter.bound_to(&a.vault)?;
         require!(a.venue.flag == Flag::Red, VaultError::VenueNotRed);
-        let held = a.vault_lp.amount;
+        let held = a.jupiter.vault_lp.amount;
         require!(held > 0, VaultError::AlreadyExited);
         require!(lp_amount > 0 && lp_amount <= held, VaultError::ZeroAmount);
 
-        let floor = math::exit_floor(lp_amount, jlp_aum_usdc(&a.jlp_pool)?, a.jlp_mint.supply).ok_or(VaultError::Overflow)?;
+        let floor = math::exit_floor(lp_amount, jlp_aum_usdc(&a.jupiter.jlp_pool)?, a.jupiter.jlp_mint.supply)
+            .ok_or(VaultError::Overflow)?;
         require!(min_usdc_out >= floor, VaultError::SlippageFloor);
 
-        let usdc_before = a.vault_usdc.amount;
+        let usdc_before = a.jupiter.vault_usdc.amount;
         let mut data = Vec::with_capacity(24);
         data.extend_from_slice(&REMOVE_LIQUIDITY2);
         data.extend_from_slice(&lp_amount.to_le_bytes());
         data.extend_from_slice(&min_usdc_out.to_le_bytes());
+        jupiter_liquidity_cpi(&a.jupiter, &a.vault, ctx.remaining_accounts, data)?;
 
-        // The fixed accounts, in the order Jupiter Perps expects them. The
-        // vault signs as `owner`.
-        let fixed = [
-            (a.vault.to_account_info(), false, true),
-            (a.vault_usdc.to_account_info(), true, false),
-            (a.vault_lp.to_account_info(), true, false),
-            (a.transfer_authority.to_account_info(), false, false),
-            (a.perpetuals.to_account_info(), false, false),
-            (a.jlp_pool.to_account_info(), true, false),
-            (a.custody.to_account_info(), true, false),
-            (a.custody_doves_price_account.to_account_info(), false, false),
-            (a.custody_pythnet_price_account.to_account_info(), false, false),
-            (a.custody_token_account.to_account_info(), true, false),
-            (a.jlp_mint.to_account_info(), true, false),
-            (a.token_program.to_account_info(), false, false),
-            (a.event_authority.to_account_info(), false, false),
-            (a.jupiter_program.to_account_info(), false, false),
-        ];
-        let mut metas = Vec::with_capacity(fixed.len() + ctx.remaining_accounts.len());
-        let mut infos = Vec::with_capacity(fixed.len() + ctx.remaining_accounts.len() + 1);
-        for (info, writable, signer) in fixed.iter() {
-            metas.push(AccountMeta { pubkey: *info.key, is_writable: *writable, is_signer: *signer });
-            infos.push(info.clone());
-        }
-        for info in ctx.remaining_accounts.iter() {
-            metas.push(AccountMeta { pubkey: *info.key, is_writable: info.is_writable, is_signer: false });
-            infos.push(info.clone());
-        }
-        infos.push(a.jupiter_program.to_account_info());
-
-        invoke_signed(
-            &Instruction { program_id: JUPITER_PERPS_ID, accounts: metas, data },
-            &infos,
-            &[&a.vault.seeds()],
-        )?;
-
-        ctx.accounts.vault_usdc.reload()?;
-        let out = ctx.accounts.vault_usdc.amount - usdc_before;
+        ctx.accounts.jupiter.vault_usdc.reload()?;
+        let out = ctx.accounts.jupiter.vault_usdc.amount - usdc_before;
         require!(out >= min_usdc_out, VaultError::Slippage);
         let clock = Clock::get()?;
         let v = &mut ctx.accounts.vault;
@@ -390,6 +457,57 @@ fn jlp_aum_usdc(pool: &UncheckedAccount) -> Result<u64> {
     require!(data.len() >= end, VaultError::NotJupiterPool);
     let aum = u128::from_le_bytes(data[JLP_POOL_AUM_OFFSET..end].try_into().unwrap());
     u64::try_from(aum).map_err(|_| VaultError::Overflow.into())
+}
+
+/// What the vault is worth in USDC: the USDC it holds, plus the JLP it holds
+/// at the pool's own value per token. Rounds toward the vault.
+fn jlp_nav(usdc: u64, lp: u64, pool: &UncheckedAccount, lp_supply: u64) -> Result<u64> {
+    let lp_value = math::lp_value_usdc(lp, jlp_aum_usdc(pool)?, lp_supply).ok_or(VaultError::Overflow)?;
+    usdc.checked_add(lp_value).ok_or(VaultError::Overflow.into())
+}
+
+/// Calls Jupiter Perps with the fourteen accounts it expects, the vault
+/// signing as `owner`, and whatever accounts the caller passed after them:
+/// the pool values every custody before it prices the LP token.
+fn jupiter_liquidity_cpi<'info>(
+    j: &JupiterLiquidity<'info>,
+    vault: &Account<'info, Vault>,
+    rest: &[AccountInfo<'info>],
+    data: Vec<u8>,
+) -> Result<()> {
+    let fixed = [
+        (vault.to_account_info(), false, true),
+        (j.vault_usdc.to_account_info(), true, false),
+        (j.vault_lp.to_account_info(), true, false),
+        (j.transfer_authority.to_account_info(), false, false),
+        (j.perpetuals.to_account_info(), false, false),
+        (j.jlp_pool.to_account_info(), true, false),
+        (j.custody.to_account_info(), true, false),
+        (j.custody_doves_price_account.to_account_info(), false, false),
+        (j.custody_pythnet_price_account.to_account_info(), false, false),
+        (j.custody_token_account.to_account_info(), true, false),
+        (j.jlp_mint.to_account_info(), true, false),
+        (j.token_program.to_account_info(), false, false),
+        (j.event_authority.to_account_info(), false, false),
+        (j.jupiter_program.to_account_info(), false, false),
+    ];
+    let mut metas = Vec::with_capacity(fixed.len() + rest.len());
+    let mut infos = Vec::with_capacity(fixed.len() + rest.len() + 1);
+    for (info, writable, signer) in fixed.iter() {
+        metas.push(AccountMeta { pubkey: *info.key, is_writable: *writable, is_signer: *signer });
+        infos.push(info.clone());
+    }
+    for info in rest.iter() {
+        metas.push(AccountMeta { pubkey: *info.key, is_writable: info.is_writable, is_signer: false });
+        infos.push(info.clone());
+    }
+    infos.push(j.jupiter_program.to_account_info());
+    invoke_signed(
+        &Instruction { program_id: JUPITER_PERPS_ID, accounts: metas, data },
+        &infos,
+        &[&vault.seeds()],
+    )
+    .map_err(Into::into)
 }
 
 #[account]
@@ -574,29 +692,26 @@ pub struct Reenter<'info> {
     pub canary_program: Program<'info, CanaryVenue>,
 }
 
-/// The JLP exit. `vault_lp` holds JLP and `vault_usdc` receives the proceeds,
-/// so neither can be swapped out by the accounts passed through to Jupiter.
-/// The accounts after these are Jupiter's own: every custody, then every
-/// custody's Doves price account.
+/// Everything Jupiter Perps needs to add or remove liquidity, with the
+/// vault's own token accounts named so the pass-through accounts cannot
+/// redirect where the money goes. The accounts after these are Jupiter's own:
+/// every custody, then every custody's Doves price account.
 #[derive(Accounts)]
-pub struct ExitJlp<'info> {
-    #[account(mut, has_one = venue, has_one = vault_usdc, has_one = vault_lp)]
-    pub vault: Box<Account<'info, Vault>>,
-    pub venue: Box<Account<'info, Venue>>,
-    #[account(mut, address = vault.vault_usdc)]
+pub struct JupiterLiquidity<'info> {
+    #[account(mut)]
     pub vault_usdc: Box<Account<'info, TokenAccount>>,
-    #[account(mut, address = vault.vault_lp)]
+    #[account(mut)]
     pub vault_lp: Box<Account<'info, TokenAccount>>,
     /// CHECK: Jupiter's pool; only `aum_usd` is read, and the owner is checked.
-    #[account(mut, address = vault.pool @ VaultError::NotJupiterPool)]
+    #[account(mut)]
     pub jlp_pool: UncheckedAccount<'info>,
-    #[account(mut, address = vault.lp_mint)]
+    #[account(mut)]
     pub jlp_mint: Box<Account<'info, Mint>>,
     /// CHECK: Jupiter's own PDA, passed through.
     pub transfer_authority: UncheckedAccount<'info>,
     /// CHECK: Jupiter's own PDA, passed through.
     pub perpetuals: UncheckedAccount<'info>,
-    /// CHECK: the custody the vault takes USDC out of; Jupiter checks it against the pool.
+    /// CHECK: the custody the USDC moves through; Jupiter checks it against the pool.
     #[account(mut)]
     pub custody: UncheckedAccount<'info>,
     /// CHECK: Jupiter checks this against the custody and refuses the wrong one.
@@ -612,6 +727,70 @@ pub struct ExitJlp<'info> {
     /// CHECK: pinned to the Jupiter Perps program id.
     #[account(address = JUPITER_PERPS_ID @ VaultError::NotJupiterPool)]
     pub jupiter_program: UncheckedAccount<'info>,
+}
+
+impl<'info> JupiterLiquidity<'info> {
+    /// These are this vault's accounts, and this is the pool it was created
+    /// against. Checked here rather than in an attribute, because the same
+    /// accounts serve both directions.
+    fn bound_to(&self, vault: &Account<'info, Vault>) -> Result<()> {
+        require_keys_eq!(self.vault_usdc.key(), vault.vault_usdc, VaultError::NotJupiterPool);
+        require_keys_eq!(self.vault_lp.key(), vault.vault_lp, VaultError::NotJupiterPool);
+        require_keys_eq!(self.jlp_pool.key(), vault.pool, VaultError::NotJupiterPool);
+        require_keys_eq!(self.jlp_mint.key(), vault.lp_mint, VaultError::NotJupiterPool);
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct InitJlpVault<'info> {
+    #[account(init, payer = payer, space = 8 + Vault::INIT_SPACE, seeds = [b"vault", venue.key().as_ref()], bump)]
+    pub vault: Box<Account<'info, Vault>>,
+    pub venue: Box<Account<'info, Venue>>,
+    /// CHECK: owned by Jupiter Perps, and the custody below names it.
+    #[account(owner = JUPITER_PERPS_ID @ VaultError::NotJupiterPool)]
+    pub jlp_pool: UncheckedAccount<'info>,
+    /// CHECK: the custody the vault exits into; its pool and mint are read here.
+    #[account(owner = JUPITER_PERPS_ID @ VaultError::NotJupiterPool)]
+    pub usdc_custody: UncheckedAccount<'info>,
+    pub usdc_mint: Box<Account<'info, Mint>>,
+    #[account(address = JLP_MINT @ VaultError::NotJupiterPool)]
+    pub lp_mint: Box<Account<'info, Mint>>,
+    #[account(init, payer = payer, seeds = [b"shares", vault.key().as_ref()], bump, mint::decimals = usdc_mint.decimals, mint::authority = vault)]
+    pub share_mint: Box<Account<'info, Mint>>,
+    #[account(init, payer = payer, seeds = [b"usdc", vault.key().as_ref()], bump, token::mint = usdc_mint, token::authority = vault)]
+    pub vault_usdc: Box<Account<'info, TokenAccount>>,
+    #[account(init, payer = payer, seeds = [b"lp", vault.key().as_ref()], bump, token::mint = lp_mint, token::authority = vault)]
+    pub vault_lp: Box<Account<'info, TokenAccount>>,
+    #[account(init, payer = payer, seeds = [b"escrow", vault.key().as_ref()], bump, token::mint = share_mint, token::authority = vault)]
+    pub share_escrow: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ExitJlp<'info> {
+    #[account(mut, has_one = venue)]
+    pub vault: Box<Account<'info, Vault>>,
+    pub venue: Box<Account<'info, Venue>>,
+    pub jupiter: JupiterLiquidity<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DepositJlp<'info> {
+    #[account(has_one = venue, has_one = share_mint)]
+    pub vault: Box<Account<'info, Vault>>,
+    pub venue: Box<Account<'info, Venue>>,
+    #[account(mut)]
+    pub share_mint: Box<Account<'info, Mint>>,
+    #[account(mut, token::mint = vault.usdc_mint)]
+    pub user_usdc: Box<Account<'info, TokenAccount>>,
+    #[account(mut, token::mint = share_mint)]
+    pub user_shares: Box<Account<'info, TokenAccount>>,
+    pub user: Signer<'info>,
+    pub jupiter: JupiterLiquidity<'info>,
 }
 
 #[event]

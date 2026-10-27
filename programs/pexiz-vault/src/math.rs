@@ -25,6 +25,18 @@ pub fn majority(votes: u64, supply: u64) -> bool {
     supply > 0 && votes as u128 * 2 >= supply as u128
 }
 
+/// What `lp` LP tokens are worth, at the pool's own value per token
+/// (`aum / lp_supply`). Rounds down, so the vault never values itself high.
+pub fn lp_value_usdc(lp: u64, aum: u64, lp_supply: u64) -> Option<u64> {
+    if lp == 0 {
+        return Some(0);
+    }
+    if lp_supply == 0 {
+        return None;
+    }
+    u64::try_from(lp as u128 * aum as u128 / lp_supply as u128).ok()
+}
+
 /// Least USDC an exit tranche of `lp` may return: the pool's own value per LP
 /// token (`reserve / lp_supply`) less `MAX_EXIT_SLIPPAGE_BPS`, rounded up.
 pub fn exit_floor(lp: u64, reserve: u64, lp_supply: u64) -> Option<u64> {
@@ -66,6 +78,25 @@ mod tests {
         // Canary pays 1:1 less 10 bps; the floor allows 100 bps.
         let lp = 1_000_000_000;
         assert!(canary_venue::redeem_amount(lp) >= exit_floor(lp, lp, lp).unwrap());
+    }
+
+    #[test]
+    fn lp_is_valued_at_the_pools_own_price() {
+        // The live JLP pool on 27 Oct 2026: $844,315,343,474,555 of AUM over
+        // 189,042,592,013,553 JLP is $4.4663 a token, so 1,000 JLP is
+        // $4,466.27. The fork test redeemed 1,000 JLP for $4,455.
+        assert_eq!(lp_value_usdc(1_000_000_000, 844_315_343_474_555, 189_042_592_013_553), Some(4_466_270_455));
+        // An empty pool has no price, and no LP is worth nothing either way.
+        assert_eq!(lp_value_usdc(1, 1, 0), None);
+        assert_eq!(lp_value_usdc(0, 1, 0), Some(0));
+    }
+
+    #[test]
+    fn a_jlp_vault_values_itself_low_rather_than_high() {
+        // Rounding is toward the vault: never credit a depositor with more
+        // than the LP already in the vault is worth.
+        assert_eq!(lp_value_usdc(3, 10, 3), Some(10));
+        assert_eq!(lp_value_usdc(1, 10, 3), Some(3));
     }
 
     #[test]

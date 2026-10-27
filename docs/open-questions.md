@@ -1,6 +1,6 @@
 # Open questions and blockers
 
-Last updated 27 Oct 2026.
+Last updated 28 Oct 2026.
 
 ## Answered
 
@@ -67,9 +67,20 @@ in the same transaction, so no caller can route the vault into a fire sale.
 On the fork the vault took 100 JLP out for 445.55 USDC against a floor of
 442.07.
 
-Still open for a live JLP vault: `init_vault` types its pool as a canary
-`Pool`, so a vault bound to the Jupiter pool cannot be created yet. The fork
-test preloads the vault account instead.
+**Closed (28 Oct):** a JLP vault can now be created and funded.
+`init_jlp_vault` binds a vault to the Jupiter pool, checking the pool and the
+custody it exits into against each other on chain (the custody names its pool
+at offset 8 and its mint at offset 40), and pinning the LP mint to JLP.
+`deposit_jlp` buys JLP from Jupiter, valuing the JLP the vault already holds
+at the pool's own AUM per token rather than counting it as dollars. The fork
+test now runs the whole life of a vault against the real program: open,
+deposit $5,000 for 1,115.89 JLP, exit 1,000 JLP for 4,461.37 USDC against a
+floor of 4,426.83, and withdraw a holder's half.
+
+Left for a venue other than Jupiter: `deposit`, `reenter` and `exit` still
+speak to the canary program, so re-entry after an exit is canary-only. A JLP
+vault that has exited holds USDC its holders can withdraw, and cannot buy
+back in.
 
 **Anza Programmatic Signer.** The nonce account layout (72 bytes) is not
 published in a form we could check. `proofs.rs` takes one more verifier
