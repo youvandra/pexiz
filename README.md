@@ -25,20 +25,28 @@ packages/
 scripts/
   measure/        mainnet measurement scripts (authorities, multisigs, nonces, drain)
   devnet/         devnet deploy and live-demo scripts
-tests/            program tests (LiteSVM) and a local-validator crank test
+tests/            program tests (LiteSVM), a local-validator crank test, and a
+                  mainnet-fork test against the real Jupiter Perps program
 docs/             architecture, trust model, oracle rules, facts, running
-app/              web app (later)
+app/              web app: landing, docs, replay, and the vault console
 ```
 
-## Status (26 Oct 2026)
+## Status (28 Oct 2026)
 
 - All three programs build with `anchor build`.
-- Tests pass: 21 host tests, 64 program/service tests in LiteSVM and 1 crank
-  and alerts integration test on `solana-test-validator`.
+- Tests pass: 31 host tests, 80 program and service tests in LiteSVM, 1 crank
+  and alerts test on `solana-test-validator`, and 3 fork tests against the
+  real Jupiter Perps program.
 - `bun run replay` replays the April 2026 Drift admin takeover. The vault
   exits 7 days 16 hours before `UpdateAdmin`.
-- Devnet deploy scripts are written but not yet run. The JLP path on a
-  mainnet fork is blocked; see [docs/open-questions.md](docs/open-questions.md).
+- The three programs are live on devnet, with a canary venue under a real
+  Squads 3/5 multisig; both demos have run. See [docs/devnet.md](docs/devnet.md).
+- The vault sells JLP through Jupiter Perps itself. `bun run test:fork` takes
+  real JLP out of the real pool on a mainnet fork, from a wallet, from a
+  PDA-signing program, and through the vault's own `exit_jlp`.
+- Left open: a vault bound to the Jupiter pool cannot be created yet, because
+  `init_vault` types its pool as the canary `Pool`. See
+  [docs/open-questions.md](docs/open-questions.md).
 
 ## Docs
 
