@@ -161,7 +161,7 @@ export class Env {
 
 function extraPrograms(): [string, PublicKey][] {
   const out: [string, PublicKey][] = [];
-  for (const name of ["pexiz_vault", "canary_venue"]) {
+  for (const name of ["pexiz_vault", "canary_venue", "pexiz_exit"]) {
     const idl = join(ROOT, `packages/sdk/idl/${name}.json`);
     if (existsSync(idl)) out.push([name, new PublicKey(JSON.parse(readFileSync(idl, "utf8")).address)]);
   }

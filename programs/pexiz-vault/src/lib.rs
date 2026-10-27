@@ -23,7 +23,7 @@ pub const JUPITER_PERPS_ID: Pubkey = pubkey!("PERPHjGBqRHArX4DySjwM6UJHiR3sWAatq
 pub const JLP_MINT: Pubkey = pubkey!("27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4");
 /// `remove_liquidity2 { lp_amount_in, min_amount_out }`: the Anchor
 /// discriminator, `sha256("global:remove_liquidity2")[..8]`.
-const REMOVE_LIQUIDITY2: [u8; 8] = [230, 215, 82, 127, 241, 101, 227, 146];
+pub const REMOVE_LIQUIDITY2: [u8; 8] = [230, 215, 82, 127, 241, 101, 227, 146];
 /// `add_liquidity2 { token_amount_in, min_lp_amount_out, token_amount_pre_swap }`.
 const ADD_LIQUIDITY2: [u8; 8] = [228, 162, 78, 28, 70, 219, 116, 115];
 /// Where a Jupiter Perps `Custody` account keeps the pool it belongs to and
@@ -482,7 +482,7 @@ fn swap_usdc_to_lp<'info>(
 /// What the Jupiter Perps pool says it is worth, in USDC units. The field is
 /// a u128 with six decimals, the same unit as USDC, so the share math that
 /// `exit` uses on the canary reserve works unchanged here.
-fn jlp_aum_usdc(pool: &UncheckedAccount) -> Result<u64> {
+pub fn jlp_aum_usdc(pool: &UncheckedAccount) -> Result<u64> {
     require_keys_eq!(*pool.owner, JUPITER_PERPS_ID, VaultError::NotJupiterPool);
     let data = pool.try_borrow_data()?;
     let end = JLP_POOL_AUM_OFFSET + 16;

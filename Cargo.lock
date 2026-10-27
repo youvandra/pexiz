@@ -1100,6 +1100,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
+name = "pexiz_exit"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "canary_venue",
+ "pexiz_oracle",
+ "pexiz_vault",
+]
+
+[[package]]
 name = "pexiz_oracle"
 version = "0.1.0"
 dependencies = [

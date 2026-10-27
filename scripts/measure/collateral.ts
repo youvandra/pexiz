@@ -23,7 +23,7 @@ for (const m of markets) {
   const reserves: any[] = await get(`/kamino-market/${m.lendingMarket}/reserves/metrics`)
   for (const r of reserves) {
     if (Number(r.maxLtv) <= 0) continue
-    const e = byMint.get(r.liquidityTokenMint) ?? { symbol: r.liquidityToken, supplyUsd: 0, borrowUsd: 0, markets: [] }
+    const e = byMint.get(r.liquidityTokenMint) ?? { symbol: r.liquidityToken, supplyUsd: 0, borrowUsd: 0, markets: [] as string[] }
     e.supplyUsd += Number(r.totalSupplyUsd)
     e.markets.push(m.name)
     byMint.set(r.liquidityTokenMint, e)

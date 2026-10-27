@@ -19,7 +19,7 @@ const { rows } = JSON.parse(readFileSync(input, "utf8")) as { rows: { symbol: st
 const byMint = new Map<string, { symbol: string; supplyUsd: number; markets: string[] }>()
 for (const r of rows as any[]) {
   if (r.maxLtv <= 0) continue
-  const e = byMint.get(r.mint) ?? { symbol: r.symbol, supplyUsd: 0, markets: [] }
+  const e = byMint.get(r.mint) ?? { symbol: r.symbol, supplyUsd: 0, markets: [] as string[] }
   e.supplyUsd += r.supplyUsd
   e.markets.push(r.market)
   byMint.set(r.mint, e)

@@ -7,11 +7,13 @@ skip-lint = false
 
 [programs.devnet]
 canary_venue = "CHpLfS2BA2knitoRmgeef2rULJy4dJ3PtBdL8R6ZTGjb"
+pexiz_exit = "4GhBvwpJCaKgNuKZK4uXg3CKTZgXtJnY42BFX49qN2Nm"
 pexiz_oracle = "68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n"
 pexiz_vault = "3WXGqGargd6Wig3czzD45kstziZGhQdQ5HYYdNJkJGnz"
 
 [programs.localnet]
 canary_venue = "CHpLfS2BA2knitoRmgeef2rULJy4dJ3PtBdL8R6ZTGjb"
+pexiz_exit = "4GhBvwpJCaKgNuKZK4uXg3CKTZgXtJnY42BFX49qN2Nm"
 pexiz_oracle = "68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n"
 pexiz_vault = "3WXGqGargd6Wig3czzD45kstziZGhQdQ5HYYdNJkJGnz"
 

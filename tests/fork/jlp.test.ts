@@ -24,6 +24,10 @@ import {
   VAULT_PROGRAM_ID, decodeVault, depositJlpIx, exitFloor, exitJlpIx, initJlpVaultIx, jlpNav, jlpVaultAddresses,
   reenterJlpIx, vaultCoder, withdrawIx, type JlpVaultAddresses,
 } from "@pexiz/sdk/src/vault";
+import {
+  EXIT_PROGRAM_ID, autoExitJlpIx, decodeGuard, guardPda, openRouteIx, parseGuardExited, protectJlpIxs,
+} from "@pexiz/sdk/src/exit";
+import { join as joinPath } from "node:path";
 import { startValidator, send, type PreloadedAccount, type Validator } from "../validator/harness";
 
 const DIR = join(import.meta.dir, "../fixtures/jlp");
@@ -122,6 +126,10 @@ async function venueAccount(address: PublicKey, flag: "Green" | "Red"): Promise<
   return { address, owner: ORACLE_PROGRAM_ID, data };
 }
 const owner = Keypair.generate();
+/** A JLP holder who never deposits anywhere: they approve the exit program and keep the JLP in their wallet. */
+const holder = Keypair.generate();
+const keeper = Keypair.generate();
+const EXIT_SO = joinPath(import.meta.dir, "../../target/deploy/pexiz_exit.so");
 
 beforeAll(async () => {
   if (!ready) return;
@@ -157,12 +165,16 @@ beforeAll(async () => {
   ];
   v = await startValidator({
     canaryAuthority: PublicKey.default,
-    programs: [[JUPITER_PERPS_ID, SO], [PROBE_ID, PROBE_SO]],
+    programs: [[JUPITER_PERPS_ID, SO], [PROBE_ID, PROBE_SO], [EXIT_PROGRAM_ID, EXIT_SO]],
     accountFiles: files.map((f) => ({ address: new PublicKey(f.replace(/\.json$/, "")), file: join(DIR, f) })),
     accounts: [
       // The JLP each owner is about to burn, and the account the wSOL comes back to.
       ...holding(owner.publicKey, 2n),
       ...holding(PROBE_OWNER),
+      // The auto-exit holder's JLP and empty USDC account, and the keeper's USDC account.
+      ...holding(holder.publicKey),
+      { address: getAssociatedTokenAddressSync(USDC_MINT, holder.publicKey, true), owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, holder.publicKey, 0n) },
+      { address: getAssociatedTokenAddressSync(USDC_MINT, keeper.publicKey, true), owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, keeper.publicKey, 0n) },
       // The venues the two vaults watch, and the USDC a depositor brings.
       await venueAccount(greenVenue, "Green"),
       await venueAccount(redVenue, "Red"),
@@ -175,6 +187,7 @@ beforeAll(async () => {
     ],
   });
   await v.conn.confirmTransaction(await v.conn.requestAirdrop(owner.publicKey, 1_000_000_000), "confirmed");
+  await v.conn.confirmTransaction(await v.conn.requestAirdrop(holder.publicKey, 1_000_000_000), "confirmed");
 }, 120_000);
 
 afterAll(() => v?.stop());
@@ -325,4 +338,40 @@ test.skipIf(!ready)("and a vault that was voted back buys its JLP again", async 
   expect(worth).toBeGreaterThan((RETURNING_USDC * 97n) / 100n);
   expect(after.exited).toBe(false);
   expect(after.reentryVotes).toBe(0n);
+}, 120_000);
+
+test.skipIf(!ready)("a holder who never deposited is taken out of the real pool by a keeper, to their own wallet", async () => {
+  const { liquidity } = usdcCustody();
+  const holderLp = getAssociatedTokenAddressSync(JLP_MINT, holder.publicKey, true);
+  const holderUsdc = getAssociatedTokenAddressSync(USDC_MINT, holder.publicKey, true);
+  const keeperUsdc = getAssociatedTokenAddressSync(USDC_MINT, keeper.publicKey, true);
+  await send(v, [await openRouteIx(v.payer.publicKey, USDC_MINT), await openRouteIx(v.payer.publicKey, JLP_MINT)]);
+  // One signature from the holder: approve the exit program and name the venue.
+  await send(v, await protectJlpIxs(holder.publicKey, redVenue, holderLp, holderUsdc, LP_AMOUNT), [holder]);
+
+  const floor = exitFloor(LP_AMOUNT, await poolAum(), await mintSupply(JLP_MINT));
+  // Anyone can send this; here the validator's payer does, naming the keeper's account for the fee.
+  const sig = await send(v, [await autoExitJlpIx({ holder: holder.publicKey, venue: redVenue, usdcDest: holderUsdc }, liquidity, holderLp, keeperUsdc)]);
+  const tx = await v.conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  const [e] = parseGuardExited(tx!.meta!.logMessages!);
+
+  const got = await balance(holderUsdc);
+  const fee = await balance(keeperUsdc);
+  console.log(`auto-exit: ${LP_AMOUNT} JLP out of the holder's wallet, ${got} USDC to the holder, ${fee} to the keeper, floor ${floor}`);
+  expect(await balance(holderLp)).toBe(0n);
+  expect(e.usdcOut).toBeGreaterThanOrEqual(floor);
+  expect(got + fee).toBe(e.usdcOut);
+  expect(fee).toBe((e.usdcOut * 10n) / 10_000n);
+  expect(decodeGuard((await v.conn.getAccountInfo(guardPda(holder.publicKey, JLP_MINT)))!.data).exits).toBe(1);
+}, 120_000);
+
+test.skipIf(!ready)("and the same exit is refused on a green venue", async () => {
+  const { liquidity } = usdcCustody();
+  const other = Keypair.generate();
+  await v.conn.confirmTransaction(await v.conn.requestAirdrop(other.publicKey, 1_000_000_000), "confirmed");
+  const lp = getAssociatedTokenAddressSync(JLP_MINT, owner.publicKey, true);
+  const usdc = getAssociatedTokenAddressSync(USDC_MINT, owner.publicKey, true);
+  await send(v, await protectJlpIxs(owner.publicKey, greenVenue, lp, usdc, 1n), [owner]);
+  const ix = await autoExitJlpIx({ holder: owner.publicKey, venue: greenVenue, usdcDest: usdc }, liquidity, lp, getAssociatedTokenAddressSync(USDC_MINT, keeper.publicKey, true));
+  await expect(send(v, [ix])).rejects.toThrow(/VenueNotRed|0x1771/);
 }, 120_000);
