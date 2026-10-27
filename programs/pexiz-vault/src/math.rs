@@ -49,6 +49,14 @@ pub fn exit_floor(lp: u64, reserve: u64, lp_supply: u64) -> Option<u64> {
     u64::try_from(num.div_ceil(den)).ok()
 }
 
+/// What the canary pool's reserve is worth to its LP tokens. The canary
+/// redeems at a fixed 1 USDC per LP less its fee, and the fee stays in the
+/// reserve, so a reserve above the LP supply does not raise what one LP
+/// redeems for. Valuing it higher would set a floor no redemption can meet.
+pub fn canary_backing(reserve: u64, lp_supply: u64) -> u64 {
+    reserve.min(lp_supply)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

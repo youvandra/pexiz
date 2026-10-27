@@ -39,6 +39,19 @@ describe("auto-exit without a deposit", () => {
     expect(decodeGuard(env.data(guardPda(h.kp.publicKey, w.v.pool.lpMint))).exits).toBe(1);
   });
 
+  test("a holder still gets out after the vault's exit left fees in the pool", async () => {
+    const { w, env, h, exit } = await setup();
+    const big = w.user(USDC(5_000));
+    await w.deposit(big, USDC(5_000));
+    w.setTimeLock(0);
+    // The vault leaves first and its 0.1% fee stays in the reserve, so the
+    // reserve now exceeds the LP left: the floor must not count that fee.
+    env.send([await w.updateIx(), await w.exitIx()]);
+    expect(env.balance(w.v.pool.usdcReserve)).toBeGreaterThan(env.supply(w.v.pool.lpMint));
+    env.send([await exit()]);
+    expect(env.balance(h.lp)).toBe(0n);
+  });
+
   test("green and amber do nothing", async () => {
     const { w, env, exit } = await setup();
     expect(env.expectFail([await exit()])).toContain("VenueNotRed");

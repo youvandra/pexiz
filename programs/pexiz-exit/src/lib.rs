@@ -18,7 +18,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use canary_venue::program::CanaryVenue;
 use canary_venue::Pool;
 use pexiz_oracle::{Flag, Venue, FAST_CANARY_PROGRAM};
-use pexiz_vault::math::exit_floor;
+use pexiz_vault::math::{canary_backing, exit_floor};
 use pexiz_vault::{jlp_aum_usdc, JLP_MINT, JUPITER_PERPS_ID, REMOVE_LIQUIDITY2};
 
 declare_id!("4GhBvwpJCaKgNuKZK4uXg3CKTZgXtJnY42BFX49qN2Nm");
@@ -89,7 +89,8 @@ pub mod pexiz_exit {
         require!(a.guard.kind == Kind::Canary, ExitError::WrongPool);
         require!(a.venue.flag == Flag::Red, ExitError::VenueNotRed);
         let lp = exitable(&a.holder_lp, &a.authority.key())?;
-        let floor = exit_floor(lp, a.usdc_reserve.amount, a.lp_mint.supply).ok_or(ExitError::Overflow)?;
+        let backing = canary_backing(a.usdc_reserve.amount, a.lp_mint.supply);
+        let floor = exit_floor(lp, backing, a.lp_mint.supply).ok_or(ExitError::Overflow)?;
         let before = a.route_usdc.amount;
         canary_venue::cpi::remove_liquidity(
             CpiContext::new_with_signer(

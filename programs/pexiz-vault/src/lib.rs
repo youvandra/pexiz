@@ -279,7 +279,8 @@ pub mod pexiz_vault {
         let held = a.vault_lp.amount;
         require!(held > 0, VaultError::AlreadyExited);
         require!(lp_amount > 0 && lp_amount <= held, VaultError::ZeroAmount);
-        let floor = math::exit_floor(lp_amount, a.pool_reserve.amount, a.pool_lp_mint.supply).ok_or(VaultError::Overflow)?;
+        let backing = math::canary_backing(a.pool_reserve.amount, a.pool_lp_mint.supply);
+        let floor = math::exit_floor(lp_amount, backing, a.pool_lp_mint.supply).ok_or(VaultError::Overflow)?;
         require!(min_usdc_out >= floor, VaultError::SlippageFloor);
         let usdc_before = a.vault_usdc.amount;
         canary_venue::cpi::remove_liquidity(

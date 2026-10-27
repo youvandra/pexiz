@@ -3,7 +3,7 @@
 // and the escape vault.
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import {
-  CANARY_PROGRAM_ID, canaryPool, depositIx, exitFloor, exitIx, initPoolIx, initVaultIx, registerVenueIx, updateIx, vaultAddresses,
+  CANARY_PROGRAM_ID, canaryBacking, canaryPool, depositIx, exitFloor, exitIx, initPoolIx, initVaultIx, registerVenueIx, updateIx, vaultAddresses,
   vaultPda, venuePda, decodeVault, type VaultAddresses,
 } from "@pexiz/sdk";
 import { Env, members, multisigOf } from "./env";
@@ -63,7 +63,8 @@ export class World {
   /** `exit` for `lp` (default: all the vault holds) at the program's slippage floor unless `minOut` is given. */
   exitIx(lp?: bigint, minOut?: bigint) {
     const amount = lp ?? this.env.balance(this.v.vaultLp);
-    const floor = exitFloor(amount, this.env.balance(this.v.pool.usdcReserve), this.env.supply(this.v.pool.lpMint));
+    const supply = this.env.supply(this.v.pool.lpMint);
+    const floor = exitFloor(amount, canaryBacking(this.env.balance(this.v.pool.usdcReserve), supply), supply);
     return exitIx(this.v, amount, minOut ?? floor);
   }
 

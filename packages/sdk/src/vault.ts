@@ -72,6 +72,9 @@ export function withdrawIx(v: VaultAddresses | JlpVaultAddresses, user: PublicKe
 export const MAX_EXIT_SLIPPAGE_BPS = 100n;
 
 /** Least USDC the program accepts as `minUsdcOut` for `lp` (reserve and supply of the pool). */
+/** Mirrors `canary_backing`: the canary redeems at a fixed rate, so fees left in the reserve add nothing per LP. */
+export const canaryBacking = (reserve: bigint, lpSupply: bigint) => (reserve < lpSupply ? reserve : lpSupply);
+
 export function exitFloor(lp: bigint, reserve: bigint, lpSupply: bigint): bigint {
   if (lpSupply === 0n) return 0n;
   const num = lp * reserve * (10_000n - MAX_EXIT_SLIPPAGE_BPS);
