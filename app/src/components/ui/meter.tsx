@@ -11,6 +11,7 @@ const pos = (secs: number) => Math.min(1, Math.log1p(Math.max(0, secs) / 60) / M
 const TONE: Record<Assessment, string> = {
   green: "var(--safe)",
   amber: "var(--warn)",
+  exposed: "var(--danger)",
   red: "var(--danger)",
   unrated: "var(--ink-3)",
 }

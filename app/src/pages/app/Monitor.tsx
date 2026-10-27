@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter"
 import { cn } from "@/lib/cn"
 import { ago, duration } from "@/lib/format"
 import { useBoard, type Assessment, type BoardRow } from "@/data/chain"
+import { STATUS_MEANING } from "@/data/assess"
 import { useVault } from "@/data/vault"
 import { FlagPill, Skeleton, VenueLogo, flagLabel } from "@/components/ui/kit"
 import { DoorGlyph } from "@/components/ui/glyphs"
@@ -49,7 +50,7 @@ function fromBoard(r: BoardRow): Row {
   }
 }
 
-const FILTERS: (Assessment | "all")[] = ["all", "green", "amber", "red", "unrated"]
+const FILTERS: (Assessment | "all")[] = ["all", "green", "amber", "exposed", "red", "unrated"]
 
 export function Monitor() {
   const { rows, readAt } = useBoard()
@@ -112,6 +113,21 @@ export function Monitor() {
           className="ml-auto h-9 w-full rounded-full border border-line bg-paper px-4 text-sm outline-none focus:border-ink sm:w-56"
         />
       </div>
+
+      <details className="card group mb-4 p-0">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold">
+          What each status means
+          <Svg className="text-ink-3 transition-transform group-open:rotate-180">{Icon.chevron}</Svg>
+        </summary>
+        <ul className="grid gap-x-8 gap-y-3 border-t border-line px-5 py-4 text-sm md:grid-cols-2">
+          {(["green", "amber", "exposed", "red", "unrated"] as const).map((f) => (
+            <li key={f} className="flex items-start gap-3">
+              <FlagPill flag={f} className="mt-px w-[5.75rem] justify-start" />
+              <span className="text-ink-2">{STATUS_MEANING[f]}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
 
       {/* Desktop table */}
       <div className="card hidden overflow-hidden p-0 md:block">

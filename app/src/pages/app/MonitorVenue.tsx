@@ -2,6 +2,7 @@ import { Link, Redirect, useParams } from "wouter"
 import { ago, duration, short } from "@/lib/format"
 import { ASSUMED_EXIT_SECS, MEASURED_ON, VAULTS, VENUES, explorer } from "@/data/facts"
 import { useBoard, type Assessment } from "@/data/chain"
+import { STATUS_MEANING } from "@/data/assess"
 import { Dur, WindowMeter } from "@/components/ui/meter"
 import { Button, FlagPill, LinkButton, Skeleton, VenueLogo, flagSurface } from "@/components/ui/kit"
 import { useToasts } from "@/lib/solana"
@@ -53,6 +54,7 @@ export function MonitorVenue() {
       <section className="card mt-6 p-6">
         <h2 className="font-semibold">Would you get out in time?</h2>
         <p className="mt-1 text-sm text-ink-2">{r?.why ?? "Reading…"}</p>
+        {r && <p className="mt-3 flex flex-wrap items-center gap-2 text-sm"><FlagPill flag={r.assessment} /><span className="text-ink-2">{STATUS_MEANING[r.assessment]}</span></p>}
         {r && <WindowBar delay={r.timeLockSecs ?? (venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} />}
         {venue.note && <p className="mt-4 text-sm text-ink-3">{venue.note}.</p>}
         {r?.authorityMatches === false && <p className="mt-3 text-sm font-semibold text-danger">The upgrade authority no longer matches the recorded multisig vault.</p>}
@@ -72,9 +74,9 @@ export function MonitorVenue() {
                 <li key={String(p.index)} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                   <div>
                     <div className="font-semibold">Proposal #{String(p.index)}</div>
-                    <div className="text-ink-3">{p.approvedAt ? `Approved ${new Date(p.approvedAt * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : "Approved"}</div>
+                    <div className="text-ink-3">{p.approvedAt ? `Approved ${new Date(p.approvedAt * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, ${Math.floor((Date.now() / 1000 - p.approvedAt) / 86_400)} days ago` : "Approved"}</div>
                   </div>
-                  <span className={ready ? "rounded-full bg-warn-soft px-2.5 py-1 text-xs font-semibold text-warn" : "rounded-full bg-sand px-2.5 py-1 text-xs font-semibold text-ink-2"}>
+                  <span className={ready ? "rounded-md border border-warn/30 bg-warn-soft px-2 py-1 text-xs font-semibold text-warn" : "rounded-md border border-line-2 px-2 py-1 text-xs font-semibold text-ink-2"}>
                     {ready ? "Can execute now" : p.readyAt ? `Lands in ${duration(Math.round(p.readyAt - now))}` : "Waiting"}
                   </span>
                 </li>

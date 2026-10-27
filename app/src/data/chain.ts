@@ -61,7 +61,7 @@ async function readVenue(v: WatchedVenue): Promise<BoardRow> {
     timeLockSecs: m.timeLock,
     authorityMatches: auth?.toBase58() === v.authority,
     pendingUpgrades,
-    ...assess(v, m.timeLock, pendingUpgrades),
+    ...assess(v, m.timeLock, pendingUpgrades, { threshold: m.threshold, authorityMatches: auth?.toBase58() === v.authority }),
   }
 }
 

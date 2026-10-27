@@ -133,14 +133,15 @@ export function How() {
           ))}
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
+        <div className="mt-12 grid gap-x-6 gap-y-5 md:grid-cols-2">
           {([
             ["green", "Safe", "Every check passes. Deposits are open and your vault holds the LP token."],
             ["amber", "Watch", "A warning sign appeared. Deposits pause. If it is still there after 48 hours, it becomes Get out."],
-            ["red", "Get out", "The vault swaps to USDC. You can withdraw any time, and vote to go back once it is safe."],
+            ["exposed", "No delay", "The protocol is set up so changes land at once. Nothing new happened, but you would get no warning, so the vault stays out."],
+            ["red", "Get out", "Something changed for the worse. The vault swaps to USDC; withdraw any time, and vote to go back once it is safe."],
           ] as const).map(([f, t, b]) => (
             <div key={f} className="flex gap-4">
-              <FlagPill flag={f} label={t} className="mt-0.5" />
+              <FlagPill flag={f} label={t} className="mt-0.5 w-[5.75rem] justify-start" />
               <p className="text-sm text-ink-2">{b}</p>
             </div>
           ))}

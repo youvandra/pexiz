@@ -20,6 +20,7 @@ const cache = new Map<string, { at: number; png: Buffer }>()
 const COLORS: Record<Assessment, { fg: string; bg: string; label: string; level: number }> = {
   green: { fg: "#2e9f60", bg: "#e3f1e4", label: "Safe", level: 1 },
   amber: { fg: "#b98a00", bg: "#fbf0c9", label: "Watch", level: 2 },
+  exposed: { fg: "#d95a3a", bg: "#fffdf9", label: "No delay", level: 3 },
   red: { fg: "#d95a3a", bg: "#fbe4da", label: "Get out", level: 3 },
   unrated: { fg: "rgba(13,13,12,.46)", bg: "#fffdf9", label: "Unrated", level: 0 },
 }
@@ -38,7 +39,7 @@ async function read(v: WatchedVenue): Promise<Verdict & { delay?: number }> {
     const vaultIndex = [0, 1, 2, 3].find((i) => vaultPda(ms, i)[0].toBase58() === v.authority) ?? 0
     const found = await findPendingUpgrades(conn, ms, m.transactionIndex, vaultIndex, programDataAddress(new PublicKey(v.program))).catch(() => [])
     const pending = found.map((p) => ({ index: p.index, approvedAt: p.approvedAt, readyAt: p.approvedAt !== undefined ? p.approvedAt + m.timeLock : undefined }))
-    return { ...assess(v, m.timeLock, pending), delay: m.timeLock }
+    return { ...assess(v, m.timeLock, pending, { threshold: m.threshold }), delay: m.timeLock }
   } catch {
     return snapshot
   }

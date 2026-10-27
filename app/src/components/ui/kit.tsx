@@ -24,6 +24,7 @@ export function A(p: AnchorHTMLAttributes<HTMLAnchorElement>) {
 const FLAG: Record<Assessment, { label: string; level: number; fg: string; bg: string; edge: string }> = {
   green: { label: "Safe", level: 1, fg: "var(--safe)", bg: "var(--safe-soft)", edge: "color-mix(in srgb, var(--safe) 28%, transparent)" },
   amber: { label: "Watch", level: 2, fg: "var(--warn)", bg: "var(--warn-soft)", edge: "color-mix(in srgb, var(--warn) 30%, transparent)" },
+  exposed: { label: "No delay", level: 3, fg: "var(--danger)", bg: "var(--paper)", edge: "color-mix(in srgb, var(--danger) 40%, transparent)" },
   red: { label: "Get out", level: 3, fg: "var(--danger)", bg: "var(--danger-soft)", edge: "color-mix(in srgb, var(--danger) 30%, transparent)" },
   unrated: { label: "Unrated", level: 0, fg: "var(--ink-3)", bg: "var(--paper)", edge: "var(--line-2)" },
 }
@@ -76,7 +77,7 @@ export const flagSurface = (f: Assessment) => ({
 export const flagLabel = (f: Assessment) => FLAG[f].label
 
 export const flagColor = (f: Assessment) =>
-  f === "green" ? "var(--safe)" : f === "amber" ? "var(--warn)" : f === "red" ? "var(--danger)" : "var(--ink-3)"
+  f === "green" ? "var(--safe)" : f === "amber" ? "var(--warn)" : f === "red" || f === "exposed" ? "var(--danger)" : "var(--ink-3)"
 
 export function Eyebrow({ n, children, className }: { n?: string; children: ReactNode; className?: string }) {
   return (

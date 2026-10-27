@@ -105,3 +105,13 @@ the remembered proof accounts and the clock.
   (wrong owner, uninitialized, non-member, wrong size, removed member),
   rejected program-data and multisig accounts, and a random-sequence test
   with the same invariants.
+
+## The mainnet board
+
+The web app's protocol monitor reads mainnet directly and uses one more
+status, which the on-chain oracle does not have. **No delay** marks a
+protocol set up so approved changes land sooner than a user could withdraw:
+a standing risk with nothing new behind it. The board saves **Get out** for
+a change for the worse against the measured snapshot (`app/src/data/facts.ts`):
+a shorter delay, fewer approvals needed, or upgrade control moved away. A
+vault never enters a No delay protocol, so for the vault both mean "out".
