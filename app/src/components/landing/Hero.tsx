@@ -2,7 +2,7 @@ import { cn } from "@/lib/cn"
 import { Link } from "wouter"
 import { VENUES } from "@/data/facts"
 import { Icon, Svg } from "@/components/ui/icons"
-import { Console } from "@/components/landing/Console"
+import { Picture } from "@/components/landing/Picture"
 import { Reveal } from "@/components/ui/reveal"
 
 export function Hero() {
@@ -11,10 +11,8 @@ export function Hero() {
       className="relative -mt-16 overflow-hidden pt-16"
       style={{ background: "radial-gradient(80% 70% at 85% 0%, #e3f1e4 0%, transparent 60%), radial-gradient(70% 60% at 0% 100%, #f8ecc4 0%, transparent 60%), var(--cream)" }}
     >
-      {/* One column of words over the product until there is room for both
-          side by side. The console reads its own width, so it is the same
-          board at every size: a list on a phone, a table in a column, the
-          whole app on a wide screen. */}
+      {/* One column of words over the picture until there is room for both
+          side by side. */}
       <div className="page grid items-center gap-12 px-5 pb-16 pt-12 md:gap-16 md:px-8 md:pb-24 md:pt-20 xl:min-h-[calc(100svh-4rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:gap-14 xl:py-12">
         <Reveal>
           <div className="max-w-[40rem]">
@@ -40,7 +38,7 @@ export function Hero() {
           </div>
         </Reveal>
         <Reveal delay={120} className="min-w-0">
-          <Console className="shadow-[0_24px_60px_-28px_rgba(13,13,12,0.28)]" />
+          <Picture className="shadow-[0_24px_60px_-28px_rgba(13,13,12,0.28)]" />
         </Reveal>
       </div>
     </section>
