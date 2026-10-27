@@ -201,3 +201,23 @@ describe("webhooks", () => {
     expect(verifyFeed(got!.body, got!.sig!, got!.signer!)).toBe(true)
   })
 })
+
+describe("collateral tokens", () => {
+  const t = (over: Partial<import("./types").TokenState> = {}): import("./types").TokenState => ({
+    id: "jlp", readAt: 100, ok: true, assessment: "green", why: "",
+    powers: [{ role: "mint", does: "Mint more tokens", severe: true, key: "a", holder: "multisig 4 of 8", waitSecs: 86_400 }],
+    ...over,
+  })
+
+  test("a new key, a shorter wait and a new power each make news", async () => {
+    const { tokenDiff } = await import("./collateral")
+    expect(tokenDiff(t(), t({ readAt: 200 }))).toEqual([])
+    const moved = tokenDiff(t(), t({ readAt: 200, powers: [{ ...t().powers[0], key: "b", holder: "one key" }] }))
+    expect(moved.map((e) => [e.kind, e.tone])).toEqual([["holder", "bad"]])
+    const cut = tokenDiff(t(), t({ readAt: 200, powers: [{ ...t().powers[0], waitSecs: 0 }] }))
+    expect(cut[0].title).toBe("Mint more tokens: wait cut from 24h to no delay")
+    const added = tokenDiff(t(), t({ readAt: 200, powers: [...t().powers, { role: "freeze", does: "Freeze any holder's account", severe: true, key: "c", holder: "one key", waitSecs: 0 }] }))
+    expect(added.map((e) => e.title)).toEqual(["New power: freeze any holder's account"])
+    expect(added[0].venue).toBe("token:jlp")
+  })
+})

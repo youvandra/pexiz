@@ -10,6 +10,8 @@ import { DoorGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
 import { Dur, ExitRace } from "@/components/ui/meter"
 import { PageHead } from "@/components/app/chrome"
+import { WATCHED_TOKENS } from "@/data/facts"
+import { useTokens } from "@/data/watch"
 
 interface Row {
   id: string
@@ -199,10 +201,55 @@ export function Monitor() {
       </div>
 
       <p className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-3"><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ink" />The 30 minutes you need to withdraw</span><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ink-3" />How long an approved change waits</span><span>Longer bottom bar: you are out first.</span></p>
+
+      <Collateral />
     </div>
   )
 }
 
 function Mark({ r }: { r: Row }) {
   return r.logo ? <VenueLogo src={r.logo} name={r.name} /> : <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-paper"><DoorGlyph className="size-7" /></span>
+}
+
+const waitText = (s: number | null) => (s === null ? "—" : s === 0 ? "None" : duration(s))
+
+/**
+ * Tokens lenders take as collateral, and the keys that can act on their
+ * holders. Read hourly by the watcher; each row opens the full check.
+ */
+function Collateral() {
+  const { tokens, failed } = useTokens()
+  if (failed) return null
+  const byId = new Map((tokens ?? []).map((t) => [t.id, t]))
+  return (
+    <section className="mt-12">
+      <div className="mb-4">
+        <h2 className="tracking-display text-2xl font-medium md:text-3xl">Collateral tokens</h2>
+        <p className="mt-2 max-w-2xl text-ink-2">Staked SOL, bridged assets, stablecoins and tokenized stocks: who can mint more, freeze an account, move anyone's tokens or pause transfers, and how long a change through each key waits.</p>
+      </div>
+      <div className="card overflow-hidden p-0">
+        <ul className="divide-y divide-line text-sm">
+          {WATCHED_TOKENS.map((w) => {
+            const t = byId.get(w.id)
+            const severe = t?.powers.filter((p) => p.severe).length
+            return (
+              <li key={w.id}>
+                <Link href={`/check/${w.mint}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-4 transition-colors hover:bg-sand/50 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem_7rem]">
+                  <div className="min-w-0">
+                    <div className="font-semibold">{w.symbol}<span className="ml-2 font-normal text-ink-3">{w.kind}</span></div>
+                    <div className="truncate text-ink-3">{w.name}</div>
+                  </div>
+                  <div className="order-last col-span-2 text-ink-2 md:order-none md:col-span-1">
+                    {t ? (severe ? `${severe} ${severe === 1 ? "power" : "powers"} over holders` : "No power over holders") : <Skeleton className="h-4 w-32" />}
+                  </div>
+                  <div className="hidden md:block"><span className="text-xs text-ink-3">Fastest </span><Dur text={t ? waitText(t.fastestWaitSecs) : "—"} className="font-semibold" /></div>
+                  <div className="text-right">{t ? <FlagPill flag={t.status} /> : <Skeleton className="ml-auto h-6 w-20 rounded-md" />}</div>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    </section>
+  )
 }

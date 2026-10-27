@@ -111,6 +111,29 @@ export const VENUES: WatchedVenue[] = [
   },
 ]
 
+/**
+ * Tokens lenders take as collateral, watched for the keys that can act on
+ * holders: mint, freeze, move, pause. One of each kind on Solana.
+ */
+export interface WatchedToken {
+  id: string
+  name: string
+  symbol: string
+  kind: "LP token" | "Staked SOL" | "Bridged" | "Stablecoin" | "Tokenized stock"
+  mint: string
+}
+
+export const WATCHED_TOKENS: WatchedToken[] = [
+  { id: "jlp", name: "Jupiter Perps LP", symbol: "JLP", kind: "LP token", mint: "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4" },
+  { id: "jitosol", name: "Jito Staked SOL", symbol: "JitoSOL", kind: "Staked SOL", mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn" },
+  { id: "jupsol", name: "Jupiter Staked SOL", symbol: "JupSOL", kind: "Staked SOL", mint: "jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v" },
+  { id: "msol", name: "Marinade Staked SOL", symbol: "mSOL", kind: "Staked SOL", mint: "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So" },
+  { id: "weth", name: "Wrapped Ether (Wormhole)", symbol: "WETH", kind: "Bridged", mint: "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs" },
+  { id: "usdc", name: "USD Coin", symbol: "USDC", kind: "Stablecoin", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
+  { id: "pyusd", name: "PayPal USD", symbol: "PYUSD", kind: "Stablecoin", mint: "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo" },
+  { id: "nvdax", name: "NVIDIA xStock", symbol: "NVDAx", kind: "Tokenized stock", mint: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh" },
+]
+
 /** The March–April 2026 admin takeover, rebuilt from chain data. */
 export const ATTACK = [
   { date: "23 Mar", day: 0, title: "Pre-signing accounts appear", body: "Durable-nonce accounts tied to two multisig signers. Their signatures never expire.", flag: "amber" as const },

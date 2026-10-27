@@ -34,4 +34,16 @@ export interface VenueState {
   nonces?: { address: string; member: string }[]
 }
 
+/** A watched collateral token, as the last check read it. */
+export interface TokenState {
+  id: string
+  readAt: number
+  ok: boolean
+  assessment: Assessment
+  why: string
+  /** Each power: who holds it, and how long a change through it waits. */
+  powers: { role: string; does: string; severe: boolean; key: string; holder: string; waitSecs: number | null }[]
+  paused?: boolean
+}
+
 export const short = (k: string) => `${k.slice(0, 4)}…${k.slice(-4)}`

@@ -56,6 +56,8 @@ const TOC = [...SECTIONS.map((s) => [s.id, s.title]), ["status", "Status rules"]
 const ENDPOINTS = [
   ["GET /api/v1/venues", "Every watched protocol: status, reason, time to exit, change delay, approvals, upgrade key, queued upgrades, signers able to sign in advance. Read from mainnet every five minutes."],
   ["GET /api/v1/venues/{id}", "One protocol, with its admin history from the multisig's own record."],
+  ["GET /api/v1/tokens", "Collateral tokens (LP, staked SOL, bridged, stablecoins, tokenized stocks): every key that can mint, freeze, move or pause each one, who holds it and how long a change through it waits. Read hourly."],
+  ["GET /api/v1/tokens/{id}", "One token, with every change to those keys since Pexiz started watching."],
   ["GET /api/v1/check/{address}", "Any program or token mint, read on request. For a token: every key that can mint, freeze, move or pause it, and who holds each one. A first read can take a minute: 202 means still reading, ask again after retryAfterSecs."],
 ] as const
 
@@ -160,7 +162,7 @@ export function Docs() {
               <Code>{VERIFY}</Code>
               <h3 className="mt-8 font-semibold">Webhooks</h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-2">
-                A receiver can be sent every change as it is found: a JSON body with the new events and the affected protocols, signed the same way.
+                A receiver can be sent every change as it is found: a JSON body with the new events and the affected protocols and tokens, signed the same way.
               </p>
             </section>
             <section id="addresses" className="scroll-mt-24 py-10">

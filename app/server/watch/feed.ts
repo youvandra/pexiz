@@ -7,9 +7,9 @@
 import { createPrivateKey, createPublicKey, generateKeyPairSync, sign, verify, type KeyObject } from "node:crypto"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { PublicKey } from "@solana/web3.js"
-import { VENUES } from "../../src/data/facts"
+import { VENUES, WATCHED_TOKENS } from "../../src/data/facts"
 import { flagLabel } from "./labels"
-import type { VenueState, WatchEvent } from "./types"
+import type { TokenState, VenueState, WatchEvent } from "./types"
 
 export const FEED_VERSION = 1
 
@@ -91,10 +91,48 @@ export function feedVenue(s: VenueState, pollSecs: number, now = Math.floor(Date
   }
 }
 
+/** One collateral token as the feed states it. */
+export interface FeedToken {
+  id: string
+  name: string
+  symbol: string
+  kind: string
+  mint: string
+  status: TokenState["assessment"]
+  statusLabel: string
+  reason: string
+  /** The shortest wait behind any key that can mint, freeze, move or pause; null when unknown or none. */
+  fastestWaitSecs: number | null
+  powers: { role: string; does: string; severe: boolean; key: string; holder: string; waitSecs: number | null }[]
+  paused: boolean
+  readAt: number
+  stale: boolean
+}
+
+export function feedToken(t: TokenState, everySecs: number, now = Math.floor(Date.now() / 1000)): FeedToken {
+  const w = WATCHED_TOKENS.find((x) => x.id === t.id)!
+  const waits = t.powers.filter((p) => p.severe && p.waitSecs !== null).map((p) => p.waitSecs!)
+  return {
+    id: t.id,
+    name: w.name,
+    symbol: w.symbol,
+    kind: w.kind,
+    mint: w.mint,
+    status: t.assessment,
+    statusLabel: flagLabel(t.assessment),
+    reason: t.why,
+    fastestWaitSecs: waits.length ? Math.min(...waits) : null,
+    powers: t.powers,
+    paused: !!t.paused,
+    readAt: t.readAt,
+    stale: !t.ok || now - t.readAt > 3 * everySecs,
+  }
+}
+
 /** Posts new events to every webhook, signed like the feed. Failures are logged, never retried. */
-export async function postWebhooks(urls: string[], signer: Signer, events: WatchEvent[], venues: FeedVenue[]) {
+export async function postWebhooks(urls: string[], signer: Signer, events: WatchEvent[], venues: FeedVenue[], tokens: FeedToken[] = []) {
   if (!urls.length || !events.length) return
-  const body = JSON.stringify({ version: FEED_VERSION, kind: "changes", at: Math.floor(Date.now() / 1000), events, venues })
+  const body = JSON.stringify({ version: FEED_VERSION, kind: "changes", at: Math.floor(Date.now() / 1000), events, venues, tokens })
   const headers = { "content-type": "application/json", "x-pexiz-signer": signer.address, "x-pexiz-signature": signer.sign(body) }
   await Promise.all(
     urls.map((url) =>

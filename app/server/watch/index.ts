@@ -9,6 +9,7 @@
 //   PEXIZ_WATCH_PORT        HTTP port for the app's /api/venues (default 5262)
 //   PEXIZ_WATCH_POLL_SECS   seconds between passes (default 300)
 //   PEXIZ_WATCH_NONCE_SECS  seconds between durable-nonce scans (default 3600)
+//   PEXIZ_WATCH_TOKEN_SECS  seconds between collateral-token reads (default 3600)
 //   TELEGRAM_BOT_TOKEN      the bot; without it alerts are only logged
 //   PEXIZ_PUBLIC_URL        the app's public origin, for links in alerts
 //   PEXIZ_FEED_KEY          Ed25519 key that signs /api/v1 (default data/feed-key.pem, made on first run)
@@ -16,10 +17,11 @@
 import { mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { Connection } from "@solana/web3.js"
-import { VENUES, type WatchedVenue } from "../../src/data/facts"
+import { VENUES, WATCHED_TOKENS, type WatchedVenue } from "../../src/data/facts"
+import { readToken, tokenDiff } from "./collateral"
 import { CheckError, checkAddress, type CheckResult } from "./check"
 import { diff } from "./diff"
-import { FEED_VERSION, feedVenue, loadSigner, postWebhooks } from "./feed"
+import { FEED_VERSION, feedToken, feedVenue, loadSigner, postWebhooks } from "./feed"
 import { readHistory } from "./history"
 import { readVenue } from "./read"
 import { openStore } from "./store"
@@ -31,6 +33,7 @@ const DB = env.PEXIZ_WATCH_DB ?? join(import.meta.dir, "../../data/watch.db")
 const PORT = Number(env.PEXIZ_WATCH_PORT ?? 5262)
 const POLL_SECS = Number(env.PEXIZ_WATCH_POLL_SECS ?? 300)
 const NONCE_SECS = Number(env.PEXIZ_WATCH_NONCE_SECS ?? 3600)
+const TOKEN_SECS = Number(env.PEXIZ_WATCH_TOKEN_SECS ?? 3600)
 const APP_URL = env.PEXIZ_PUBLIC_URL ?? "http://localhost:5260"
 /** Recent transactions are scanned again: an approved one may since have run. */
 const RESCAN = 20n
@@ -78,6 +81,26 @@ async function pass(v: WatchedVenue): Promise<WatchEvent[]> {
   return prev ? fresh : []
 }
 
+/** Every watched collateral token, read again; returns what is news. */
+async function tokenPass(): Promise<WatchEvent[]> {
+  const news: WatchEvent[] = []
+  for (const t of WATCHED_TOKENS) {
+    const prev = store.token(t.id)
+    try {
+      const next = await readToken(conn, t)
+      const events = prev ? tokenDiff(prev, next) : [{ key: `watch:token:${t.id}:start`, venue: `token:${t.id}`, at: next.readAt, kind: "watch", title: "Pexiz started watching", tone: "info" as const }]
+      const fresh = store.addEvents(events)
+      store.saveToken(next)
+      if (prev) news.push(...fresh)
+    } catch (e) {
+      console.warn(`token ${t.id}: ${(e as Error).message}`)
+      if (prev) store.saveToken({ ...prev, ok: false })
+    }
+  }
+  store.setMeta("tokens_at", String(now()))
+  return news
+}
+
 async function loop() {
   for (;;) {
     const started = Date.now()
@@ -93,11 +116,12 @@ async function loop() {
       await pause(500)
     }
     store.setMeta("last_pass", String(now()))
+    if (now() - Number(store.meta("tokens_at") ?? 0) >= TOKEN_SECS) news.push(...(await tokenPass()))
     if (news.length) {
       console.log(`${news.length} new: ${news.map((e) => `${e.venue} ${e.title}`).join("; ")}`)
       await bot.alert(news).catch((e) => console.warn(`alert: ${e.message}`))
       const touched = new Set(news.map((e) => e.venue))
-      await postWebhooks(WEBHOOKS, signer, news, store.states().filter((s) => touched.has(s.venue)).map((s) => feedVenue(s, POLL_SECS)))
+      await postWebhooks(WEBHOOKS, signer, news, store.states().filter((s) => touched.has(s.venue)).map((s) => feedVenue(s, POLL_SECS)), store.tokens().filter((t) => touched.has(`token:${t.id}`)).map((t) => feedToken(t, TOKEN_SECS)))
     }
     await pause(Math.max(5_000, POLL_SECS * 1000 - (Date.now() - started)))
   }
@@ -186,6 +210,8 @@ async function v1(url: URL, ip: string): Promise<Response> {
       endpoints: {
         "/api/v1/venues": "Every watched protocol's admin risk, read from mainnet every few minutes.",
         "/api/v1/venues/{id}": "One protocol, with its admin history.",
+        "/api/v1/tokens": "Collateral tokens: every key that can mint, freeze, move or pause each one, read hourly.",
+        "/api/v1/tokens/{id}": "One token, with its history.",
         "/api/v1/check/{address}": "Any program or token mint, read on request. 202 means still reading: ask again after retryAfterSecs.",
       },
       signature: "x-pexiz-signature is the Ed25519 signature, hex, of the exact response body; x-pexiz-signer is the key.",
@@ -199,6 +225,15 @@ async function v1(url: URL, ip: string): Promise<Response> {
     const s = store.state(one[1])
     if (!s) return signed({ error: "unknown protocol" }, 404)
     return signed({ version: FEED_VERSION, generatedAt: Math.floor(Date.now() / 1000), venue: feedVenue(s, POLL_SECS), history: store.events(one[1], 100) })
+  }
+  if (path === "/tokens") {
+    return signed({ version: FEED_VERSION, generatedAt: Math.floor(Date.now() / 1000), readAt: Number(store.meta("tokens_at") ?? 0) || null, tokens: store.tokens().map((t) => feedToken(t, TOKEN_SECS)) })
+  }
+  const tok = path.match(/^\/tokens\/([a-z0-9-]+)$/)
+  if (tok) {
+    const t = store.token(tok[1])
+    if (!t) return signed({ error: "unknown token" }, 404)
+    return signed({ version: FEED_VERSION, generatedAt: Math.floor(Date.now() / 1000), token: feedToken(t, TOKEN_SECS), history: store.events(`token:${tok[1]}`, 100) })
   }
   const c = path.match(new RegExp(`^/check/(${ADDRESS})$`))
   if (c) {

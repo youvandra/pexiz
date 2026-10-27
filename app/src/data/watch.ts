@@ -84,3 +84,34 @@ export function useEvents(venue: string) {
 
 /** The deep link that opens the bot with this protocol already chosen. */
 export const telegramLink = (bot: string, venue?: string) => `https://t.me/${bot}${venue ? `?start=${venue}` : ""}`
+
+export interface FeedToken {
+  id: string
+  name: string
+  symbol: string
+  kind: string
+  mint: string
+  status: "green" | "amber" | "exposed" | "red" | "unrated"
+  statusLabel: string
+  reason: string
+  fastestWaitSecs: number | null
+  powers: { role: string; does: string; severe: boolean; key: string; holder: string; waitSecs: number | null }[]
+  paused: boolean
+  readAt: number
+  stale: boolean
+}
+
+/** The watched collateral tokens, from the feed. Null while loading or when no watcher answers. */
+export function useTokens() {
+  const [tokens, setTokens] = useState<FeedToken[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let on = true
+    fetch("/api/v1/tokens")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d: { tokens: FeedToken[] }) => on && setTokens(d.tokens))
+      .catch(() => on && setFailed(true))
+    return () => { on = false }
+  }, [])
+  return { tokens, failed }
+}
