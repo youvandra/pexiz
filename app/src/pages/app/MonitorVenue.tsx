@@ -56,6 +56,32 @@ export function MonitorVenue() {
         {r?.authorityMatches === false && <p className="mt-3 text-sm font-semibold text-danger">The upgrade authority no longer matches the recorded multisig vault.</p>}
       </section>
 
+      {r?.pendingUpgrades && r.pendingUpgrades.length > 0 && (
+        <section className="card mt-6 p-0">
+          <div className="flex items-center justify-between border-b border-line px-5 py-4">
+            <h2 className="font-semibold">Approved upgrades waiting to execute</h2>
+            <span className="text-xs text-ink-3">Squads proposals that would replace the program</span>
+          </div>
+          <ul className="divide-y divide-line text-sm">
+            {r.pendingUpgrades.map((p) => {
+              const now = Date.now() / 1000
+              const ready = p.readyAt !== undefined && p.readyAt <= now
+              return (
+                <li key={String(p.index)} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div>
+                    <div className="font-semibold">Proposal #{String(p.index)}</div>
+                    <div className="text-ink-3">{p.approvedAt ? `Approved ${new Date(p.approvedAt * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : "Approved"}</div>
+                  </div>
+                  <span className={ready ? "rounded-full bg-warn-soft px-2.5 py-1 text-xs font-semibold text-warn" : "rounded-full bg-sand px-2.5 py-1 text-xs font-semibold text-ink-2"}>
+                    {ready ? "Can execute now" : p.readyAt ? `Lands in ${duration(Math.round(p.readyAt - now))}` : "Waiting"}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
+
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="card p-0">
           <div className="border-b border-line px-5 py-4 font-semibold">Signers</div>

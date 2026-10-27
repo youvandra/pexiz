@@ -21,6 +21,7 @@ interface Row {
   live: boolean
   why: string
   logo?: string
+  category: "perps" | "prediction"
 }
 
 const windowText = (s: number | undefined) => (s === undefined ? "—" : s <= 0 ? "None" : duration(s))
@@ -38,6 +39,7 @@ function fromBoard(r: BoardRow): Row {
     live: r.live,
     why: r.why,
     logo: r.venue.logo,
+    category: r.venue.category,
   }
 }
 
@@ -48,6 +50,7 @@ export function Monitor() {
   const { data } = useVault()
   const [filter, setFilter] = useState<Assessment | "all">("all")
   const [q, setQ] = useState("")
+  const [type, setType] = useState<"all" | "perps" | "prediction">("all")
   const [, go] = useLocation()
 
   const canaryRow: Row | null = data
@@ -61,18 +64,19 @@ export function Monitor() {
         window: windowText(data.venue.exitWindowSecs),
         flag: data.venue.flag,
         live: true,
+        category: "perps",
         why: data.reasons[0] ? data.reasons[0][0].toUpperCase() + data.reasons[0].slice(1) + "." : "Every condition clear.",
       }
     : null
   const all: Row[] | null = rows ? [...(canaryRow ? [canaryRow] : []), ...rows.map(fromBoard)] : null
-  const shown = all?.filter((r) => (filter === "all" || r.flag === filter) && r.name.toLowerCase().includes(q.trim().toLowerCase()))
+  const shown = all?.filter((r) => (filter === "all" || r.flag === filter) && (type === "all" || r.category === type) && r.name.toLowerCase().includes(q.trim().toLowerCase()))
   const count = (f: Assessment | "all") => (all ? (f === "all" ? all.length : all.filter((r) => r.flag === f).length) : 0)
 
   return (
     <div>
       <PageHead
         title="Monitor"
-        sub="Who controls each protocol, and whether you would have time to leave if they changed it."
+        sub="Perps and prediction markets on Solana: who controls each one, and whether you would have time to leave if they changed it."
         right={<span className="flex items-center gap-2 text-sm text-ink-3"><span className="live-dot text-safe" />{readAt ? `Mainnet read ${ago(readAt)}` : "Reading mainnet…"}</span>}
       />
 
@@ -87,6 +91,11 @@ export function Monitor() {
               {f === "all" ? "All" : flagLabel(f)}
               <span className={cn("tabular text-xs", filter === f ? "text-cream/70" : "text-ink-3")}>{count(f)}</span>
             </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 rounded-full border border-line bg-paper p-1 text-sm font-medium">
+          {([["all", "All types"], ["perps", "Perps"], ["prediction", "Prediction"]] as const).map(([t, label]) => (
+            <button key={t} onClick={() => setType(t)} className={cn("h-7 rounded-full px-3", type === t ? "bg-sand text-ink" : "text-ink-2 hover:text-ink")}>{label}</button>
           ))}
         </div>
         <input

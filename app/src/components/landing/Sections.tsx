@@ -231,7 +231,9 @@ const FAQ = [
   ["Does Pexiz hold my funds?", "Your deposit sits in an on-chain vault program, not with a company. You can withdraw any time, in every state, with your own wallet."],
   ["What happens when the flag turns red?", "The same transaction that turns the flag red also sells the vault's LP token for USDC. You keep your share of that USDC and can withdraw it or vote to go back in later."],
   ["Can Pexiz stop a hack?", "No. It cannot change what the attackers do. It gets your money out while there is still time, before an approved change can take effect."],
-  ["Is it on mainnet?", "Not yet. The vault and oracle run on Solana devnet with test funds. The protocol board reads real mainnet data today."],
+  ["Does Pexiz pay for losses?", "No. Pexiz is not insurance. A false alarm can cost you yield and swap fees, and an exit can lose up to 1% to slippage. It lowers the chance of being caught; it does not cover what it misses."],
+  ["What if everyone tries to leave at once?", "The vault leaves in the same transaction as the warning, before people can react. If the pool cannot take it all at once, it leaves in steps, each at no worse than 1% below the pool's own price. Inside the vault there is no queue: everyone gets their exact share."],
+  ["Is it on mainnet?", "Not yet. The vault and oracle run on Solana devnet with test funds. The protocol board reads real mainnet data today, for perps and prediction markets."],
   ["Why is each vault capped at $10M?", "Selling more than about $10M of JLP at once moves the price sharply. The cap keeps an exit fast and fair for everyone in the vault."],
 ] as const
 

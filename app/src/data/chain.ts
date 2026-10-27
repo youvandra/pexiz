@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"
+import { duration } from "@/lib/format"
 import { Connection, PublicKey } from "@solana/web3.js"
 // Browser-safe SDK modules only; the JLP module needs Node's crypto.
-import { decodeMultisig, decodeUpgradeAuthority, programDataAddress } from "@pexiz/sdk/src/squads"
+import { decodeMultisig, decodeUpgradeAuthority, programDataAddress, vaultPda } from "@pexiz/sdk/src/squads"
+import { findPendingUpgrades } from "@pexiz/sdk/src/upgrades"
 import { decodeVenue, type Venue } from "@pexiz/sdk/src/oracle"
 import { decodeVault, vaultAddresses, type VaultState } from "@pexiz/sdk/src/vault"
 import { describeReasons, type FlagName } from "@pexiz/sdk/src/reasons"
@@ -25,6 +27,8 @@ export interface BoardRow {
   timeLockSecs?: number
   authorityMatches?: boolean
   exitWindowSecs?: number
+  /** Approved proposals that would upgrade the program, oldest first. */
+  pendingUpgrades?: { index: bigint; approvedAt?: number; readyAt?: number }[]
   assessment: Assessment
   why: string
 }
@@ -34,7 +38,21 @@ export interface BoardRow {
  * here the same inputs are read straight from mainnet and judged by one
  * rule: is there time to leave before an approved change can land?
  */
-export function assess(v: WatchedVenue, timeLockSecs?: number): Pick<BoardRow, "assessment" | "why" | "exitWindowSecs"> {
+export function assess(v: WatchedVenue, timeLockSecs?: number, pending: BoardRow["pendingUpgrades"] = []): Pick<BoardRow, "assessment" | "why" | "exitWindowSecs"> {
+  const base = assessConfig(v, timeLockSecs)
+  if (!pending.length || base.assessment === "red") return base
+  const now = Date.now() / 1000
+  const ready = pending.find((p) => p.readyAt !== undefined && p.readyAt <= now)
+  const next = pending.map((p) => p.readyAt).filter((t): t is number => t !== undefined).sort()[0]
+  const why = ready
+    ? `An approved upgrade (#${ready.index}) can be executed at any time.`
+    : next
+      ? `An approved upgrade can land in ${duration(Math.round(next - now))}.`
+      : "An approved upgrade is waiting to execute."
+  return { ...base, assessment: "amber", why }
+}
+
+function assessConfig(v: WatchedVenue, timeLockSecs?: number): Pick<BoardRow, "assessment" | "why" | "exitWindowSecs"> {
   if (v.admin === "squads-v3") return { assessment: "red", why: "No delay: an approved change lands at once.", exitWindowSecs: -ASSUMED_EXIT_SECS }
   if (v.admin === "governance") return { assessment: "unrated", why: "Governance delay is a voting period; read per proposal." }
   if (v.admin === "dormant") return { assessment: "unrated", why: "Authority has been unused since 2024." }
@@ -57,6 +75,10 @@ async function readVenue(v: WatchedVenue): Promise<BoardRow> {
   if (!ms || !pd) return snapshotRow(v)
   const m = decodeMultisig(Buffer.from(ms.data))
   const auth = decodeUpgradeAuthority(Buffer.from(pd.data))
+  const multisig = new PublicKey(v.multisig)
+  const vaultIndex = [0, 1, 2, 3].find((i) => vaultPda(multisig, i)[0].toBase58() === v.authority) ?? 0
+  const found = await findPendingUpgrades(mainnet, multisig, m.transactionIndex, vaultIndex, programDataAddress(new PublicKey(v.program))).catch(() => [])
+  const pendingUpgrades = found.map((p) => ({ index: p.index, approvedAt: p.approvedAt, readyAt: p.approvedAt !== undefined ? p.approvedAt + m.timeLock : undefined }))
   return {
     venue: v,
     live: true,
@@ -66,7 +88,8 @@ async function readVenue(v: WatchedVenue): Promise<BoardRow> {
     txIndex: Number(m.transactionIndex),
     timeLockSecs: m.timeLock,
     authorityMatches: auth?.toBase58() === v.authority,
-    ...assess(v, m.timeLock),
+    pendingUpgrades,
+    ...assess(v, m.timeLock, pendingUpgrades),
   }
 }
 

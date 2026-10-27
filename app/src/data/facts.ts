@@ -12,6 +12,7 @@ export interface WatchedVenue {
   id: string
   name: string
   kind: string
+  category: "perps" | "prediction"
   program: string
   admin: AdminKind
   /** Squads v4 multisig behind the upgrade authority, when there is one. */
@@ -26,6 +27,7 @@ export interface WatchedVenue {
 export const VENUES: WatchedVenue[] = [
   {
     id: "jupiter-perps",
+    category: "perps",
     logo: "/logos/jupiter.svg",
     name: "Jupiter Perps",
     kind: "Perps · JLP pool",
@@ -37,6 +39,7 @@ export const VENUES: WatchedVenue[] = [
   },
   {
     id: "drift",
+    category: "perps",
     logo: "/logos/drift.png",
     name: "Drift",
     kind: "Perps · relaunching",
@@ -48,6 +51,7 @@ export const VENUES: WatchedVenue[] = [
   },
   {
     id: "zeta",
+    category: "perps",
     logo: "/logos/zeta.png",
     name: "Zeta",
     kind: "Perps",
@@ -59,6 +63,7 @@ export const VENUES: WatchedVenue[] = [
   },
   {
     id: "adrena",
+    category: "perps",
     logo: "/logos/adrena.svg",
     name: "Adrena",
     kind: "Perps",
@@ -70,6 +75,7 @@ export const VENUES: WatchedVenue[] = [
   },
   {
     id: "phoenix",
+    category: "perps",
     logo: "/logos/phoenix.png",
     name: "Phoenix",
     kind: "Order book",
@@ -78,6 +84,30 @@ export const VENUES: WatchedVenue[] = [
     authority: "8mv7G3fJq5a5ej7E14vgcSGeQKH79emjU9fVfuhyitEq",
     snapshot: {},
     note: "Authority unused since March 2024",
+  },
+  {
+    id: "world",
+    category: "prediction",
+    logo: "/logos/world.png",
+    name: "World",
+    kind: "Prediction market · Phantom",
+    program: "prediCtPZCttYMvm2W3PtxmMxLmT1dtN7riU6Cxh6tM",
+    admin: "squads-v4",
+    multisig: "EX8Yout2u5avwqiUXzPFBZuj5vUp7WvSZ2SKFfz5MPog",
+    authority: "6YrRV52Eq3qmWYyMsq9Wn3kCTokk1xYQJgpKQTWrKj7b",
+    snapshot: { threshold: 2, members: 2, timeLockSecs: 0 },
+  },
+  {
+    id: "triad",
+    category: "prediction",
+    logo: "/logos/triad.png",
+    name: "Triad",
+    kind: "Prediction market",
+    program: "TRDwq3BN4mP3m9KsuNUWSN6QDff93VKGSwE95Jbr9Ss",
+    admin: "squads-v4",
+    multisig: "GtWBXoh1xUzp6FK3U5DaYdjnN1yJ1yXwEFa51aavM4TF",
+    authority: "6fcSf6qfwPNR9AUUNC1UWYZDy5cQ4TzTb2aaipN2zFdq",
+    snapshot: { threshold: 2, members: 4, timeLockSecs: 0 },
   },
 ]
 

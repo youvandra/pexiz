@@ -5,7 +5,7 @@ import { duration } from "@/lib/format"
 
 const RULES = [
   ["Red", "Timelock below the venue minimum, a lowered threshold, more than a third of signers replaced within 7 days, the upgrade authority moved, or a pre-signing warning left for 48 hours."],
-  ["Amber", "A multisig member controls a live pre-signing account (a durable nonce). Deposits pause."],
+  ["Amber", "A multisig member controls a live pre-signing account (a durable nonce), or an approved proposal will upgrade the program once its timelock ends. Deposits pause."],
   ["Green", "Every condition clear for 7 days. A lowered threshold that holds for a full week becomes the new baseline, then needs another clear week."],
 ] as const
 
@@ -13,7 +13,9 @@ const SECTIONS = [
   { id: "exit-window", title: "Exit window", body: `Admin delay minus the time a user needs to leave. The board assumes ${duration(ASSUMED_EXIT_SECS)} to notice and withdraw. Zero or less means an approved change can land before you are out.` },
   { id: "proofs", title: "Proof-carrying flags", body: "The oracle never trusts a reporter. Each update passes the multisig, the program data and any pre-signing accounts; the program recomputes the flag from them. A pre-signing account that proves itself is remembered until it is shown closed or out of member control, so leaving proofs out changes nothing." },
   { id: "vault", title: "Escape vault", body: "LPs deposit USDC; the vault holds the venue's LP token. When the flag turns red, anyone may call exit, and the crank sends it in the same transaction as the update. Withdrawals stay open in every state. Re-entry needs a green flag and a depositor vote." },
-  { id: "limits", title: "What it cannot do", body: "A flag cannot stop social engineering. It turns the delay into time you can use. Exit capacity is finite: the vault caps at $10M because larger exits move the price." },
+  { id: "upgrades", title: "Pending upgrades", body: "The oracle reads approved Squads proposals. If one would upgrade, re-authorise or close the program, the flag turns amber until it executes or is dropped, then returns to green at once. It never exits on an upgrade alone: it cannot judge new code, only show that it is coming and when it can land." },
+  { id: "tranches", title: "Exits in tranches", body: "When the pool cannot absorb the whole position, the vault leaves in tranches. The first marks it exited and closes deposits; each tranche must return at least the pool's own value per LP token less 1%, checked by the program, so no caller can force a fire sale. Inside the vault there is no queue: everyone owns a pro-rata share." },
+  { id: "limits", title: "What it cannot do", body: "Pexiz is not insurance and pays no compensation. A false alarm costs yield and swap fees; an exit can lose up to 1% per tranche; an attack that leaves the admin setup untouched is invisible to it. Exit capacity is finite, so each vault caps at $10M." },
 ]
 
 export function Docs() {
