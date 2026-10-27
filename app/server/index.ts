@@ -43,9 +43,9 @@ async function file(path: string, url: URL): Promise<Response> {
 }
 
 /** The watcher's read-only API, passed through; it listens on loopback only. */
-async function watcher(url: URL): Promise<Response> {
+async function watcher(url: URL, ip: string): Promise<Response> {
   try {
-    const res = await fetch(`http://127.0.0.1:${process.env.PEXIZ_WATCH_PORT ?? 5262}${url.pathname}${url.search}`)
+    const res = await fetch(`http://127.0.0.1:${process.env.PEXIZ_WATCH_PORT ?? 5262}${url.pathname}${url.search}`, { headers: { "x-forwarded-for": ip } })
     return new Response(res.body, { status: res.status, headers: { "content-type": "application/json", "cache-control": "no-cache" } })
   } catch {
     return new Response(JSON.stringify({ error: "watcher not running" }), { status: 503, headers: { "content-type": "application/json" } })
@@ -59,7 +59,7 @@ const server = Bun.serve({
     const ip = req.headers.get("x-real-ip") ?? srv.requestIP(req)?.address ?? "?"
     if (url.pathname === "/rpc/mainnet") return relay(req, ip)
     if (url.pathname === "/api/faucet") return faucet(req, ip)
-    if (url.pathname.startsWith("/api/venues")) return watcher(url)
+    if (url.pathname.startsWith("/api/venues") || url.pathname.startsWith("/api/check/")) return watcher(url, ip)
     const og = url.pathname.match(/^\/og\/([a-z0-9-]+)\.png$/)
     if (og) return ogCard(og[1])
     return file(decodeURIComponent(url.pathname), url)

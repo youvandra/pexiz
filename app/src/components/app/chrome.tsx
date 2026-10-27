@@ -15,6 +15,7 @@ export { Icon, Svg }
 const NAV = [
   { href: "/", label: "Vaults", icon: Icon.vault, match: (l: string) => l === "/" || l.startsWith("/vault") },
   { href: "/monitor", label: "Monitor", icon: Icon.monitor, match: (l: string) => l.startsWith("/monitor") },
+  { href: "/check", label: "Check", icon: Icon.search, match: (l: string) => l.startsWith("/check") },
   { href: "/portfolio", label: "Portfolio", icon: Icon.portfolio, match: (l: string) => l.startsWith("/portfolio") },
   { href: "/activity", label: "Activity", icon: Icon.activity, match: (l: string) => l.startsWith("/activity") },
 ]
@@ -82,7 +83,7 @@ export function Header() {
 export function MobileTabs() {
   const [loc] = useLocation()
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+    <nav style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0, 1fr))` }} className="fixed inset-x-0 bottom-0 z-40 grid border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
       {NAV.map((n) => (
         <Link key={n.href} href={n.href} className={cn("flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium", n.match(loc) ? "text-ink" : "text-ink-3")}>
           <Svg className="size-5">{n.icon}</Svg>

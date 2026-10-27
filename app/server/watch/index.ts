@@ -15,6 +15,7 @@ import { mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { Connection } from "@solana/web3.js"
 import { VENUES, type WatchedVenue } from "../../src/data/facts"
+import { CheckError, checkProgram, type CheckResult } from "./check"
 import { diff } from "./diff"
 import { readHistory } from "./history"
 import { readVenue } from "./read"
@@ -95,6 +96,38 @@ async function loop() {
   }
 }
 
+// Checks are read on demand, so they are cached, capped per address and run
+// two at a time: each one is a few dozen RPC calls.
+const CHECK_TTL_MS = 5 * 60_000
+const CHECKS_PER_MIN = 10
+const checked = new Map<string, { at: number; result: CheckResult }>()
+const checkHits = new Map<string, number[]>()
+let running = 0
+const waiting: (() => void)[] = []
+
+async function check(program: string, ip: string): Promise<Response> {
+  const hit = checked.get(program)
+  if (hit && Date.now() - hit.at < CHECK_TTL_MS) return json(hit.result)
+  const recent = (checkHits.get(ip) ?? []).filter((t) => Date.now() - t < 60_000)
+  if (recent.length >= CHECKS_PER_MIN) return json({ error: "Too many checks. Try again in a minute." }, 429)
+  checkHits.set(ip, [...recent, Date.now()])
+  if (running >= 2) await new Promise<void>((r) => waiting.push(r))
+  running++
+  try {
+    const result = await checkProgram(conn, program)
+    checked.set(program, { at: Date.now(), result })
+    if (checked.size > 500) checked.delete(checked.keys().next().value!)
+    return json(result)
+  } catch (e) {
+    if (e instanceof CheckError) return json({ error: e.message }, e.status)
+    console.warn(`check ${program}: ${(e as Error).message}`)
+    return json({ error: "Could not read that program from chain just now. Try again in a minute." }, 502)
+  } finally {
+    running--
+    waiting.shift()?.()
+  }
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-cache" } })
 
@@ -112,6 +145,9 @@ Bun.serve({
         venues: store.states().map((s) => ({ ...s, subscribers: subs[s.venue] ?? 0 })),
       })
     }
+    const c = url.pathname.match(/^\/api\/check\/([1-9A-HJ-NP-Za-km-z]{32,44})$/)
+    if (c) return check(c[1], req.headers.get("x-forwarded-for") ?? "local")
+    if (url.pathname.startsWith("/api/check/")) return json({ error: "That is not a Solana address." }, 400)
     const m = url.pathname.match(/^\/api\/venues\/([a-z0-9-]+)\/events$/)
     if (m) {
       if (!VENUES.some((v) => v.id === m[1])) return json({ error: "unknown protocol" }, 404)

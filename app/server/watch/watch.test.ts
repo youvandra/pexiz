@@ -118,3 +118,11 @@ describe("store and bot", () => {
     expect(s.subscriptions(1)).toEqual([])
   })
 })
+
+describe("check", () => {
+  test("takes a program address and nothing else", async () => {
+    const { parseProgram } = await import("./check")
+    expect(parseProgram(" PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu ").toBase58()).toBe("PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu")
+    expect(() => parseProgram("notanaddress")).toThrow("That is not a Solana address.")
+  })
+})

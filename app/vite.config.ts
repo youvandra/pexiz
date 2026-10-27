@@ -60,6 +60,9 @@ export default defineConfig({
     port: 5260,
     host: "127.0.0.1",
     // The watcher runs as its own process (`bun run watch`).
-    proxy: { "/api/venues": `http://127.0.0.1:${process.env.PEXIZ_WATCH_PORT ?? 5262}` },
+    proxy: {
+      "/api/venues": `http://127.0.0.1:${process.env.PEXIZ_WATCH_PORT ?? 5262}`,
+      "/api/check": `http://127.0.0.1:${process.env.PEXIZ_WATCH_PORT ?? 5262}`,
+    },
   },
 })

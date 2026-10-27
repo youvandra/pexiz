@@ -6,6 +6,7 @@ import { Monitor } from "./Monitor"
 import { MonitorVenue } from "./MonitorVenue"
 import { Portfolio } from "./Portfolio"
 import { Activity } from "./Activity"
+import { Check } from "./Check"
 
 /** Everything under /app; loaded on demand so the landing page stays light. */
 export default function AppRoutes() {
@@ -18,6 +19,8 @@ export default function AppRoutes() {
         <Route path="/monitor/:id" component={MonitorVenue} />
         <Route path="/portfolio" component={Portfolio} />
         <Route path="/activity" component={Activity} />
+        <Route path="/check" component={Check} />
+        <Route path="/check/:program" component={Check} />
         {/* Older links. */}
         <Route path="/vault"><Redirect to="/vault/canary" replace /></Route>
         <Route path="/replay"><Redirect to="~/replay" replace /></Route>
