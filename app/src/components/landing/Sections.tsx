@@ -14,7 +14,7 @@ function SectionHead({ kicker, title, body, id }: { kicker: string; title: strin
     <Reveal again className="max-w-3xl">
       <div id={id} className="scroll-mt-24">
         <div className="text-sm font-semibold text-ink-3">{kicker}</div>
-        <h2 className="tracking-display mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">{title}</h2>
+        <h2 className="tracking-display text-balance mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">{title}</h2>
         {body && <p className="mt-5 text-lg leading-relaxed text-ink-2 md:text-xl">{body}</p>}
       </div>
     </Reveal>
@@ -36,18 +36,18 @@ export function Problem() {
           [`${HEADLINE.warningDays} days`, "of visible warning signs first"],
           [`${HEADLINE.lpReaction}%`, "of LP money left during the warning"],
         ].map(([v, l], i) => (
-          <Reveal key={l} delay={90 * i} className="card p-7 md:p-10">
-            <div className="tabular tracking-display text-5xl font-medium md:text-[4rem] md:leading-[1]">{v}</div>
-            <div className="mt-3 text-ink-2 md:text-lg">{l}</div>
+          <Reveal key={l} delay={90 * i} className="card p-6 lg:p-10">
+            <div className="tabular tracking-display text-[2.75rem] font-medium leading-none sm:text-[2.5rem] lg:text-[4rem]">{v}</div>
+            <div className="mt-3 text-ink-2 lg:text-lg">{l}</div>
           </Reveal>
         ))}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Reveal className="card p-5 md:p-7">
+        <Reveal className="card flex flex-col p-5 md:p-7">
           <div className="text-lg font-semibold">Money in the pool stayed put while the warning was live</div>
           <div className="mt-1 text-ink-3">JLP supply in millions, March to April 2026</div>
-          <div className="mt-6 h-[300px] md:h-[360px]">
+          <div className="mt-6 h-[17rem] md:h-[22rem] lg:h-auto lg:min-h-[22rem] lg:flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={JLP_SUPPLY} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
                 <defs>
@@ -123,14 +123,14 @@ export function How() {
     <section className="border-y border-line bg-paper">
       <div className="band page px-5 py-20 md:px-8">
         <SectionHead id="how" kicker="How it works" title="Three steps, all on chain." />
-        <div className="mt-14 grid gap-5 md:grid-cols-3">
+        <div className="mt-14 grid gap-4 md:gap-5 lg:grid-cols-3">
           {STEPS.map((s, i) => (
-            <Reveal key={s.title} delay={90 * i} className="flex flex-col rounded-[var(--radius-card)] border border-line bg-cream p-7 md:min-h-[22rem] md:p-9">
+            <Reveal key={s.title} delay={90 * i} className="flex flex-col rounded-[var(--radius-card)] border border-line bg-cream p-6 md:p-8 lg:min-h-[22rem] lg:p-9">
               <div className="flex items-center justify-between">
                 {s.glyph}
                 <span className="tabular text-sm font-semibold text-ink-3">Step {i + 1}</span>
               </div>
-              <h3 className="mt-auto pt-10 text-2xl font-semibold tracking-tight md:text-[1.75rem]">{s.title}</h3>
+              <h3 className="mt-auto text-balance pt-8 text-2xl font-semibold tracking-tight lg:pt-10 lg:text-[1.75rem]">{s.title}</h3>
               <p className="mt-3 leading-relaxed text-ink-2 md:text-lg">{s.body}</p>
             </Reveal>
           ))}
@@ -183,7 +183,7 @@ export function TryIt() {
       <Reveal className="card grid gap-12 p-7 md:p-14 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div>
           <div className="text-sm font-semibold text-ink-3">Try it now</div>
-          <h2 className="tracking-display mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">A live test vault, with free test funds.</h2>
+          <h2 className="tracking-display text-balance mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">A live test vault, with free test funds.</h2>
           <p className="mt-5 text-lg text-ink-2 md:text-xl">Connect any Solana wallet, get test USDC from the built-in faucet, and watch the vault react to a real multisig.</p>
           <div className="mt-7 flex flex-wrap gap-3">
             <LinkButton href="/app/vault/canary" className="h-12 px-5"><Svg>{Icon.vault}</Svg>Open the test vault</LinkButton>
