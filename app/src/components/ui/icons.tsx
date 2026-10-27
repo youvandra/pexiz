@@ -24,6 +24,7 @@ export const Icon = {
   door: <><path d="M3.5 13.5v-10a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v10" /><path d="M2 13.5h12M8 8h.01M12.5 6v4" /></>,
   vote: <><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" /><path d="m5.5 8.2 1.8 1.8 3.2-3.5" /></>,
   undo: <><path d="M5.5 4 2.5 7l3 3" /><path d="M2.5 7h7a4 4 0 0 1 0 8h-2" /></>,
+  bell: <><path d="M4 11V7a4 4 0 0 1 8 0v4l1 1.5H3L4 11Z" /><path d="M6.5 14a1.6 1.6 0 0 0 3 0" /></>,
 }
 
 export function Svg({ children, className }: { children: ReactNode; className?: string }) {

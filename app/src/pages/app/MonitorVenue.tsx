@@ -8,6 +8,8 @@ import { Button, FlagPill, LinkButton, Skeleton, VenueLogo, flagSurface } from "
 import { useToasts } from "@/lib/solana"
 import { EmptyState, Icon, Svg } from "@/components/app/chrome"
 import { StatTile } from "@/components/app/bits"
+import { useState } from "react"
+import { telegramLink, useEvents, useWatch, type WatchEvent } from "@/data/watch"
 
 const ADMIN_LABEL = {
   "squads-v4": "Squads v4 multisig",
@@ -86,6 +88,8 @@ export function MonitorVenue() {
         </section>
       )}
 
+      <History id={venue.id} />
+
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="card p-0">
           <div className="border-b border-line px-5 py-4 font-semibold">Signers{r?.threshold ? <span className="font-normal text-ink-3"> · {r.threshold} must approve</span> : null}</div>
@@ -115,6 +119,7 @@ export function MonitorVenue() {
               ))}
             </dl>
           </section>
+          <Alerts id={venue.id} name={venue.name} />
           <ShareCard id={venue.id} name={venue.name} />
           {vault && (
             <Link href={`/vault/${vault.id}`} className="card flex items-center justify-between gap-4 p-5 transition-colors hover:bg-sand/40">
@@ -149,6 +154,71 @@ function ShareCard({ id, name }: { id: string; name: string }) {
           <a href={image} download={`pexiz-${id}.png`} className="btn btn-line h-9 px-3 text-sm"><Svg>{Icon.deposit}</Svg>Save image</a>
         </div>
       </div>
+    </section>
+  )
+}
+
+const TONE: Record<WatchEvent["tone"], string> = { bad: "bg-danger", good: "bg-safe", info: "bg-line-2" }
+const day = (unix: number) => new Date(unix * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+const SHOWN = 8
+
+/** Every change to the admin setup the watcher has seen or read back from chain. */
+function History({ id }: { id: string }) {
+  const { events, failed } = useEvents(id)
+  const [all, setAll] = useState(false)
+  if (failed) return null
+  const list = events && (all ? events : events.slice(0, SHOWN))
+  return (
+    <section className="card mt-6 p-0">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-5 py-4">
+        <h2 className="font-semibold">What changed</h2>
+        <span className="text-xs text-ink-3">Signers, approvals, delay and upgrades, read from chain</span>
+      </div>
+      {!list ? (
+        <div className="p-5"><Skeleton className="h-24 w-full" /></div>
+      ) : list.length === 0 ? (
+        <p className="px-5 py-6 text-sm text-ink-2">Nothing recorded yet.</p>
+      ) : (
+        <ol className="divide-y divide-line text-sm">
+          {list.map((e) => (
+            <li key={e.key} className="grid grid-cols-[6.5rem_1fr] gap-x-4 px-5 py-3.5 sm:grid-cols-[7.5rem_1fr]">
+              <span className="tabular text-ink-3">{day(e.at)}</span>
+              <div className="flex min-w-0 items-start gap-2.5">
+                <span className={`mt-1.5 size-2 shrink-0 rounded-full ${TONE[e.tone]}`} aria-hidden />
+                <div className="min-w-0">
+                  <div className={e.tone === "bad" ? "font-semibold text-danger" : "font-medium"}>{e.title}</div>
+                  {e.detail && <div className="mt-0.5 text-ink-3">{e.detail}</div>}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      {events && events.length > SHOWN && (
+        <div className="border-t border-line px-5 py-3">
+          <button onClick={() => setAll((a) => !a)} className="text-sm font-semibold">{all ? "Show fewer" : `Show all ${events.length}`}</button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** Follow this protocol on Telegram. */
+function Alerts({ id, name }: { id: string; name: string }) {
+  const w = useWatch()
+  const n = w?.venues.find((v) => v.venue === id)?.subscribers ?? 0
+  return (
+    <section className="card p-5">
+      <div className="font-semibold">Get alerts for {name}</div>
+      <p className="mt-1 text-sm text-ink-2">A Telegram message when a signer, the approvals needed, the change delay or the status changes. Checked every {w ? Math.round(w.pollSecs / 60) : 5} minutes.</p>
+      {w?.bot ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <LinkButton href={telegramLink(w.bot, id)} className="h-10 px-4 text-sm" external><Svg>{Icon.bell}</Svg>Follow on Telegram</LinkButton>
+          {n > 0 && <span className="text-sm text-ink-3">{n} following</span>}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-ink-3">Alerts are not switched on here yet.</p>
+      )}
     </section>
   )
 }
