@@ -8,6 +8,7 @@ import { decodeVault, vaultAddresses, type VaultState } from "@pexiz/sdk/src/vau
 import { describeReasons } from "@pexiz/sdk/src/reasons"
 import { DEVNET, VENUES, type WatchedVenue } from "./facts"
 import { assess, type Assessment, type PendingUpgrade } from "./assess"
+import { loadWatch, type WatchedState } from "./watch"
 
 export { assess }
 
@@ -81,6 +82,35 @@ function unreadRow(v: WatchedVenue): BoardRow {
   return { ...snapshotRow(v), assessment: "unrated", why: "Could not be read from chain just now. Try again in a minute.", exitWindowSecs: undefined }
 }
 
+/** A row from the watcher's last read, which also covers signers' durable nonces. */
+function watchedRow(v: WatchedVenue, s: WatchedState): BoardRow {
+  return {
+    venue: v,
+    live: s.ok,
+    threshold: s.threshold,
+    members: s.members?.length,
+    memberKeys: s.members,
+    txIndex: s.txIndex,
+    timeLockSecs: s.timeLockSecs,
+    authorityMatches: s.authority === undefined ? undefined : s.authority === v.authority,
+    exitWindowSecs: s.exitWindowSecs,
+    pendingUpgrades: s.pendingUpgrades?.map((p) => ({ ...p, index: BigInt(p.index) })),
+    assessment: s.assessment,
+    why: s.why,
+  }
+}
+
+async function fromWatcher(): Promise<{ rows: BoardRow[]; at: number } | null> {
+  const w = await loadWatch()
+  if (!w) return null
+  const states = new Map(w.venues.map((s) => [s.venue, s]))
+  const rows = VENUES.map((v) => {
+    const s = states.get(v.id)
+    return s ? watchedRow(v, s) : unreadRow(v)
+  })
+  return { rows, at: (w.lastPass ?? Math.max(...w.venues.map((s) => s.readAt))) * 1000 }
+}
+
 function loadBoard() {
   if (board && Date.now() - board.at < BOARD_TTL_MS) return Promise.resolve(board)
   // Two venues at a time keeps the public RPC under its rate limit; a venue
@@ -99,8 +129,9 @@ function loadBoard() {
     await Promise.all([worker(), worker()])
     return rows
   }
-  boardInflight ??= run()
-    .then((rows) => (board = { rows, at: Date.now() }))
+  boardInflight ??= fromWatcher()
+    .then(async (w) => w ?? { rows: await run(), at: Date.now() })
+    .then((b) => (board = b))
     .finally(() => { boardInflight = null })
   return boardInflight
 }
