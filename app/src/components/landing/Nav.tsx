@@ -6,7 +6,7 @@ import { Icon, Svg } from "@/components/ui/icons"
 
 const LINKS = [
   { href: "/#how", label: "How it works" },
-  { href: "/#venues", label: "Protocols" },
+  { href: "/#protocols", label: "Protocols" },
   { href: "/#faq", label: "FAQ" },
   { href: "/docs", label: "Docs" },
 ]

@@ -39,7 +39,6 @@ function snapshotRow(v: WatchedVenue): BoardRow {
   return { venue: v, live: false, ...v.snapshot, ...assess(v, v.snapshot.timeLockSecs) }
 }
 
-export const SNAPSHOT_BOARD: BoardRow[] = VENUES.map(snapshotRow)
 
 async function readVenue(v: WatchedVenue): Promise<BoardRow> {
   if (v.admin !== "squads-v4" || !v.multisig) return snapshotRow(v)

@@ -1,12 +1,12 @@
 import { Link } from "wouter"
 import { Area, AreaChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { duration } from "@/lib/format"
-import { ATTACK, HEADLINE, JLP_SUPPLY, MEASURED_ON } from "@/data/facts"
-import { SNAPSHOT_BOARD, useBoard, useCanary } from "@/data/chain"
-import { FlagPill, LinkButton, Logo, Skeleton, VenueLogo } from "@/components/ui/kit"
+import { ATTACK, HEADLINE, JLP_SUPPLY } from "@/data/facts"
+import { useCanary } from "@/data/chain"
+import { FlagPill, LinkButton, Logo, Skeleton } from "@/components/ui/kit"
 import { DoorGlyph, EyeGlyph, ProofGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
-import { Dur, ExitRace } from "@/components/ui/meter"
+import { ExitRaceDetail } from "@/components/ui/meter"
 
 function SectionHead({ kicker, title, body, id }: { kicker: string; title: string; body?: string; id?: string }) {
   return (
@@ -151,35 +151,30 @@ export function How() {
   )
 }
 
+const EXAMPLES = [
+  { title: "A protocol whose changes wait 24 hours", delay: 24 * 3600, flag: "green" },
+  { title: "A protocol whose changes land at once", delay: 0, flag: "exposed" },
+] as const
+
+/** Time to exit, explained on two made-up protocols; real ones are in the app. */
 export function Venues() {
-  const { rows } = useBoard()
-  const list = rows ?? SNAPSHOT_BOARD
   return (
     <section className="mx-auto max-w-[1180px] px-5 py-24 md:px-8 md:py-28">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <SectionHead id="venues" kicker="Protocols we watch" title="Would you have time to leave?" body="Time to exit is how long an approved change must wait before it takes effect, minus the 30 minutes you need to withdraw." />
-        <LinkButton href="/app/monitor" variant="line" className="shrink-0">Open the monitor<Svg>{Icon.arrow}</Svg></LinkButton>
+        <SectionHead id="venues" kicker="The one number" title="Would you have time to leave?" body="Every protocol can be changed by the people who hold its keys. What matters is whether an approved change has to wait longer than you need to get out." />
+        <LinkButton href="/app/monitor" className="shrink-0"><Svg>{Icon.monitor}</Svg>Check a real protocol</LinkButton>
       </div>
-      <div className="card mt-12 divide-y divide-line p-0">
-        {list.map((r) => (
-          <Link key={r.venue.id} href={`/app/monitor/${r.venue.id}`} className="flex flex-wrap items-center gap-4 px-5 py-4 transition-colors hover:bg-sand/50 md:flex-nowrap">
-            <VenueLogo src={r.venue.logo} name={r.venue.name} />
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold">{r.venue.name}</div>
-              <div className="text-sm text-ink-3">{r.venue.kind}</div>
+      <div className="mt-12 grid gap-4 lg:grid-cols-2">
+        {EXAMPLES.map((e) => (
+          <div key={e.title} className="card p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="font-semibold">{e.title}</div>
+              <span className="rounded-md border border-line-2 px-2 py-0.5 text-xs font-semibold text-ink-3">Example</span>
             </div>
-            <div className="hidden w-28 sm:block">
-              {rows && <ExitRace delaySecs={r.timeLockSecs ?? (r.venue.admin === "squads-v3" ? 0 : undefined)} flag={r.assessment} className="w-full" />}
-            </div>
-            <div className="w-24 text-sm">
-              <div className="text-xs text-ink-3">Time to exit</div>
-              {rows === null ? <Skeleton className="h-5 w-16" /> : <Dur text={r.exitWindowSecs === undefined ? "Not rated" : r.exitWindowSecs <= 0 ? "No time" : duration(r.exitWindowSecs)} className="font-semibold" />}
-            </div>
-            <div className="flex w-28 justify-end">{rows ? <FlagPill flag={r.assessment} /> : <Skeleton className="h-6 w-20 rounded-md" />}</div>
-          </Link>
+            <ExitRaceDetail delaySecs={e.delay} flag={e.flag} />
+          </div>
         ))}
       </div>
-      <p className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-3"><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ink" />The 30 minutes you need to withdraw</span><span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ink-3" />How long an approved change waits</span><span>Longer bottom bar: you are out first.</span><span>Read live from Solana mainnet.</span></p>
     </section>
   )
 }
