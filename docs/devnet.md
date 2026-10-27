@@ -20,6 +20,31 @@ Devnet accounts:
 | Test USDC mint | `6GCS4RCvHEZbLArUF4UwNguWww1vy4Z2uTPTxSMSDrqX` |
 | Member nonce account (demo a) | `HxyqLL79JWJTA6KbvNkRyxtjMUCCfiKj5JAKyEV4jF3m` |
 
+## The fast canary
+
+A second venue the oracle times in minutes (see
+[oracle rules](oracle-rules.md#the-fast-canary)), so the whole cycle can be
+watched live: cut the timelock, the vault exits, restore it, the flag turns
+green five minutes later, holders vote and the vault buys back in.
+
+| What | Address |
+|---|---|
+| Fast canary program (no instructions) | `432t9qKLgxBAZjy9LBuPSAuJBtPP52gM6ZW4o1r8fBqj` |
+| Squads multisig, 3 of 5, 60 s timelock | `EcjhTcso3AC73nCFj1mHzZCrHKBS4WfjoBki1cPmkVh7` |
+| Oracle venue | `2nsPaWreh4ca67e42NHrH2XSKkvgjBcacaDehvRRzxK5` |
+
+Its escape vault holds the same canary pool LP as the slow one. Same members
+as the slow canary; the demo (a) nonce account was closed on 27 Oct so the
+fast venue starts with no pre-signing.
+
+```sh
+cd scripts/devnet/fast-canary && cargo build-sbf && cd ..
+bun run 5-fast-canary.ts setup     # program, multisig, venue, vault, 100,000 USDC
+bun run 5-fast-canary.ts attack    # SetTimeLock 0 after the 60 s timelock, crank: red + exit
+bun run 5-fast-canary.ts restore   # SetTimeLock 60, at once; green 5 minutes later
+bun run 5-fast-canary.ts reenter   # vote every share, reenter, take the votes back
+```
+
 ## Program ids
 
 | Program | Id |
@@ -97,3 +122,15 @@ To watch alerts during the demo:
 | 2026-10-27 12:44:00 | vault extend; upgrade with tranche exits (deployed slot 515696727) | [`64L9iCQDTdUM5qCG…`](https://explorer.solana.com/tx/64L9iCQDTdUM5qCGwXUTNRZUrCxLPw31k1vVjokNJgGbCftqsrYv9FoCkhqJF1GVexTEu37LHDMRGv5amHGYUdGG?cluster=devnet) |
 | 2026-10-27 16:39:31 | demo (b): squads configTransactionExecute (time_lock = 0) | [`bFBeNBaxQZ8VDwcp…`](https://explorer.solana.com/tx/bFBeNBaxQZ8VDwcpnZgnCreLGbbGSF7mH1fsTfgLT8RoLsvKoMkQB7YbenUMU1k17TZmD3b1cu15JEKm6XQp2PS?cluster=devnet) |
 | 2026-10-27 16:39:37 | demo (b): crank amber -> red (update+exit) | [`55qkc45xFQn4RuLJ…`](https://explorer.solana.com/tx/55qkc45xFQn4RuLJkaKSycrupXCypgo881hWfveoGpuHtV4GkETrDbvSzhTwE6Z8dRk1ocjdgMf1AXs7LpL1Sx6V?cluster=devnet) |
+| 2026-10-27 21:41:03 | upgrade pexiz_oracle (fast canary timing) | [`2GNjwbHpMnQqidj3…`](https://explorer.solana.com/tx/2GNjwbHpMnQqidj3JPng6wvPjH62j6EbH5wcP7MEoVewYtgaAruJKjs7AU2t4GYYsaHp4Wt4QihY6p7ZYoZJWYcj?cluster=devnet) |
+| 2026-10-27 21:41:09 | fast: deploy fast_canary | [`3ZgtGdw9fj7jmie9…`](https://explorer.solana.com/tx/3ZgtGdw9fj7jmie9EV73Dr26LSNjpRW7XhYyegCts9Hn62XgJcJix5GXD1CBp1PjGUS7A6FzDn4Ek5WycdK8j9Yg?cluster=devnet) |
+| 2026-10-27 21:41:18 | fast: squads multisigCreateV2 3-of-5, 60 s timelock | [`3ufhhTeHwzJCm4jf…`](https://explorer.solana.com/tx/3ufhhTeHwzJCm4jfD7TEezK2CBExonRCQjQ6r4Ayctnfb9nzzrR2a5JctWwHzyK9Xga9A8fopQFE1NhuhqqzVGgk?cluster=devnet) |
+| 2026-10-27 21:41:19 | fast: upgrade authority -> squads vault | [`29GcbfcwRnQnfrMe…`](https://explorer.solana.com/tx/29GcbfcwRnQnfrMeger2apX49HtemsqP27WnEura78yqGhbxmk9sCZjNVRcq4thVhQ2DsUVqUnSYehon2FJy1oo3?cluster=devnet) |
+| 2026-10-27 21:41:20 | fast: oracle register_venue | [`zHbyNFrxjQFC1rK9…`](https://explorer.solana.com/tx/zHbyNFrxjQFC1rK9wik7tLCXWpxBiTAsNcA4pp7dcQoWCa6cyCXSmVHuv79TeJzsQnAQuto2ubsDv1PnZf37fsB?cluster=devnet) |
+| 2026-10-27 21:42:38 | fast: squads SetTimeLock 0 executed | [`3uH3aARfcaCDmtwK…`](https://explorer.solana.com/tx/3uH3aARfcaCDmtwKmXpvv19iZ1QV5NzUQ2667BYFLLCXkzDgkipHJiTZiLehaH3V6Dt44eeZFAPsfThJKnj7yoqB?cluster=devnet) |
+| 2026-10-27 21:42:59 | fast: attack crank green -> red (update) | [`4AueHrfEwRe3m9dy…`](https://explorer.solana.com/tx/4AueHrfEwRe3m9dyhvBqGVuyKfAExUFnKB8WL5bCvmuuRR6xtKm1HfJcnMzmjfeT3jdwU1jmPif5aU3FmbxPoAUp?cluster=devnet) |
+| 2026-10-27 21:43:35 | fast: squads SetTimeLock 60 executed | [`5ncdPGY3F8Abtp1J…`](https://explorer.solana.com/tx/5ncdPGY3F8Abtp1JWVGnu3s7miBrSTouvyJ2c3Ts3y6q844wirswwzoTFLSCSkDUAev8WPecmSFqg6dFAo9hx7vV?cluster=devnet) |
+| 2026-10-27 21:43:50 | fast: restore crank red -> red (update) | [`5dZVFJ3AzWxAQkx5…`](https://explorer.solana.com/tx/5dZVFJ3AzWxAQkx5Ps1Ca4tX9BT5aUvZVLukmh875VQLkqSWXMfk2sBJ3dk8mK9SX1qty5zrTtAxhqVygDy1QE1R?cluster=devnet) |
+| 2026-10-27 21:44:05 | close demo (a) nonce account so the fast canary starts clean | [`55YKygmiZfABz1Q2…`](https://explorer.solana.com/tx/55YKygmiZfABz1Q2SbgxQc9wgYEbdtVaJrKPdZ9b2xyaHZXMAvAZbzNs98ZecNzfMBUBZSCxtCdYBHpf1dAYjRoN?cluster=devnet) |
+| 2026-10-27 21:44:29 | fast: nonce gone crank red -> red (update) | [`44m83sXCc8Sq5bYR…`](https://explorer.solana.com/tx/44m83sXCc8Sq5bYRqTPRkLDSGF3TwKktZnWiaSLjikCbvZ3wEV65wfc3NZ1f3hx8EjvWU55mnQjNzissLPLVnmYk?cluster=devnet) |
+| 2026-10-27 21:49:52 | fast: after 5 min clear crank red -> green (update) | [`2YLfDYwFZVHVpiif…`](https://explorer.solana.com/tx/2YLfDYwFZVHVpiifS8jPxGy4scDvz6DkBf4NbknL2ruvMjuv6p6zmtGHQZaZgAiWK4asteZvrTdBCzrx1ezwg8tX?cluster=devnet) |

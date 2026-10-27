@@ -93,6 +93,23 @@ A cranker who misses a new proof can delay amber. No input can produce a
 false red: every red bit is computed from the multisig, the program data,
 the remembered proof accounts and the clock.
 
+## The fast canary
+
+One program runs on minutes instead of days: `FAST_CANARY_PROGRAM`
+(`432t9qKLgxBAZjy9LBuPSAuJBtPP52gM6ZW4o1r8fBqj`), a devnet program with no
+instructions whose upgrade authority sits under a 3 of 5 Squads multisig
+with a 60 s timelock. It exists so a visitor can watch a whole attack, exit
+and recovery in one sitting. The oracle picks its durations by the watched
+program id (`timing()` in `lib.rs`), so no registration can ask for them:
+
+| Duration | Every venue | Fast canary |
+|---|---|---|
+| Cool-off before green | 7 days | 5 minutes |
+| Pre-signing before red | 48 h | 2 minutes |
+| Member-replacement window | 7 days | 5 minutes |
+
+The rules are otherwise the same code path (`rules::step_timed`).
+
 ## Tested properties
 
 - Host (`cargo test -p pexiz_oracle`): one test per rule, plus a proptest

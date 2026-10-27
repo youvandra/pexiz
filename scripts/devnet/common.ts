@@ -37,6 +37,9 @@ export interface DevnetState {
   vault?: string;
   nonce?: string;
   timelockTxIndex?: string;
+  fastMultisig?: string;
+  fastVenue?: string;
+  fastVault?: string;
 }
 
 export function readState(): DevnetState {
