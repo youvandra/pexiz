@@ -55,7 +55,7 @@ export function Docs() {
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="mx-auto grid max-w-[1180px] gap-14 px-5 pb-28 pt-14 md:px-8 lg:grid-cols-[220px_1fr]">
+      <main className="page grid gap-14 px-5 pb-28 pt-14 md:px-8 lg:grid-cols-[220px_1fr]">
         <aside className="hidden lg:block">
           <nav className="sticky top-24 space-y-2 text-sm text-ink-2">
             {[...SECTIONS.map((s) => [s.id, s.title]), ["status", "Status rules"], ["addresses", "Addresses"]].map(([id, t]) => (

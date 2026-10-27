@@ -23,7 +23,7 @@ function SectionHead({ kicker, title, body, id }: { kicker: string; title: strin
 
 export function Problem() {
   return (
-    <section className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
+    <section className="band page px-5 py-20 md:px-8">
       <SectionHead
         kicker="Why this exists"
         title="In April 2026, a Solana pool lost $285M in 12 minutes."
@@ -121,7 +121,7 @@ const STEPS = [
 export function How() {
   return (
     <section className="border-y border-line bg-paper">
-      <div className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
+      <div className="band page px-5 py-20 md:px-8">
         <SectionHead id="how" kicker="How it works" title="Three steps, all on chain." />
         <div className="mt-14 grid gap-5 md:grid-cols-3">
           {STEPS.map((s, i) => (
@@ -153,7 +153,7 @@ const EXAMPLES = [
 /** Time to exit, explained on two made-up protocols; real ones are in the app. */
 export function Venues() {
   return (
-    <section className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
+    <section className="band page px-5 py-20 md:px-8">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <SectionHead id="venues" kicker="The one number" title="Would you have time to leave?" body="Every protocol can be changed by the people who hold its keys. What matters is whether an approved change has to wait longer than you need to get out." />
         <LinkButton href="/app/monitor" className="shrink-0"><Svg>{Icon.monitor}</Svg>Check a real protocol</LinkButton>
@@ -179,7 +179,7 @@ export function Venues() {
 export function TryIt() {
   const { data } = useCanary(30_000)
   return (
-    <section className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
+    <section className="band page px-5 py-20 md:px-8">
       <Reveal className="card grid gap-12 p-7 md:p-14 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div>
           <div className="text-sm font-semibold text-ink-3">Try it now</div>
@@ -234,7 +234,7 @@ const FAQ = [
 
 export function Faq() {
   return (
-    <section className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
+    <section className="band page px-5 py-20 md:px-8">
       <div className="grid gap-12 lg:grid-cols-[1fr_1.5fr]">
       <SectionHead id="faq" kicker="FAQ" title="Common questions" />
       <Reveal className="divide-y divide-line border-y border-line">
@@ -256,7 +256,7 @@ export function Faq() {
 export function Footer() {
   return (
     <footer className="border-t border-line bg-paper">
-      <div className="mx-auto grid max-w-[1180px] gap-10 px-5 py-14 md:grid-cols-[1.5fr_1fr_1fr] md:px-8">
+      <div className="page grid gap-10 px-5 py-14 md:grid-cols-[1.5fr_1fr_1fr] md:px-8">
         <div>
           <Logo />
           <p className="mt-3 max-w-xs text-sm text-ink-2">Protection for Solana liquidity providers against admin takeovers.</p>
@@ -275,7 +275,7 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-[1180px] flex-wrap justify-between gap-3 px-5 py-5 text-xs text-ink-3 md:px-8">
+        <div className="page flex flex-wrap justify-between gap-3 px-5 py-5 text-xs text-ink-3 md:px-8">
           <span>© 2026 Pexiz · Built on Solana</span>
           <span>Devnet beta</span>
         </div>

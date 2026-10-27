@@ -31,7 +31,7 @@ export function Nav() {
   }, [])
   return (
     <header className={cn("sticky top-0 z-40 border-b transition-colors", scrolled || open ? "border-line bg-cream/90 backdrop-blur-md" : "border-transparent")}>
-      <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between gap-6 px-5 md:px-8">
+      <div className="page flex h-16 items-center justify-between gap-6 px-5 md:px-8">
         <Link href="/" aria-label="Pexiz home"><Logo /></Link>
         <nav className="hidden items-center gap-7 text-[0.95rem] text-ink-2 md:flex">
           {ANCHORS.map((l) => <a key={l.href} href={l.href} className="transition-colors hover:text-ink">{l.label}</a>)}

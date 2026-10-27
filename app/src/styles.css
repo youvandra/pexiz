@@ -161,3 +161,70 @@
   .band { padding-top: 7.5rem; padding-bottom: 7.5rem; }
   .hero-screen { min-height: calc(100svh - 4rem); display: flex; flex-direction: column; justify-content: center; }
 }
+
+/* The page column. It is a laptop width by default and grows on a wide
+   screen, so a 27-inch or a 4K display gets more page rather than the same
+   narrow strip in the middle of a field of cream. Text inside still sets its
+   own measure, so lines never run the full width. */
+:root { --page-w: 1180px; }
+@media (min-width: 1600px) { :root { --page-w: 1360px; } }
+@media (min-width: 2000px) { :root { --page-w: 1560px; } }
+@media (min-width: 2600px) { :root { --page-w: 1760px; } }
+
+.page {
+  width: 100%;
+  margin-inline: auto;
+  max-width: var(--page-w);
+}
+
+/* Runs a block from where it sits out to the right edge of the window. The
+   page column stays the ruler, so everything else still lines up with it. */
+@media (min-width: 1440px) {
+  .bleed-right { margin-right: calc((var(--page-w) - 100vw) / 2); }
+}
+
+/* A single nudge, on the one control that asks you to scroll. Motion on this
+   page is entrance only; nothing else moves while you read. */
+@keyframes nudge {
+  0%, 72%, 100% { transform: translateY(0); }
+  82% { transform: translateY(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* The page rhythm. A section is as tall as what is in it, with a wide band of
+   air above and below, so each one lands as its own screenful without being
+   stretched to one. The hero keeps a floor, because it is the first thing on
+   screen and has to fill it. */
+@media (min-width: 768px) {
+  .band { padding-top: 7.5rem; padding-bottom: 7.5rem; }
+  .hero-screen { min-height: calc(100svh - 4rem); display: flex; flex-direction: column; justify-content: center; }
+}
+
+/* The page column. It is a laptop width by default and grows on a wide
+   screen, so a 27-inch or a 4K display gets more page rather than the same
+   narrow strip in the middle of a field of cream. Text inside still sets its
+   own measure, so lines never run the full width. */
+.page {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 1180px;
+}
+@media (min-width: 1600px) { .page { max-width: 1360px; } }
+@media (min-width: 2000px) { .page { max-width: 1560px; } }
+@media (min-width: 2600px) { .page { max-width: 1760px; } }
+
+/* Half the air outside the page column: what the hero's left side needs so
+   its text lines up with every section below it. */
+/* 100% rather than 100vw: vw counts the scrollbar, and the text would sit
+   a few pixels off the page column below it. */
+.page-gutter { padding-left: max(1.25rem, calc((100% - var(--page-w, 1180px)) / 2)); }
+@media (min-width: 1600px) { .page-gutter { --page-w: 1360px; } }
+@media (min-width: 2000px) { .page-gutter { --page-w: 1560px; } }
+@media (min-width: 2600px) { .page-gutter { --page-w: 1760px; } }

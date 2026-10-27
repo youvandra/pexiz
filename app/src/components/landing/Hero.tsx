@@ -11,8 +11,9 @@ export function Hero() {
       className="hero-screen relative -mt-16 overflow-hidden pt-16 [--hero-gutter:3rem]"
       style={{ background: "radial-gradient(80% 70% at 85% 0%, #e3f1e4 0%, transparent 60%), radial-gradient(70% 60% at 0% 100%, #f8ecc4 0%, transparent 60%), var(--cream)" }}
     >
-      <div className="mx-auto grid w-full max-w-[1180px] items-center gap-14 px-5 py-16 md:px-8 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-10 lg:py-20">
+      <div className="page grid items-center gap-14 px-5 py-16 md:px-8 min-[1440px]:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] min-[1440px]:gap-12 min-[1440px]:py-20 min-[1440px]:pr-0">
         <Reveal>
+          <div className="max-w-[40rem]">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-medium text-ink-2">
             <img src="/logos/solana.svg" alt="" className="size-3.5" />
             Built on Solana
@@ -32,11 +33,15 @@ export function Hero() {
               See how it works
             </a>
           </div>
+          </div>
         </Reveal>
-        <Reveal delay={120} className="lg:relative lg:h-[540px]">
-          {/* Off the right edge, so the product reads as a room you are
-              looking into rather than a card on a page. */}
-          <Console className="w-full shadow-[0_24px_60px_-28px_rgba(13,13,12,0.28)] lg:absolute lg:left-0 lg:top-0 lg:w-[min(52rem,calc(100vw-var(--hero-gutter)))]" />
+        {/* Flush with the right edge: the product fills the side of the page
+            rather than sitting on it as a card. Its left corners stay round,
+            the right ones run off the screen. */}
+        {/* Below a wide laptop the console has no room to be read, so the
+            hero there is the words alone. */}
+        <Reveal delay={120} className="bleed-right hidden min-w-0 min-[1440px]:block">
+          <Console className="ml-auto w-full max-w-[1200px] min-[2000px]:max-w-[1440px] shadow-[0_24px_60px_-28px_rgba(13,13,12,0.28)] min-[1440px]:rounded-r-none min-[1440px]:border-r-0" />
         </Reveal>
       </div>
 
@@ -53,7 +58,7 @@ export function Hero() {
 export function Protocols() {
   return (
     <section id="protocols" className="scroll-mt-16 border-y border-line bg-paper/70">
-      <div className="band mx-auto max-w-[1180px] px-5 py-20 md:px-8">
+      <div className="band page px-5 py-20 md:px-8">
         <Reveal again className="mx-auto max-w-2xl text-center">
           <div className="text-sm font-semibold text-ink-3">Protocols we watch</div>
           <h2 className="tracking-display mt-3 text-[clamp(2.2rem,4.4vw,3.6rem)] font-medium leading-[1.04]">Is your protocol on the list?</h2>

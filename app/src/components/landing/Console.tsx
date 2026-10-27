@@ -5,6 +5,9 @@
 // setup was when it was last measured from mainnet. It is a still, marked as
 // an example, because a live read can move a status after this page is built.
 // No wallet, no RPC, nothing to click; the live board is in the app.
+//
+// Only shown from a wide laptop up: narrower than that it would be squeezed
+// past reading, and the hero drops it rather than shrink it.
 import { cn } from "@/lib/cn"
 import { duration } from "@/lib/format"
 import { ASSUMED_EXIT_SECS, VENUES } from "@/data/facts"
@@ -25,7 +28,6 @@ interface Row {
   name: string
   kind: string
   logo: string
-  approvals: string
   delay: string
   exit: string
   exitSecs?: number
@@ -35,7 +37,7 @@ interface Row {
 
 /** The canary first, then the protocols, exactly as the monitor orders them. */
 const ROWS: Row[] = [
-  { name: "Canary Pool", kind: "Test protocol", logo: "", approvals: "3 of 5", delay: "0s", exit: "No time", delaySecs: 0, flag: "red" },
+  { name: "Canary Pool", kind: "Test protocol", logo: "", delay: "0s", exit: "No time", delaySecs: 0, flag: "red" },
   ...VENUES.map((v): Row => {
     const { assessment } = assess(v, v.snapshot.timeLockSecs)
     const secs = v.snapshot.timeLockSecs
@@ -44,7 +46,6 @@ const ROWS: Row[] = [
       name: v.name,
       kind: v.kind,
       logo: v.logo,
-      approvals: v.snapshot.threshold ? `${v.snapshot.threshold} of ${v.snapshot.members}` : v.admin === "squads-v3" ? "Old multisig" : "DAO vote",
       delay: secs === undefined ? "None" : duration(secs),
       exit: window === undefined ? "—" : window > 0 ? duration(window) : "No time",
       exitSecs: window,
@@ -112,32 +113,16 @@ export function Console({ className }: { className?: string }) {
             </div>
 
             <div className="mt-4 overflow-hidden rounded-[var(--radius-card)] border border-line bg-paper">
-              <ul className="divide-y divide-line md:hidden">
-                {ROWS.map((r) => (
-                  <li key={r.name} className="flex items-center gap-3 px-4 py-3">
-                    {r.logo ? <VenueLogo src={r.logo} name={r.name} /> : <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-line bg-cream text-ink-3"><Svg className="size-4">{Icon.vault}</Svg></span>}
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold">{r.name}</div>
-                      <div className="truncate text-sm text-ink-3">
-                        {r.delay === "None" ? "Changes land at once" : <>Changes wait <Dur text={r.delay} /></>}
-                      </div>
-                    </div>
-                    <FlagPill flag={r.flag} />
-                  </li>
-                ))}
-              </ul>
-              <table className="hidden w-full table-fixed text-left text-sm md:table">
+              <table className="w-full table-fixed text-left text-sm">
                 <colgroup>
                   <col className="w-[38%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[16%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[16%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[23%]" />
                 </colgroup>
                 <thead className="text-xs uppercase tracking-[0.08em] text-ink-3">
                   <tr className="border-b border-line">
                     <th className="px-3.5 py-3 font-medium">Protocol</th>
-                    <th className="px-3.5 py-3 font-medium">Approvals</th>
                     <th className="px-3.5 py-3 font-medium">Change delay</th>
                     <th className="px-3.5 py-3 font-medium">Time to exit</th>
                     <th className="px-3.5 py-3 text-right font-medium">Status</th>
@@ -155,7 +140,6 @@ export function Console({ className }: { className?: string }) {
                           </div>
                         </div>
                       </td>
-                      <td className="tabular px-3.5 py-3 text-ink-2">{r.approvals}</td>
                       <td className="px-3.5 py-3 text-ink-2"><Dur text={r.delay} /></td>
                       <td className="px-3.5 py-3"><Dur text={r.exit} className="whitespace-nowrap font-semibold" /></td>
                       <td className="px-3.5 py-3"><div className="flex justify-end"><FlagPill flag={r.flag} /></div></td>
