@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Connection, PublicKey } from "@solana/web3.js"
-// Browser-safe SDK modules only; the JLP module needs Node's crypto.
+// SDK subpaths, so the app pulls in only what it reads.
 import { decodeMultisig, decodeUpgradeAuthority, programDataAddress, vaultPda } from "@pexiz/sdk/src/squads"
 import { findPendingUpgrades } from "@pexiz/sdk/src/upgrades"
 import { decodeVenue, type Venue } from "@pexiz/sdk/src/oracle"

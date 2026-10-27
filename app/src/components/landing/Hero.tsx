@@ -2,7 +2,6 @@ import { cn } from "@/lib/cn"
 import { Link } from "wouter"
 import { VENUES } from "@/data/facts"
 import { FlagPill, LinkButton } from "@/components/ui/kit"
-import { DoorGlyph } from "@/components/ui/glyphs"
 import { Icon, Svg } from "@/components/ui/icons"
 import { Reveal } from "@/components/ui/reveal"
 
@@ -24,11 +23,13 @@ export function Hero() {
           <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-ink-2">
             Pexiz watches who holds the admin keys of the protocols you provide liquidity to. If those keys get weaker, your vault moves to USDC on its own, before anyone can drain the pool.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <LinkButton href="/app" className="h-12 px-5">Open the app<Svg>{Icon.arrowUpRight}</Svg></LinkButton>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <a href="#protocols" className="btn btn-ink h-12 rounded-full px-5">
+              Find your protocol
+              <span className="grid size-7 place-items-center rounded-full bg-paper/15 motion-safe:animate-[nudge_2.4s_ease-in-out_infinite]"><Svg className="size-3.5">{Icon.arrowDown}</Svg></span>
+            </a>
             <a href="#how" className="inline-flex h-12 items-center gap-2 rounded-full px-5 text-sm font-semibold text-ink-2 transition-colors hover:text-ink">
               See how it works
-              <span className="grid size-7 place-items-center rounded-full border border-line-2 motion-safe:animate-[nudge_2.4s_ease-in-out_infinite]"><Svg className="size-3.5">{Icon.arrowDown}</Svg></span>
             </a>
           </div>
         </Reveal>
@@ -88,7 +89,7 @@ function HeroCard() {
     <div className="card mx-auto w-full max-w-[440px] p-0">
       <div className="flex items-center justify-between border-b border-line px-5 py-4">
         <div className="flex items-center gap-3">
-          <DoorGlyph className="size-9" />
+          <img src="/logos/jupiter.svg" alt="" className="size-9 rounded-xl object-contain" />
           <div>
             <div className="font-semibold">Jupiter Perps vault</div>
             <div className="text-xs text-ink-3">Example of a warning</div>
