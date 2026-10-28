@@ -49,6 +49,7 @@ pub mod pexiz_exit {
     pub fn protect_canary(ctx: Context<ProtectCanary>) -> Result<()> {
         let watched = ctx.accounts.venue.params_program;
         require!(watched == canary_venue::ID || watched == FAST_CANARY_PROGRAM, ExitError::VenueMismatch);
+        require!(ctx.accounts.venue.flag != Flag::Red, ExitError::VenueRed);
         let a = &mut *ctx.accounts;
         let g = &mut a.guard;
         g.holder = a.holder.key();
@@ -64,6 +65,7 @@ pub mod pexiz_exit {
     /// Guards the holder's JLP with a venue that watches Jupiter Perps.
     pub fn protect_jlp(ctx: Context<ProtectJlp>) -> Result<()> {
         require_keys_eq!(ctx.accounts.venue.params_program, JUPITER_PERPS_ID, ExitError::VenueMismatch);
+        require!(ctx.accounts.venue.flag != Flag::Red, ExitError::VenueRed);
         let a = &mut *ctx.accounts;
         let g = &mut a.guard;
         g.holder = a.holder.key();
@@ -82,13 +84,15 @@ pub mod pexiz_exit {
         Ok(())
     }
 
-    /// Permissionless. If the guard's venue is red, burns the holder's
-    /// delegated canary LP for USDC and pays it out.
-    pub fn exit_canary(ctx: Context<ExitCanary>) -> Result<()> {
+    /// Permissionless. If the guard's venue is red, burns up to `lp_amount`
+    /// of the holder's delegated canary LP for USDC and pays it out. A
+    /// position the pool cannot take in one go leaves in tranches, each
+    /// held to the floor on its own.
+    pub fn exit_canary(ctx: Context<ExitCanary>, lp_amount: u64) -> Result<()> {
         let a = &ctx.accounts;
         require!(a.guard.kind == Kind::Canary, ExitError::WrongPool);
         require!(a.venue.flag == Flag::Red, ExitError::VenueNotRed);
-        let lp = exitable(&a.holder_lp, &a.authority.key())?;
+        let lp = exitable(&a.holder_lp, &a.authority.key(), lp_amount)?;
         let backing = canary_backing(a.usdc_reserve.amount, a.lp_mint.supply);
         let floor = exit_floor(lp, backing, a.lp_mint.supply).ok_or(ExitError::Overflow)?;
         let before = a.route_usdc.amount;
@@ -120,12 +124,13 @@ pub mod pexiz_exit {
     /// delegated JLP into the route account and sells it to Jupiter Perps
     /// itself, with the floor read from the pool's own AUM in this
     /// transaction. Accounts after the named ones go to Jupiter unchanged:
-    /// it values every custody before it prices JLP.
-    pub fn exit_jlp<'info>(ctx: Context<'_, '_, 'info, 'info, ExitJlp<'info>>) -> Result<()> {
+    /// it values every custody before it prices JLP. `lp_amount` sizes the
+    /// tranche, as in `exit_canary`.
+    pub fn exit_jlp<'info>(ctx: Context<'_, '_, 'info, 'info, ExitJlp<'info>>, lp_amount: u64) -> Result<()> {
         let a = &ctx.accounts;
         require!(a.guard.kind == Kind::Jupiter, ExitError::WrongPool);
         require!(a.venue.flag == Flag::Red, ExitError::VenueNotRed);
-        let lp = exitable(&a.holder_lp, &a.authority.key())?;
+        let lp = exitable(&a.holder_lp, &a.authority.key(), lp_amount)?;
         let floor = exit_floor(lp, jlp_aum_usdc(&a.jlp_pool)?, a.jlp_mint.supply).ok_or(ExitError::Overflow)?;
         let seeds: &[&[u8]] = &[AUTHORITY, &[ctx.bumps.authority]];
 
@@ -184,10 +189,11 @@ pub mod pexiz_exit {
     }
 }
 
-/// The LP an exit takes: what the holder delegated to us, up to what they hold.
-fn exitable(holder_lp: &TokenAccount, authority: &Pubkey) -> Result<u64> {
+/// The LP an exit takes: the tranche asked for, up to what the holder
+/// delegated to us and still holds.
+fn exitable(holder_lp: &TokenAccount, authority: &Pubkey, tranche: u64) -> Result<u64> {
     require!(holder_lp.delegate == COption::Some(*authority), ExitError::NotDelegated);
-    let lp = holder_lp.delegated_amount.min(holder_lp.amount);
+    let lp = holder_lp.delegated_amount.min(holder_lp.amount).min(tranche);
     require!(lp > 0, ExitError::NothingToExit);
     Ok(lp)
 }
@@ -417,6 +423,8 @@ pub enum ExitError {
     Slippage,
     #[msg("arithmetic overflow")]
     Overflow,
+    #[msg("venue is already red: leave directly instead of paying a keeper")]
+    VenueRed,
 }
 
 #[cfg(test)]

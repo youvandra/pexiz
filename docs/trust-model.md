@@ -21,6 +21,44 @@
   cause red; at worst it delays amber. A crank that sends a bad proof fails
   its own transaction.
 
+## The exit program
+
+`pexiz-exit` holds token delegations for every guarded holder under one PDA,
+so it is the part an attacker would aim at. Reviewed on 28 Oct 2026:
+
+- **Whose LP.** An exit only touches a token account owned by the guard's
+  holder (`token::authority = guard.holder`), and a guard is created only by
+  that holder's signature, at a PDA of their key and the LP mint.
+- **Where the USDC goes.** The payout account is fixed when the guard is
+  opened, must be owned by the holder then, and is checked by key on every
+  exit. The keeper names only their own fee account.
+- **What it calls.** The canary program and Jupiter Perps are pinned by id,
+  and the Jupiter call is `removeLiquidity2` with the LP taken from the
+  program's own route account. The route accounts pay out only the USDC an
+  exit just produced, measured before and after.
+- **When.** Only on a red flag, read from an account the oracle owns. A
+  guard cannot be opened on a venue that is already red: the holder would
+  pay a keeper for an exit they can make themselves.
+- **How much.** Up to what the holder approved and still holds, in tranches
+  the caller sizes, each at no worse than 1% under the pool's value per LP
+  token. Before the review an exit always took everything at once, so a
+  position larger than the pool could absorb within the floor could never
+  leave; that is fixed.
+
+What it still trusts or cannot help:
+
+- **The venue's registration.** The flag is only as strict as the venue's
+  `min_time_lock_secs` (see "first registrant wins" below). Check a venue's
+  parameters before guarding with it.
+- **The holder's own accounts.** If the holder delegates the same token
+  account to another program, freezes or closes the payout account, the
+  guard stops working until they guard again. The app shows the guarded
+  amount from the live delegation.
+- **Upgrades.** On devnet the program is still upgradeable by the deploy
+  key. On mainnet it ships with its upgrade authority removed.
+- **The pools.** Jupiter Perps and the canary are trusted to honour their
+  own redemption. A Jupiter upgrade is itself watched by the oracle.
+
 ## Liveness
 
 Exit happens only when someone calls `update` (and `exit`). Pexiz runs a

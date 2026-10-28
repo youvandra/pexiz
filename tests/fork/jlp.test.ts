@@ -25,7 +25,7 @@ import {
   reenterJlpIx, vaultCoder, withdrawIx, type JlpVaultAddresses,
 } from "@pexiz/sdk/src/vault";
 import {
-  autoExitJlpIx, decodeGuard, guardPda, openRouteIx, parseGuardExited, protectJlpIxs,
+  EXIT_PROGRAM_ID, JLP_POOL, autoExitJlpIx, decodeGuard, exitAuthority, exitCoder, guardPda, openRouteIx, parseGuardExited, protectJlpIxs,
 } from "@pexiz/sdk/src/exit";
 import { startValidator, send, type PreloadedAccount, type Validator } from "../validator/harness";
 
@@ -125,6 +125,17 @@ async function venueAccount(address: PublicKey, flag: "Green" | "Red"): Promise<
   return { address, owner: ORACLE_PROGRAM_ID, data };
 }
 const owner = Keypair.generate();
+
+/** A guard as `protect_jlp` writes it, preloaded because a guard can only be opened while its venue is not red. */
+async function guardAccount(holderKey: PublicKey, venue: PublicKey): Promise<PreloadedAccount> {
+  const address = guardPda(holderKey, JLP_MINT);
+  const data = await exitCoder.accounts.encode("Guard", {
+    holder: holderKey, venue, pool: JLP_POOL, lp_mint: JLP_MINT,
+    usdc_dest: getAssociatedTokenAddressSync(USDC_MINT, holderKey, true), kind: { Jupiter: {} }, exits: 0, last_exit_slot: bn(0n),
+    bump: PublicKey.findProgramAddressSync([Buffer.from("guard"), holderKey.toBuffer(), JLP_MINT.toBuffer()], EXIT_PROGRAM_ID)[1],
+  });
+  return { address, owner: EXIT_PROGRAM_ID, data };
+}
 /** A JLP holder who never deposits anywhere: they approve the exit program and keep the JLP in their wallet. */
 const holder = Keypair.generate();
 const keeper = Keypair.generate();
@@ -148,11 +159,11 @@ beforeAll(async () => {
   }
   const files = readdirSync(DIR).filter((f) => f.endsWith(".json") && f !== "index.json" && !doves.has(f.replace(/\.json$/, "")));
   const sol = dump.custodies[0];
-  const tokenAccount = (mint: PublicKey, holder: PublicKey, amount: bigint) => {
+  const tokenAccount = (mint: PublicKey, holder: PublicKey, amount: bigint, delegate?: PublicKey) => {
     const data = Buffer.alloc(ACCOUNT_SIZE);
     AccountLayout.encode({
-      mint, owner: holder, amount, delegateOption: 0, delegate: PublicKey.default, state: 1,
-      isNativeOption: 0, isNative: 0n, delegatedAmount: 0n, closeAuthorityOption: 0, closeAuthority: PublicKey.default,
+      mint, owner: holder, amount, delegateOption: delegate ? 1 : 0, delegate: delegate ?? PublicKey.default, state: 1,
+      isNativeOption: 0, isNative: 0n, delegatedAmount: delegate ? amount : 0n, closeAuthorityOption: 0, closeAuthority: PublicKey.default,
     }, data);
     return data;
   };
@@ -169,8 +180,11 @@ beforeAll(async () => {
       // The JLP each owner is about to burn, and the account the wSOL comes back to.
       ...holding(owner.publicKey, 2n),
       ...holding(PROBE_OWNER),
-      // The auto-exit holder's JLP and empty USDC account, and the keeper's USDC account.
-      ...holding(holder.publicKey),
+      // The auto-exit holder: JLP delegated to the exit program and a guard
+      // on the red venue, as they were left when the holder guarded it while
+      // it was still green; an empty USDC account; the keeper's USDC account.
+      { address: getAssociatedTokenAddressSync(JLP_MINT, holder.publicKey, true), owner: TOKEN_PROGRAM_ID, data: tokenAccount(JLP_MINT, holder.publicKey, LP_AMOUNT, exitAuthority()) },
+      await guardAccount(holder.publicKey, redVenue),
       { address: getAssociatedTokenAddressSync(USDC_MINT, holder.publicKey, true), owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, holder.publicKey, 0n) },
       { address: getAssociatedTokenAddressSync(USDC_MINT, keeper.publicKey, true), owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, keeper.publicKey, 0n) },
       // The venues the two vaults watch, and the USDC a depositor brings.
@@ -344,23 +358,36 @@ test.skipIf(!ready)("a holder who never deposited is taken out of the real pool 
   const holderUsdc = getAssociatedTokenAddressSync(USDC_MINT, holder.publicKey, true);
   const keeperUsdc = getAssociatedTokenAddressSync(USDC_MINT, keeper.publicKey, true);
   await send(v, [await openRouteIx(v.payer.publicKey, USDC_MINT), await openRouteIx(v.payer.publicKey, JLP_MINT)]);
-  // One signature from the holder: approve the exit program and name the venue.
-  await send(v, await protectJlpIxs(holder.publicKey, redVenue, holderLp, holderUsdc, LP_AMOUNT), [holder]);
 
-  const floor = exitFloor(LP_AMOUNT, await poolAum(), await mintSupply(JLP_MINT));
-  // Anyone can send this; here the validator's payer does, naming the keeper's account for the fee.
-  const sig = await send(v, [await autoExitJlpIx({ holder: holder.publicKey, venue: redVenue, usdcDest: holderUsdc }, liquidity, holderLp, keeperUsdc)]);
-  const tx = await v.conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
-  const [e] = parseGuardExited(tx!.meta!.logMessages!);
+  // Anyone can send these; here the validator's payer does, naming the keeper's account for the fee.
+  // Two tranches, the way a keeper sizes a position larger than the pool takes at once.
+  const g = { holder: holder.publicKey, venue: redVenue, usdcDest: holderUsdc };
+  const exits = [];
+  for (const tranche of [LP_AMOUNT / 2n, undefined]) {
+    const lp = tranche ?? (await balance(holderLp));
+    const floor = exitFloor(lp, await poolAum(), await mintSupply(JLP_MINT));
+    const sig = await send(v, [await autoExitJlpIx(g, liquidity, holderLp, keeperUsdc, tranche)]);
+    const tx = await v.conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+    const [e] = parseGuardExited(tx!.meta!.logMessages!);
+    expect(e.lpIn).toBe(lp);
+    expect(e.usdcOut).toBeGreaterThanOrEqual(floor);
+    exits.push(e);
+  }
 
   const got = await balance(holderUsdc);
   const fee = await balance(keeperUsdc);
-  console.log(`auto-exit: ${LP_AMOUNT} JLP out of the holder's wallet, ${got} USDC to the holder, ${fee} to the keeper, floor ${floor}`);
+  const out = exits.reduce((s, e) => s + e.usdcOut, 0n);
+  console.log(`auto-exit: ${LP_AMOUNT} JLP out of the holder's wallet in 2 tranches, ${got} USDC to the holder, ${fee} to the keeper`);
   expect(await balance(holderLp)).toBe(0n);
-  expect(e.usdcOut).toBeGreaterThanOrEqual(floor);
-  expect(got + fee).toBe(e.usdcOut);
-  expect(fee).toBe((e.usdcOut * 10n) / 10_000n);
-  expect(decodeGuard((await v.conn.getAccountInfo(guardPda(holder.publicKey, JLP_MINT)))!.data).exits).toBe(1);
+  expect(got + fee).toBe(out);
+  expect(fee).toBe(exits.reduce((s, e) => s + (e.usdcOut * 10n) / 10_000n, 0n));
+  expect(decodeGuard((await v.conn.getAccountInfo(guardPda(holder.publicKey, JLP_MINT)))!.data).exits).toBe(2);
+}, 120_000);
+
+test.skipIf(!ready)("a guard cannot be opened on a venue that is already red", async () => {
+  const lp = getAssociatedTokenAddressSync(JLP_MINT, owner.publicKey, true);
+  const usdc = getAssociatedTokenAddressSync(USDC_MINT, owner.publicKey, true);
+  await expect(send(v, await protectJlpIxs(owner.publicKey, redVenue, lp, usdc, 1n), [owner])).rejects.toThrow(/0x1777/);
 }, 120_000);
 
 test.skipIf(!ready)("and the same exit is refused on a green venue", async () => {

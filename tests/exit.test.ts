@@ -17,7 +17,7 @@ async function setup(opts: { approve?: bigint } = {}) {
   const venue = venuePda(FAST_CANARY_PROGRAM_ID);
   env.send(await protectCanaryIxs(h.kp.publicKey, venue, w.v.pool, h.lp, h.usdc, opts.approve ?? USDC(100)), [h.kp]);
   const keeper = w.user(0n);
-  const exit = () => autoExitCanaryIx({ holder: h.kp.publicKey, venue, usdcDest: h.usdc }, w.v.pool, h.lp, keeper.usdc);
+  const exit = (lp?: bigint) => autoExitCanaryIx({ holder: h.kp.publicKey, venue, usdcDest: h.usdc }, w.v.pool, h.lp, keeper.usdc, lp);
   return { w, env, h, keeper, venue, exit };
 }
 
@@ -67,6 +67,35 @@ describe("auto-exit without a deposit", () => {
     expect(env.balance(h.lp)).toBe(USDC(60));
     // The token program clears a delegate whose allowance is used up.
     expect(env.expectFail([await exit()])).toContain("NotDelegated");
+  });
+
+  test("a large position leaves in tranches the keeper sizes", async () => {
+    const { w, env, h, exit } = await setup();
+    w.setTimeLock(0);
+    await w.update();
+    env.send([await exit(USDC(30))]);
+    expect(env.balance(h.lp)).toBe(USDC(70));
+    env.send([await exit(USDC(30))]);
+    env.send([await exit()]);
+    expect(env.balance(h.lp)).toBe(0n);
+    expect(decodeGuard(env.data(guardPda(h.kp.publicKey, w.v.pool.lpMint))).exits).toBe(3);
+    expect(env.expectFail([await exit(0n)])).toContain("NotDelegated");
+  });
+
+  test("a tranche of zero is refused", async () => {
+    const { w, env, exit } = await setup();
+    w.setTimeLock(0);
+    await w.update();
+    expect(env.expectFail([await exit(0n)])).toContain("NothingToExit");
+  });
+
+  test("a guard cannot be opened on a venue that is already red", async () => {
+    const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60, minTimeLockSecs: 30 });
+    const h = w.user(USDC(10));
+    w.setTimeLock(0);
+    await w.update();
+    const ixs = await protectCanaryIxs(h.kp.publicKey, venuePda(FAST_CANARY_PROGRAM_ID), w.v.pool, h.lp, h.usdc, USDC(10));
+    expect(w.env.expectFail(ixs, [h.kp])).toContain("VenueRed");
   });
 
   test("a revoked delegation cannot be used", async () => {

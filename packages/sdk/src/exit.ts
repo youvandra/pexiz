@@ -6,7 +6,7 @@ import { BorshCoder, EventParser, Program, type Idl } from "@coral-xyz/anchor";
 import { Connection, PublicKey, SystemProgram, type TransactionInstruction } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, createApproveInstruction, createRevokeInstruction } from "@solana/spl-token";
 import exitIdl from "../idl/pexiz_exit.json";
-import { CANARY_PROGRAM_ID, type CanaryPool } from "./canary";
+import { CANARY_PROGRAM_ID, bn, type CanaryPool } from "./canary";
 import { JLP_MINT, JUPITER_PERPS_ID } from "./jlp";
 import type { JlpLiquidityAccounts } from "./vault";
 
@@ -58,16 +58,19 @@ export async function unprotectIxs(holder: PublicKey, lpMint: PublicKey, holderL
   ];
 }
 
-export function autoExitCanaryIx(g: { holder: PublicKey; venue: PublicKey; usdcDest: PublicKey }, pool: CanaryPool, holderLp: PublicKey, keeperUsdc: PublicKey) {
-  return exitProgram.methods.exitCanary().accountsStrict({
+/** Takes everything delegated unless `lp` names a smaller tranche. */
+const ALL = 2n ** 64n - 1n;
+
+export function autoExitCanaryIx(g: { holder: PublicKey; venue: PublicKey; usdcDest: PublicKey }, pool: CanaryPool, holderLp: PublicKey, keeperUsdc: PublicKey, lp = ALL) {
+  return exitProgram.methods.exitCanary(bn(lp)).accountsStrict({
     guard: guardPda(g.holder, pool.lpMint), venue: g.venue, holderLp, authority: exitAuthority(), routeUsdc: routePda(pool.usdcMint),
     usdcDest: g.usdcDest, keeperUsdc, pool: pool.pool, lpMint: pool.lpMint, usdcReserve: pool.usdcReserve,
     canaryProgram: CANARY_PROGRAM_ID, tokenProgram: TOKEN_PROGRAM_ID,
   }).instruction();
 }
 
-export function autoExitJlpIx(g: { holder: PublicKey; venue: PublicKey; usdcDest: PublicKey }, j: JlpLiquidityAccounts, holderLp: PublicKey, keeperUsdc: PublicKey) {
-  return exitProgram.methods.exitJlp().accountsStrict({
+export function autoExitJlpIx(g: { holder: PublicKey; venue: PublicKey; usdcDest: PublicKey }, j: JlpLiquidityAccounts, holderLp: PublicKey, keeperUsdc: PublicKey, lp = ALL) {
+  return exitProgram.methods.exitJlp(bn(lp)).accountsStrict({
     guard: guardPda(g.holder, JLP_MINT), venue: g.venue, holderLp, authority: exitAuthority(),
     routeLp: routePda(JLP_MINT), routeUsdc: routePda(MAINNET_USDC), usdcDest: g.usdcDest, keeperUsdc,
     jlpPool: JLP_POOL, jlpMint: JLP_MINT, transferAuthority: j.transferAuthority, perpetuals: j.perpetuals,
