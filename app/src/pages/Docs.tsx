@@ -4,9 +4,9 @@ import { ASSUMED_EXIT_SECS, DEVNET, MEASURED_ON, explorer } from "@/data/facts"
 import { duration, short } from "@/lib/format"
 
 const RULES = [
-  ["red", "Changes no longer wait long enough, fewer approvals are needed, more than a third of signers were swapped in a week, someone else now controls upgrades, or a Watch was left open for 48 hours. The vault moves to USDC."],
+  ["red", "Changes no longer wait long enough, fewer approvals are needed, more than a third of signers were swapped in a week, or someone else now controls upgrades. The vault moves to USDC."],
   ["exposed", "The protocol is set up so approved changes land at once, or sooner than you could withdraw. Nothing new has happened, but there would be no warning. A vault never enters such a protocol."],
-  ["amber", "A signer holds an account that keeps a signature ready to use later, or an approved upgrade is queued. Deposits pause; the vault stays in."],
+  ["amber", "A signer holds an account that keeps a signature ready to use later, or an approved upgrade is queued. Deposits pause; the vault stays in. A warning never moves money on its own, however long it stays open: anyone can create such an account in a signer's name."],
   ["green", "Every check has passed for 7 days in a row. A queued upgrade that lands or is dropped returns to Safe at once."],
 ] as const
 

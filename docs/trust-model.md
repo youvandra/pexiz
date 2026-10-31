@@ -89,10 +89,16 @@ differs from the stored one, so idle cycles cost nothing.
   parameters, for example `min_time_lock_secs = 0`. The values are public
   on chain. A `reregister` that only refreshes from chain is planned; until
   then, check a venue's parameters before trusting its flag.
-- **Escalated red without a config change.** Amber escalates to red after
-  48 h. That red reflects a standing pre-signing capability, not a change
-  already made. This is deliberate: the April 2026 attack used nonce accounts
-  created 9 days before the takeover.
+- **Pre-signing is a warning only.** `InitializeNonceAccount` takes the
+  authority as data and needs no signature from it, so anyone can create a
+  nonce account naming a multisig member for a few lamports. Counting that
+  as proof would let a stranger force every guarded holder out. So
+  `SIGNER_PRESIGNING` holds the flag at amber (deposits pause, alerts fire)
+  and after 48 h adds `AMBER_ESCALATED`, but only a config change turns it
+  red. The cost: on the April 2026 replay the exit moves from 25 Mar to the
+  27 Mar timelock cut, still 5 d 16 h before the takeover. The check is also
+  blind to a nonce whose authority is not a member, even when a member
+  co-signs the transaction it carries.
 - **Exit capacity.** The vault's AUM cap ($10M) comes from JLP→USDC price
   impact measured on 26 Oct 2026. Capacity changes with pool depth and
   needs re-measuring.

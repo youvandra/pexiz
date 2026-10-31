@@ -29,7 +29,7 @@ const CONDITIONS: [number, string, string][] = [
   [Reason.UPGRADE_AUTHORITY_MOVED, "Same group controls upgrades", "Only this multisig can change the program."],
   [Reason.SIGNER_PRESIGNING, "No approvals signed in advance", "No signer holds an account that keeps a signature ready to use later."],
   [Reason.UPGRADE_PENDING, "No upgrade waiting to land", "No approved proposal is queued to replace the program."],
-  [Reason.AMBER_ESCALATED, "No warning left open", "No warning has stayed unresolved for 48 hours."],
+  [Reason.AMBER_ESCALATED, "No warning left open", "No warning has stayed unresolved for 48 hours. A long warning is flagged, but only a rule change moves money."],
 ]
 
 /** The six checks the oracle runs, each shown passing or failing. */

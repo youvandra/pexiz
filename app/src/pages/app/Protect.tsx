@@ -14,7 +14,7 @@ const fmt = (n: number, d = 2) => n.toLocaleString("en-US", { maximumFractionDig
 
 const STATE = {
   green: { tone: "bg-safe-soft", title: "Safe", body: "Your LP stays in your wallet and earns as usual. Nothing can move it while this reads Safe." },
-  amber: { tone: "bg-warn-soft", title: "Warning open", body: "A signer holds an approval signed in advance. Your LP stays put; if the warning is still open after 2 minutes here (48 hours on a real venue), it leaves." },
+  amber: { tone: "bg-warn-soft", title: "Warning open", body: "A signer may hold an approval signed in advance. Your LP stays put; it leaves only if the multisig then changes its own rules." },
   red: { tone: "bg-danger-soft", title: "Get out", body: "The next update takes every guarded wallet's LP out to USDC, in that wallet." },
 }
 

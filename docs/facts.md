@@ -61,7 +61,10 @@ migration was not measured. The replay uses Drift's 26 Oct 2026 value
 
 ## Replay result (run 26 Oct 2026, synthetic accounts)
 
-`bun run replay`: amber at 23 Mar 00:00, red by escalation at 25 Mar 00:00
-with the vault exit in the same transaction, 7 d 16 h before `UpdateAdmin`.
-With the timelock rule alone, the exit comes at 27 Mar 00:00, 5 d 16 h
+`bun run replay`: amber at 23 Mar 00:00, escalated amber at 25 Mar 00:00,
+red at 27 Mar 00:00 when the timelock is cut, with the vault exit in the
+same transaction, 5 d 16 h before `UpdateAdmin`. Until 31 Oct 2026 an
+escalated amber turned red and exited on 25 Mar; that rule was dropped
+because anyone can create a nonce account naming a member. The exit time
+is the same with the pre-signing proofs left out, 5 d 16 h
 before. Event times inside a day are not measured; the replay uses 00:00 UTC.

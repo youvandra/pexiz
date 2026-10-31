@@ -137,8 +137,8 @@ export const WATCHED_TOKENS: WatchedToken[] = [
 /** The March–April 2026 admin takeover, rebuilt from chain data. */
 export const ATTACK = [
   { date: "23 Mar", day: 0, title: "Pre-signing accounts appear", body: "Durable-nonce accounts tied to two multisig signers. Their signatures never expire.", flag: "amber" as const },
-  { date: "25 Mar", day: 2, title: "Warning escalates", body: "48 hours unresolved. Pexiz turns red and the vault leaves.", flag: "red" as const, pexiz: true },
-  { date: "27 Mar", day: 4, title: "Timelock cut to zero", body: "The multisig removes its own delay. Any approved change now lands at once.", flag: "red" as const },
+  { date: "25 Mar", day: 2, title: "Warning still open", body: "48 hours later the nonces are still live. Pexiz keeps warning; a nonce alone never moves money.", flag: "amber" as const },
+  { date: "27 Mar", day: 4, title: "Timelock cut to zero", body: "The multisig removes its own delay. Pexiz turns red and the vault leaves in the same update.", flag: "red" as const, pexiz: true },
   { date: "1 Apr 16:05", day: 9, title: "Admin handed over", body: "A pre-signed transaction from weeks earlier transfers control.", flag: "red" as const },
   { date: "1 Apr 16:08", day: 9.1, title: "The exit fills", body: "Stolen JLP is redeemed through Jupiter's pool. Its SOL custody falls 99.9% in 4.5 minutes.", flag: "red" as const },
 ]

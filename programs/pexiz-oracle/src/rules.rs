@@ -15,7 +15,9 @@ pub const HARD_MASK: u32 = reason::TIME_LOCK_BELOW_MIN
 pub struct Timing {
     /// A flag must stay clear this long before it returns to green.
     pub cool_off: i64,
-    /// Pre-signing that holds this long escalates amber to red.
+    /// Pre-signing that holds this long is marked `AMBER_ESCALATED`. The flag
+    /// stays amber: anyone can create a nonce account naming a member as its
+    /// authority, so pre-signing alone is never proof enough to force exits.
     pub amber_escalation: i64,
     /// Rolling window for counting replaced members.
     pub members_window: i64,
@@ -146,11 +148,11 @@ pub fn step_timed(s: &mut RuleState, o: &Observation, now: i64, t: &Timing) -> F
         s.clear_since = 0;
     }
 
-    let to = if active & (HARD_MASK | reason::AMBER_ESCALATED) != 0 {
+    let to = if active & HARD_MASK != 0 {
         Flag::Red
     } else if active != 0 {
-        // Only pre-signing or a pending upgrade: amber, but a red flag never
-        // steps down to amber.
+        // Only pre-signing (escalated or not) or a pending upgrade: amber,
+        // but a red flag never steps down to amber.
         if from == Flag::Red {
             Flag::Red
         } else {
@@ -267,7 +269,8 @@ mod tests {
         step_timed(&mut s, &o, T0 + DAY, &t);
         assert_eq!(s.flag, Flag::Amber);
         step_timed(&mut s, &o, T0 + DAY + 2 * 60, &t);
-        assert_eq!(s.flag, Flag::Red);
+        assert_eq!(s.flag, Flag::Amber);
+        assert_ne!(s.reasons & reason::AMBER_ESCALATED, 0);
     }
 
     #[test]
@@ -277,16 +280,28 @@ mod tests {
     }
 
     #[test]
-    fn presigning_is_amber_then_red_after_48h() {
+    fn presigning_stays_amber_and_is_marked_after_48h() {
         let mut s = base();
         let o = Observation { presigning: true, ..healthy() };
         step(&mut s, &o, T0);
         assert_eq!(s.flag, Flag::Amber);
         step(&mut s, &o, T0 + 47 * 3600);
-        assert_eq!(s.flag, Flag::Amber);
+        assert_eq!(s.reasons, reason::SIGNER_PRESIGNING);
         step(&mut s, &o, T0 + 48 * 3600);
-        assert_eq!(s.flag, Flag::Red);
+        assert_eq!(s.flag, Flag::Amber);
         assert_eq!(s.reasons, reason::SIGNER_PRESIGNING | reason::AMBER_ESCALATED);
+        // A month of it still never forces an exit.
+        step(&mut s, &o, T0 + 30 * DAY);
+        assert_eq!(s.flag, Flag::Amber);
+    }
+
+    #[test]
+    fn presigning_then_a_hard_change_is_red() {
+        let mut s = base();
+        step(&mut s, &Observation { presigning: true, ..healthy() }, T0);
+        step(&mut s, &Observation { presigning: true, time_lock_secs: 0, ..healthy() }, T0 + 3 * DAY);
+        assert_eq!(s.flag, Flag::Red);
+        assert_ne!(s.reasons & reason::TIME_LOCK_BELOW_MIN, 0);
     }
 
     #[test]
@@ -447,7 +462,7 @@ mod tests {
                 let latched = s.reasons;
                 let from = step(&mut s, &o, now);
                 if s.flag == Flag::Red {
-                    prop_assert!(s.reasons & (HARD_MASK | reason::AMBER_ESCALATED) != 0);
+                    prop_assert!(s.reasons & HARD_MASK != 0);
                 }
                 if s.flag != Flag::Green {
                     prop_assert!(s.reasons != 0);
@@ -459,7 +474,7 @@ mod tests {
                     }
                 }
                 if s.flag == Flag::Amber {
-                    prop_assert_eq!(s.reasons & (HARD_MASK | reason::AMBER_ESCALATED), 0);
+                    prop_assert_eq!(s.reasons & HARD_MASK, 0);
                 }
             }
         }

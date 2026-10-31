@@ -15,7 +15,7 @@ const TEXT: Record<number, string> = {
   [Reason.MEMBERS_REPLACED]: "more than a third of the multisig members were replaced within 7 days",
   [Reason.UPGRADE_AUTHORITY_MOVED]: "the program upgrade authority moved away from the registered multisig vault",
   [Reason.SIGNER_PRESIGNING]: "a multisig member controls a durable-nonce account, so approvals can be pre-signed and landed later",
-  [Reason.AMBER_ESCALATED]: "the pre-signing warning has been unresolved for 48 hours",
+  [Reason.AMBER_ESCALATED]: "the pre-signing warning has been unresolved for 48 hours (still a warning: it never turns the flag red)",
   [Reason.UPGRADE_PENDING]: "an approved multisig proposal will upgrade or re-authorise the program once its timelock ends",
 };
 

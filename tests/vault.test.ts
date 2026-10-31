@@ -113,7 +113,7 @@ describe("exit", () => {
     await w.deposit(w.user(USDC(50)), USDC(50));
     const nonce = w.env.addNonce(w.signers[1].publicKey);
     await w.update([nonce]);
-    w.env.warp(48 * 3600);
+    w.setTimeLock(0);
     const r = w.env.send([await w.updateIx([nonce]), await w.exitIx()]);
     const [fc] = parseFlagChanged(r.logs());
     const [ex] = parseVaultExited(r.logs());

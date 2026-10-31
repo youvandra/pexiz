@@ -9,7 +9,8 @@ declare_id!("68dVVoeeYPmcPrNRycHwJAsLK25tMn6yiQhHQDWp2d7n");
 
 /// Seconds a venue must stay clear before a red or amber flag returns to green.
 pub const COOL_OFF_SECS: i64 = 7 * 24 * 3600;
-/// Seconds an unresolved amber may last before it escalates to red.
+/// Seconds of unresolved pre-signing before it is marked `AMBER_ESCALATED`.
+/// The flag stays amber; only a config change turns it red.
 pub const AMBER_ESCALATION_SECS: i64 = 48 * 3600;
 /// Trailing window for counting replaced multisig members.
 pub const MEMBERS_WINDOW_SECS: i64 = 7 * 24 * 3600;
@@ -95,8 +96,10 @@ pub mod pexiz_oracle {
     /// current member; it is then remembered. A remembered account is dropped
     /// only when it is passed again and no longer proves itself (closed,
     /// uninitialized, or controlled by a non-member). Absence cannot be
-    /// proven, so leaving proofs out changes nothing: amber holds and keeps
-    /// escalating while any remembered account is live.
+    /// proven, so leaving proofs out changes nothing: amber holds while any
+    /// remembered account is live. Pre-signing never turns the flag red on
+    /// its own: a nonce account can name any key as its authority without
+    /// that key's signature, so it is a warning, not a proof.
     ///
     /// Pending upgrades: a Squads proposal and its vault transaction. An
     /// approved proposal whose transaction would upgrade, re-authorise or

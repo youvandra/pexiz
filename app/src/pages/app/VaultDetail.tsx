@@ -13,7 +13,7 @@ import { Dur } from "@/components/ui/meter"
 
 const STATE = {
   green: { tone: "bg-safe-soft", title: "All clear", body: "Deposits are open. The vault holds Canary LP and earns what LPs earn." },
-  amber: { tone: "bg-warn-soft", title: "Warning open", body: "Your position stays in the LP while the warning holds. If it is still open after 48 hours, the vault leaves for USDC." },
+  amber: { tone: "bg-warn-soft", title: "Warning open", body: "Your position stays in the LP while the warning holds. The vault leaves for USDC only if the multisig then changes its own rules." },
   red: { tone: "bg-danger-soft", title: "Leaving now", body: "The next update moves the vault to USDC in the same transaction." },
   exited: { tone: "bg-danger-soft", title: "Moved to USDC", body: "The vault sold its LP when the status turned to Get out. Withdraw your USDC, or vote to go back in once it reads Safe again." },
 }

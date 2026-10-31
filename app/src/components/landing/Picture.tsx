@@ -52,7 +52,7 @@ export function Picture({ className }: { className?: string }) {
         <Dot x={x} y={LEVEL} className="bg-safe" />
         <div className="absolute -translate-x-1/2 whitespace-nowrap text-center" style={{ left: `${x}%`, top: `${LEVEL + 6}%` }}>
           <div className="text-sm font-semibold">Moved to USDC</div>
-          <div className="text-xs text-ink-3">25 Mar, by Pexiz</div>
+          <div className="text-xs text-ink-3">27 Mar, by Pexiz</div>
         </div>
 
         {/* Where the pool is emptied. */}

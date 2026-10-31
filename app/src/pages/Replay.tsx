@@ -22,8 +22,8 @@ interface Step {
 const STEPS: Step[] = [
   { at: "20 Mar", day: -3, chain: "2-of-5 multisig, delay in place", flag: "green", reason: "Every check passes.", vault: "Holding the LP token", holder: "Holding the LP token", vaultSafe: true },
   { at: "23 Mar", day: 0, chain: "Two signers can now sign in advance", flag: "amber", reason: "A signer can now sign approvals in advance.", vault: "Deposits paused", holder: "Unaware", vaultSafe: true },
-  { at: "25 Mar", day: 2, chain: "Nonce still live, 48 hours later", flag: "red", reason: "The warning stayed open for 48 hours.", vault: "Exited to USDC in the update transaction", holder: "Unaware", vaultSafe: true },
-  { at: "27 Mar", day: 4, chain: "Multisig timelock set to 0", flag: "red", reason: "Approved changes now land at once.", vault: "Out, in USDC", holder: "Unaware", vaultSafe: true },
+  { at: "25 Mar", day: 2, chain: "Nonce still live, 48 hours later", flag: "amber", reason: "The warning has been open for 48 hours. Anyone can create a nonce naming a signer, so it stays a warning.", vault: "Deposits paused, still in the LP", holder: "Unaware", vaultSafe: true },
+  { at: "27 Mar", day: 4, chain: "Multisig timelock set to 0", flag: "red", reason: "Approved changes now land at once.", vault: "Exited to USDC in the update transaction", holder: "Unaware", vaultSafe: true },
   { at: "1 Apr 16:05", day: 9, chain: "Pre-signed transaction hands over admin", flag: "red", reason: "Admin control transferred.", vault: "Out, in USDC", holder: "Exposed", vaultSafe: true },
   { at: "1 Apr 16:12", day: 9.2, chain: "Stolen JLP redeemed; SOL custody 886,921 → 1,138", flag: "red", reason: "The exit is used up by the attacker.", vault: "Out, in USDC", holder: "Stuck behind the attacker", vaultSafe: true },
 ]

@@ -38,7 +38,7 @@ app/              web app: landing, docs, replay, and the vault console
   and alerts test on `solana-test-validator`, and 8 fork tests against the
   real Jupiter Perps program.
 - `bun run replay` replays the April 2026 Drift admin takeover. The vault
-  exits 7 days 16 hours before `UpdateAdmin`.
+  exits 5 days 16 hours before `UpdateAdmin`, when the timelock is cut.
 - The three programs are live on devnet, with a canary venue under a real
   Squads 3/5 multisig; both demos have run. See [docs/devnet.md](docs/devnet.md).
 - Auto-exit without a deposit: a holder approves the `pexiz-exit` program

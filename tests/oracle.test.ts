@@ -156,14 +156,26 @@ describe("update: one test per reason bit", () => {
     expect(parseFlagChanged(r.logs())[0].to).toBe("amber");
   });
 
-  test("AMBER_ESCALATED after 48h", async () => {
+  test("AMBER_ESCALATED after 48h, and the flag stays amber", async () => {
     const nonce = env.addNonce(f.memberKeys[2]);
     await update(env, f, [nonce]);
     env.warp(48 * 3600);
     await update(env, f, [nonce]);
     const v = env.venue(f.program);
-    expect(v.flag).toBe("red");
+    expect(v.flag).toBe("amber");
     expect(v.reasons).toBe(Reason.SIGNER_PRESIGNING | Reason.AMBER_ESCALATED);
+  });
+
+  test("a stranger's nonce naming a member never forces an exit", async () => {
+    // InitializeNonceAccount takes the authority as data and needs no
+    // signature from it, so anyone can make one of these for a few lamports.
+    const nonces = [0, 1, 2].map((i) => env.addNonce(f.memberKeys[i]));
+    await update(env, f, nonces);
+    for (let d = 0; d < 30; d++) {
+      env.warp(DAY);
+      await update(env, f, nonces);
+    }
+    expect(env.venue(f.program).flag).toBe("amber");
   });
 });
 
@@ -219,7 +231,7 @@ describe("pre-signing proofs", () => {
 });
 
 describe("escalation timeline and cool-off with clock warps", () => {
-  test("amber → red by escalation → clears → green after 7 days", async () => {
+  test("amber → escalated amber → clears → green after 7 days", async () => {
     const { env, f } = setup("drift");
     await register(env, f);
     const nonce = env.addNonce(f.memberKeys[0]);
@@ -231,13 +243,13 @@ describe("escalation timeline and cool-off with clock warps", () => {
     };
     await step(0, [nonce]);           // day 0: amber
     await step(DAY, [nonce]);         // day 1: amber
-    await step(DAY, [nonce]);         // day 2: escalated red
+    await step(DAY, [nonce]);         // day 2: escalated, still amber
     env.closeAccount(nonce);
     await step(DAY, [nonce]);         // day 3: nonce shown closed, cool-off starts
     await step(6 * DAY, []);          // day 9: still in cool-off
     await step(DAY - 1, []);          // 1 s short of 7 days
     await step(1, []);                // day 10: green
-    expect(seen).toEqual(["amber", "amber", "red", "red", "red", "red", "green"]);
+    expect(seen).toEqual(["amber", "amber", "amber", "amber", "amber", "amber", "green"]);
     expect(env.venue(f.program).reasons).toBe(0);
   });
 
@@ -273,7 +285,7 @@ describe("escalation timeline and cool-off with clock warps", () => {
       await update(env, f);
     }
     const v = env.venue(f.program);
-    expect(v.flag).toBe("red");
+    expect(v.flag).toBe("amber");
     expect(v.reasons).toBe(Reason.SIGNER_PRESIGNING | Reason.AMBER_ESCALATED);
     expect(v.presigners.map((k) => k.toBase58())).toEqual([nonce.toBase58()]);
     // Weeks of proof-less updates never bring it back to green.
@@ -281,7 +293,7 @@ describe("escalation timeline and cool-off with clock warps", () => {
       env.warp(DAY);
       await update(env, f);
     }
-    expect(env.venue(f.program).flag).toBe("red");
+    expect(env.venue(f.program).flag).toBe("amber");
   });
 
   test("a remembered nonce clears only when shown dead", async () => {
@@ -355,7 +367,7 @@ describe("property: random config sequences on chain", () => {
       const { env, f } = setup(run % 2 ? "drift" : "jupiter");
       await register(env, f);
       const base = env.multisig(f.multisig);
-      const hard = Reason.TIME_LOCK_BELOW_MIN | Reason.THRESHOLD_DROPPED | Reason.MEMBERS_REPLACED | Reason.UPGRADE_AUTHORITY_MOVED | Reason.AMBER_ESCALATED;
+      const hard = Reason.TIME_LOCK_BELOW_MIN | Reason.THRESHOLD_DROPPED | Reason.MEMBERS_REPLACED | Reason.UPGRADE_AUTHORITY_MOVED;
       let prev = "green";
       for (let i = 0; i < 25; i++) {
         env.editMultisig(f.multisig, (m) => {

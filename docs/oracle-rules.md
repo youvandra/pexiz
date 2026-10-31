@@ -15,7 +15,7 @@ Each `update` recomputes these from the accounts passed in.
 | `1 << 2` | `MEMBERS_REPLACED` | more than a third of members were replaced within a rolling 7-day window |
 | `1 << 3` | `UPGRADE_AUTHORITY_MOVED` | the program-data authority is not the registered Squads vault, or is None |
 | `1 << 4` | `SIGNER_PRESIGNING` | the venue remembers at least one live pre-signing account: a System nonce account (owner System, 80 bytes, `state == 1`) whose authority is a current member |
-| `1 << 5` | `AMBER_ESCALATED` | `SIGNER_PRESIGNING` has held continuously for 48 h |
+| `1 << 5` | `AMBER_ESCALATED` | `SIGNER_PRESIGNING` has held continuously for 48 h; marks the amber, never turns it red |
 | `1 << 6` | `UPGRADE_PENDING` | the venue remembers an approved Squads proposal whose vault transaction would upgrade, re-authorise or close the program |
 
 Member replacement counts members present now that were absent at the
@@ -27,9 +27,12 @@ to 16; measured venues have 7 or 8) to make this count.
 ## Flag
 
 - **Red** if any of `TIME_LOCK_BELOW_MIN`, `THRESHOLD_DROPPED`,
-  `MEMBERS_REPLACED`, `UPGRADE_AUTHORITY_MOVED` or `AMBER_ESCALATED` holds.
-- **Amber** if only `SIGNER_PRESIGNING` or `UPGRADE_PENDING` holds. A red
-  flag never steps down to amber.
+  `MEMBERS_REPLACED` or `UPGRADE_AUTHORITY_MOVED` holds.
+- **Amber** if only `SIGNER_PRESIGNING` (with or without `AMBER_ESCALATED`)
+  or `UPGRADE_PENDING` holds. A red flag never steps down to amber.
+  Pre-signing never turns the flag red: a nonce account can name any key
+  as its authority without that key's signature, so it proves nothing about
+  what a member signed.
 - **Green** only once no condition has held for `COOL_OFF_SECS` (7 days),
   tracked by `clear_since`. Any condition during the cool-off restarts it.
   One exception: an amber raised only by `UPGRADE_PENDING` returns to green
@@ -60,7 +63,7 @@ itself is remembered in `presigners` (up to 8). It is dropped only when it
 is passed again and fails the verifier: closed, uninitialized, or
 controlled by a key that is no longer a member. Until then
 `SIGNER_PRESIGNING` holds on every update, with or without proofs, so
-amber keeps escalating to red after 48 h and cannot clear. Someone who
+amber holds, escalates to `AMBER_ESCALATED` after 48 h, and cannot clear. Someone who
 controls the nonce, and spams updates without it, changes nothing. The
 crank passes every remembered account each cycle, which is how dead ones
 are cleared.
@@ -105,7 +108,7 @@ program id (`timing()` in `lib.rs`), so no registration can ask for them:
 | Duration | Every venue | Fast canary |
 |---|---|---|
 | Cool-off before green | 7 days | 5 minutes |
-| Pre-signing before red | 48 h | 2 minutes |
+| Pre-signing before `AMBER_ESCALATED` | 48 h | 2 minutes |
 | Member-replacement window | 7 days | 5 minutes |
 
 The rules are otherwise the same code path (`rules::step_timed`).
@@ -114,7 +117,7 @@ The rules are otherwise the same code path (`rules::step_timed`).
 
 - Host (`cargo test -p pexiz_oracle`): one test per rule, plus a proptest
   over 2,000 random sequences of config changes and time steps. Red always
-  carries a hard reason or `AMBER_ESCALATED`; a non-green flag always has
+  carries a hard reason; a non-green flag always has
   reasons; green is never set while a condition holds; a return to green
   always follows a full cool-off.
 - On chain (`tests/oracle.test.ts`, LiteSVM): one test per reason bit, the
