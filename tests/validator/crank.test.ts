@@ -43,7 +43,7 @@ test("crank: green no-op, nonce → amber, timelock cut → update+exit in one t
   const usdc = await createMint(conn, payer, payer.publicKey, null, 6);
   const pool = canaryPool(usdc);
   await send(v, [await initPoolIx(payer.publicKey, pool)]);
-  await send(v, [await registerVenueIx(payer.publicKey, { program: CANARY_PROGRAM_ID, multisig, minTimeLockSecs: 3600, exitTimeSecs: 600 })]);
+  await send(v, [await registerVenueIx(payer.publicKey, { program: CANARY_PROGRAM_ID, multisig, exitTimeSecs: 600 })]);
   const va = vaultAddresses(venuePda(CANARY_PROGRAM_ID), usdc);
   await send(v, [await initVaultIx(payer.publicKey, va)]);
 

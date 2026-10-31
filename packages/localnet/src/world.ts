@@ -26,7 +26,7 @@ export class World {
   /** Program the venue watches: the canary, or the fast canary. */
   program = CANARY_PROGRAM_ID;
 
-  static async create(opts: { threshold?: number; timeLock?: number; members?: number; minTimeLockSecs?: number; exitTimeSecs?: number; start?: number; program?: PublicKey } = {}): Promise<World> {
+  static async create(opts: { threshold?: number; timeLock?: number; members?: number; exitTimeSecs?: number; start?: number; program?: PublicKey } = {}): Promise<World> {
     const w = new World();
     if (opts.program) w.program = opts.program;
     w.signers = members(opts.members ?? 5);
@@ -38,7 +38,7 @@ export class World {
     env.setMultisig(w.multisig, multisigOf(opts.threshold ?? 3, opts.timeLock ?? 86_400, w.signers.map((k) => k.publicKey)));
     env.setWatchedProgram(w.program, vaultPda(w.multisig)[0]);
     env.send([await registerVenueIx(env.payer.publicKey, {
-      program: w.program, multisig: w.multisig, minTimeLockSecs: opts.minTimeLockSecs ?? 3600, exitTimeSecs: opts.exitTimeSecs ?? 600,
+      program: w.program, multisig: w.multisig, exitTimeSecs: opts.exitTimeSecs ?? 600,
     })]);
     w.v = vaultAddresses(venuePda(w.program), w.usdcMint);
     env.send([await initVaultIx(env.payer.publicKey, w.v)]);

@@ -167,8 +167,10 @@ pub fn step_timed(s: &mut RuleState, o: &Observation, now: i64, t: &Timing) -> F
     if to == Flag::Green {
         s.reasons = 0;
         // Accept the current config as the new baseline. A raised threshold
-        // is accepted at once; a lowered one never reaches here while red.
+        // or timelock is accepted at once; a lowered one is red, so it never
+        // reaches here.
         s.baseline_threshold = o.threshold;
+        s.min_time_lock_secs = o.time_lock_secs;
     } else {
         s.reasons |= active;
     }
@@ -293,6 +295,21 @@ mod tests {
         // A month of it still never forces an exit.
         step(&mut s, &o, T0 + 30 * DAY);
         assert_eq!(s.flag, Flag::Amber);
+    }
+
+    #[test]
+    fn a_raised_timelock_becomes_the_baseline() {
+        let mut s = base();
+        step(&mut s, &healthy(), T0);
+        assert_eq!(s.min_time_lock_secs, 86_400);
+        // Cut from 24 h to 12 h: still above the 1 h it was registered with,
+        // but below what users were last told it was.
+        step(&mut s, &Observation { time_lock_secs: 43_200, ..healthy() }, T0 + DAY);
+        assert_eq!(s.flag, Flag::Red);
+        assert_eq!(s.reasons, reason::TIME_LOCK_BELOW_MIN);
+        // A lowered timelock is never accepted on its own: it needs a rebaseline.
+        step(&mut s, &Observation { time_lock_secs: 43_200, ..healthy() }, T0 + 30 * DAY);
+        assert_eq!(s.flag, Flag::Red);
     }
 
     #[test]

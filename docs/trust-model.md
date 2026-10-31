@@ -47,9 +47,6 @@ so it is the part an attacker would aim at. Reviewed on 28 Oct 2026:
 
 What it still trusts or cannot help:
 
-- **The venue's registration.** The flag is only as strict as the venue's
-  `min_time_lock_secs` (see "first registrant wins" below). Check a venue's
-  parameters before guarding with it.
 - **The holder's own accounts.** If the holder delegates the same token
   account to another program, freezes or closes the payout account, the
   guard stops working until they guard again. The app shows the guarded
@@ -85,10 +82,17 @@ differs from the stored one, so idle cycles cost nothing.
 - **Controlled multisigs.** A Squads multisig with a non-default
   `config_authority` can change members, threshold and timelock without a
   proposal. The oracle parses `config_authority` but does not flag it yet.
-- **First registrant wins.** Someone can register a venue first with weak
-  parameters, for example `min_time_lock_secs = 0`. The values are public
-  on chain. A `reregister` that only refreshes from chain is planned; until
-  then, check a venue's parameters before trusting its flag.
+- **First registrant wins, with nothing to choose.** Until 31 Oct 2026 the
+  registrant set `min_time_lock_secs`, so a squatter could register a venue
+  that never turned red (0) or was red at once (`u32::MAX`). Every baseline
+  is now read from the multisig at registration. `exit_time_secs` is still
+  the caller's, and only the exit-window display reads it.
+- **Rebaseline after a red week.** A venue red for a full cool-off can be
+  rebaselined by anyone to the multisig that now holds the upgrade
+  authority and its current config. If that new multisig is the attacker's,
+  the venue returns to green two cool-offs after the takeover, by which
+  time every vault and guard has exited; a vault re-enters only on a
+  majority vote of its shares.
 - **Pre-signing is a warning only.** `InitializeNonceAccount` takes the
   authority as data and needs no signature from it, so anyone can create a
   nonce account naming a multisig member for a few lamports. Counting that

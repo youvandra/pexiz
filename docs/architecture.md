@@ -52,7 +52,16 @@ you out when that answer changes.
 belongs to the program, that its upgrade authority is the Squads vault PDA
 of the given multisig, and that the multisig is a Squads v4 account. It
 stores the first snapshot with a green flag. One venue per program; the
-first registrant wins.
+first registrant wins, but chooses nothing the rules read: the threshold,
+timelock and member baselines all come from the multisig itself.
+`exit_time_secs` is the only number the caller supplies, and only the
+exit-window display reads it.
+
+`rebaseline` adopts the admin path a venue sees now, after the flag has
+been red for a full cool-off: the multisig whose vault now holds the
+upgrade authority, its threshold, timelock and members. Anyone can call it.
+It is how a legitimate migration or a lowered delay ends; without it the
+venue would read red forever.
 
 `update` re-reads the multisig and program data, verifies every remaining
 account as a pre-signing proof, and runs the flag rules

@@ -42,9 +42,12 @@ pub fn timing(program: &Pubkey) -> rules::Timing {
 pub mod pexiz_oracle {
     use super::*;
 
-    /// Registers a venue: the program whose admin path is watched, the Squads
-    /// multisig expected to hold its upgrade authority, and the vault-facing
-    /// thresholds. The first snapshot is taken from the accounts passed in.
+    /// Registers a venue: the program whose admin path is watched and the
+    /// Squads multisig expected to hold its upgrade authority. Every baseline
+    /// (threshold, timelock, members) is read from the accounts passed in, so
+    /// whoever registers first chooses nothing that changes the flag.
+    /// `exit_time_secs` is the one caller-supplied number, and only the
+    /// exit-window display reads it.
     pub fn register_venue(ctx: Context<RegisterVenue>, params: VenueParams) -> Result<()> {
         let program_data = squads::program_data_address(&params.program);
         require_keys_eq!(ctx.accounts.program_data.key(), program_data, OracleError::WrongProgramData);
@@ -66,7 +69,7 @@ pub mod pexiz_oracle {
         v.multisig = params.multisig;
         v.upgrade_authority = params.upgrade_authority;
         v.vault_index = params.vault_index;
-        v.min_time_lock_secs = params.min_time_lock_secs;
+        v.min_time_lock_secs = ms.time_lock;
         v.exit_time_secs = params.exit_time_secs;
         v.snapshot = Snapshot {
             threshold: ms.threshold,
@@ -202,6 +205,64 @@ pub mod pexiz_oracle {
         msg!("flag {:?} reasons {:#x} active {:#x}", v.flag, v.reasons, v.active_reasons);
         Ok(())
     }
+
+    /// Permissionless. Takes a venue that has been red for a full cool-off
+    /// and makes the admin path it sees now the new baseline: the multisig
+    /// whose vault now holds the upgrade authority, its threshold, timelock
+    /// and members. It is how a venue recovers from a legitimate migration
+    /// or a lowered delay, which would otherwise read red forever.
+    ///
+    /// The flag stays red. The next updates start the cool-off as usual, so
+    /// a venue returns to green at the earliest two cool-offs after the
+    /// change that turned it red. Anyone who held through the first one was
+    /// warned for all of it. An authority held by a single key, or by no one,
+    /// cannot be rebaselined: it has no multisig vault to name.
+    pub fn rebaseline(ctx: Context<Rebaseline>, vault_index: u8) -> Result<()> {
+        let clock = Clock::get()?;
+        let v = &mut ctx.accounts.venue;
+        let cool_off = timing(&v.params_program).cool_off;
+        require!(
+            v.flag == Flag::Red && v.red_since != 0 && clock.unix_timestamp - v.red_since >= cool_off,
+            OracleError::NotRedLongEnough
+        );
+        let authority = squads::upgrade_authority(&ctx.accounts.program_data).ok_or(OracleError::WrongUpgradeAuthority)?;
+        let multisig = ctx.accounts.multisig.key();
+        require_keys_eq!(squads::vault_pda(&multisig, vault_index), authority, OracleError::WrongUpgradeAuthority);
+        let ms = squads::parse_multisig(&ctx.accounts.multisig, MAX_MEMBERS)?;
+
+        let from = (v.multisig, v.snapshot.threshold, v.snapshot.time_lock_secs);
+        v.multisig = multisig;
+        v.upgrade_authority = authority;
+        v.vault_index = vault_index;
+        v.baseline_threshold = ms.threshold;
+        v.min_time_lock_secs = ms.time_lock;
+        v.low_threshold_since = 0;
+        v.replaced_window_start = 0;
+        v.replaced_window_base = 0;
+        v.clear_since = 0;
+        // Proposal indices belong to the multisig they were read from.
+        v.pending_upgrades.clear();
+        v.snapshot = Snapshot {
+            threshold: ms.threshold,
+            time_lock_secs: ms.time_lock,
+            member_count: ms.members.len() as u16,
+            members_hash: squads::members_hash(&ms.members),
+            replaced_7d: 0,
+            taken_at: clock.unix_timestamp,
+        };
+        v.members = ms.members;
+        v.last_update_slot = clock.slot;
+        emit!(VenueRebaselined {
+            venue: v.key(),
+            program: v.params_program,
+            old_multisig: from.0,
+            new_multisig: multisig,
+            threshold: (from.1, v.snapshot.threshold),
+            time_lock_secs: (from.2, v.snapshot.time_lock_secs),
+            slot: clock.slot,
+        });
+        Ok(())
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -214,9 +275,8 @@ pub struct VenueParams {
     pub upgrade_authority: Pubkey,
     /// Squads vault index of `upgrade_authority`.
     pub vault_index: u8,
-    /// Minimum timelock (seconds) below which the flag goes red.
-    pub min_time_lock_secs: u32,
-    /// Seconds a user needs to withdraw at current exit capacity.
+    /// Seconds a user needs to withdraw at current exit capacity. Display
+    /// only: no rule reads it.
     pub exit_time_secs: u32,
 }
 
@@ -228,6 +288,8 @@ pub struct Venue {
     pub multisig: Pubkey,
     pub upgrade_authority: Pubkey,
     pub vault_index: u8,
+    /// Timelock baseline: the multisig's timelock at registration, raised
+    /// whenever the flag is green. A timelock below it is red.
     pub min_time_lock_secs: u32,
     pub exit_time_secs: u32,
     /// Config seen at the latest update.
@@ -291,6 +353,7 @@ impl Venue {
         self.red_since = s.red_since;
         self.clear_since = s.clear_since;
         self.baseline_threshold = s.baseline_threshold;
+        self.min_time_lock_secs = s.min_time_lock_secs;
         self.replaced_window_start = s.replaced_window_start;
         self.replaced_window_base = s.replaced_window_base;
         self.low_threshold_since = s.low_threshold_since;
@@ -360,6 +423,30 @@ pub struct Update<'info> {
     pub multisig: UncheckedAccount<'info>,
 }
 
+#[derive(Accounts)]
+pub struct Rebaseline<'info> {
+    #[account(mut, seeds = [b"venue", venue.params_program.as_ref()], bump = venue.bump)]
+    pub venue: Account<'info, Venue>,
+    /// CHECK: must equal the program-data address recorded at registration.
+    #[account(address = venue.program_data @ OracleError::WrongProgramData)]
+    pub program_data: UncheckedAccount<'info>,
+    /// CHECK: the multisig whose vault now holds the upgrade authority; parsed manually.
+    pub multisig: UncheckedAccount<'info>,
+}
+
+#[event]
+pub struct VenueRebaselined {
+    pub venue: Pubkey,
+    pub program: Pubkey,
+    pub old_multisig: Pubkey,
+    pub new_multisig: Pubkey,
+    /// (before, after)
+    pub threshold: (u16, u16),
+    /// (before, after)
+    pub time_lock_secs: (u32, u32),
+    pub slot: u64,
+}
+
 #[event]
 pub struct FlagChanged {
     pub venue: Pubkey,
@@ -387,4 +474,6 @@ pub enum OracleError {
     TooManyMembers,
     #[msg("upgrade proof account is not a proposal of the registered multisig")]
     BadUpgradeProof,
+    #[msg("a venue can be rebaselined only after a full cool-off in red")]
+    NotRedLongEnough,
 }

@@ -18,7 +18,6 @@ export const ATTACK = {
    * uses Drift's timelock measured on 26 Oct 2026 (3600 s).
    */
   timeLockBefore: 3600,
-  minTimeLockSecs: 3600,
   exitTimeSecs: 600,
   updateAdmin: utc("2026-04-01T16:05:19"),
   updateAdminTx: "4BKBmAJn6TdsENij7CsVbyMVLJU1tX27nfrMM1zgKv1bs2KJy6Am2NqdA3nJm4g9C6eC64UAf5sNs974ygB9RsN1",
@@ -76,7 +75,7 @@ const STEPS: Step[] = [
 export async function runReplay(opts: { presigning?: boolean } = {}): Promise<ReplayResult> {
   const w = await World.create({
     threshold: ATTACK.threshold, members: ATTACK.members, timeLock: ATTACK.timeLockBefore,
-    minTimeLockSecs: ATTACK.minTimeLockSecs, exitTimeSecs: ATTACK.exitTimeSecs, start: utc(STEPS[0].at),
+    exitTimeSecs: ATTACK.exitTimeSecs, start: utc(STEPS[0].at),
   });
   const lp = w.user(USDC(1_000_000));
   await w.deposit(lp, USDC(1_000_000));

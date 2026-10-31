@@ -122,7 +122,7 @@ if (stage === "setup") {
 
   if (!(await conn.getAccountInfo(venue))) {
     record("fast: oracle register_venue", await send([await registerVenueIx(payer.publicKey, {
-      program: FAST_CANARY_PROGRAM_ID, multisig: msPda, minTimeLockSecs: 30, exitTimeSecs: 0,
+      program: FAST_CANARY_PROGRAM_ID, multisig: msPda, exitTimeSecs: 0,
     })]));
   }
   const v = addresses();

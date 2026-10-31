@@ -7,11 +7,77 @@
   },
   "instructions": [
     {
+      "name": "rebaseline",
+      "docs": [
+        "Permissionless. Takes a venue that has been red for a full cool-off",
+        "and makes the admin path it sees now the new baseline: the multisig",
+        "whose vault now holds the upgrade authority, its threshold, timelock",
+        "and members. It is how a venue recovers from a legitimate migration",
+        "or a lowered delay, which would otherwise read red forever.",
+        "",
+        "The flag stays red. The next updates start the cool-off as usual, so",
+        "a venue returns to green at the earliest two cool-offs after the",
+        "change that turned it red. Anyone who held through the first one was",
+        "warned for all of it. An authority held by a single key, or by no one,",
+        "cannot be rebaselined: it has no multisig vault to name."
+      ],
+      "discriminator": [
+        131,
+        194,
+        132,
+        113,
+        50,
+        191,
+        89,
+        125
+      ],
+      "accounts": [
+        {
+          "name": "venue",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue.params_program",
+                "account": "Venue"
+              }
+            ]
+          }
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "multisig"
+        }
+      ],
+      "args": [
+        {
+          "name": "vault_index",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "register_venue",
       "docs": [
-        "Registers a venue: the program whose admin path is watched, the Squads",
-        "multisig expected to hold its upgrade authority, and the vault-facing",
-        "thresholds. The first snapshot is taken from the accounts passed in."
+        "Registers a venue: the program whose admin path is watched and the",
+        "Squads multisig expected to hold its upgrade authority. Every baseline",
+        "(threshold, timelock, members) is read from the accounts passed in, so",
+        "whoever registers first chooses nothing that changes the flag.",
+        "`exit_time_secs` is the one caller-supplied number, and only the",
+        "exit-window display reads it."
       ],
       "discriminator": [
         116,
@@ -205,6 +271,11 @@
       "code": 6006,
       "name": "BadUpgradeProof",
       "msg": "upgrade proof account is not a proposal of the registered multisig"
+    },
+    {
+      "code": 6007,
+      "name": "NotRedLongEnough",
+      "msg": "a venue can be rebaselined only after a full cool-off in red"
     }
   ],
   "types": [
@@ -339,6 +410,10 @@
           },
           {
             "name": "min_time_lock_secs",
+            "docs": [
+              "Timelock baseline: the multisig's timelock at registration, raised",
+              "whenever the flag is green. A timelock below it is red."
+            ],
             "type": "u32"
           },
           {
@@ -482,16 +557,10 @@
             "type": "u8"
           },
           {
-            "name": "min_time_lock_secs",
-            "docs": [
-              "Minimum timelock (seconds) below which the flag goes red."
-            ],
-            "type": "u32"
-          },
-          {
             "name": "exit_time_secs",
             "docs": [
-              "Seconds a user needs to withdraw at current exit capacity."
+              "Seconds a user needs to withdraw at current exit capacity. Display",
+              "only: no rule reads it."
             ],
             "type": "u32"
           }

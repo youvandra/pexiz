@@ -10,7 +10,7 @@ Each `update` recomputes these from the accounts passed in.
 
 | Bit | Name | Holds when |
 |---|---|---|
-| `1 << 0` | `TIME_LOCK_BELOW_MIN` | the multisig `time_lock` is below the venue's `min_time_lock_secs` |
+| `1 << 0` | `TIME_LOCK_BELOW_MIN` | the multisig `time_lock` is below the venue's timelock baseline, `min_time_lock_secs`: the timelock at registration, raised whenever the flag is green |
 | `1 << 1` | `THRESHOLD_DROPPED` | the threshold is below the baseline: the threshold last accepted while green |
 | `1 << 2` | `MEMBERS_REPLACED` | more than a third of members were replaced within a rolling 7-day window |
 | `1 << 3` | `UPGRADE_AUTHORITY_MOVED` | the program-data authority is not the registered Squads vault, or is None |
@@ -49,6 +49,14 @@ lowered for a full 7 days (`low_threshold_since`), it becomes the new
 baseline: depositors have had that week to leave, and the flag still needs
 another 7-day cool-off before it turns green. An unrelated earlier red does
 not shorten that week.
+
+The timelock baseline works the same way, except that a lowered timelock is
+never accepted on its own. Any cut, even one that leaves hours of delay, is
+red until someone calls `rebaseline` after a full cool-off in red.
+`rebaseline` also adopts a new multisig when the upgrade authority has moved
+to another Squads vault, and resets the member-replacement window and the
+remembered upgrade proposals. The flag stays red, and the usual cool-off
+follows.
 
 ## What a proof can and cannot do
 

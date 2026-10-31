@@ -20,7 +20,7 @@ export interface VenueParams {
   program: PublicKey;
   multisig: PublicKey;
   vaultIndex?: number;
-  minTimeLockSecs: number;
+  /** Display only; every rule baseline is read from the multisig. */
   exitTimeSecs: number;
 }
 
@@ -32,7 +32,6 @@ export function registerVenueIx(payer: PublicKey, p: VenueParams): Promise<Trans
       multisig: p.multisig,
       upgradeAuthority: vaultPda(p.multisig, vaultIndex)[0],
       vaultIndex,
-      minTimeLockSecs: p.minTimeLockSecs,
       exitTimeSecs: p.exitTimeSecs,
     })
     .accountsStrict({
@@ -55,6 +54,17 @@ export function updateIx(program: PublicKey, multisig: PublicKey, proofs: Public
     .update()
     .accountsStrict({ venue: venuePda(program), programData: programDataAddress(program), multisig })
     .remainingAccounts(remaining)
+    .instruction();
+}
+
+/**
+ * `rebaseline`: after a full cool-off in red, adopt the multisig whose vault
+ * now holds `program`'s upgrade authority, and its current config.
+ */
+export function rebaselineIx(program: PublicKey, multisig: PublicKey, vaultIndex = 0): Promise<TransactionInstruction> {
+  return oracleProgram.methods
+    .rebaseline(vaultIndex)
+    .accountsStrict({ venue: venuePda(program), programData: programDataAddress(program), multisig })
     .instruction();
 }
 

@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import {
-  ORACLE_PROGRAM_ID, Reason, SQUADS_V4_ID, encodeNonce, parseFlagChanged, programDataAddress, registerVenueIx,
+  ORACLE_PROGRAM_ID, Reason, SQUADS_V4_ID, encodeNonce, parseFlagChanged, programDataAddress, rebaselineIx, registerVenueIx,
   updateIx, vaultPda,
 } from "@pexiz/sdk";
 import { DAY, Env, loadVenueFixture, members, multisigOf, type Fixture } from "./helpers";
 
-const MIN_TL = 3600;
 const EXIT = 1800;
 
 function setup(name: "jupiter" | "drift" = "jupiter") {
@@ -16,11 +15,11 @@ function setup(name: "jupiter" | "drift" = "jupiter") {
 }
 
 async function register(env: Env, f: Fixture) {
-  env.send([await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, minTimeLockSecs: MIN_TL, exitTimeSecs: EXIT })]);
+  env.send([await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, exitTimeSecs: EXIT })]);
 }
 
-async function update(env: Env, f: Fixture, proofs: PublicKey[] = []) {
-  return env.send([await updateIx(f.program, f.multisig, proofs)]);
+async function update(env: Env, f: Fixture, proofs: PublicKey[] = [], multisig = f.multisig) {
+  return env.send([await updateIx(f.program, multisig, proofs)]);
 }
 
 describe("register_venue", () => {
@@ -45,7 +44,7 @@ describe("register_venue", () => {
 
   test("rejects a wrong program-data account", async () => {
     const { env, f } = setup();
-    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, minTimeLockSecs: MIN_TL, exitTimeSecs: EXIT });
+    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, exitTimeSecs: EXIT });
     const other = Keypair.generate().publicKey;
     env.setWatchedProgram(other, f.authority);
     ix.keys[1].pubkey = programDataAddress(other);
@@ -55,7 +54,7 @@ describe("register_venue", () => {
   test("rejects a multisig not owned by Squads v4", async () => {
     const { env, f } = setup();
     env.setRaw(f.multisig, SystemProgram.programId, env.data(f.multisig));
-    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, minTimeLockSecs: MIN_TL, exitTimeSecs: EXIT });
+    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, exitTimeSecs: EXIT });
     expect(env.expectFail([ix])).toContain("NotSquadsMultisig");
   });
 
@@ -63,23 +62,101 @@ describe("register_venue", () => {
     const { env, f } = setup();
     const other = Keypair.generate().publicKey;
     env.setMultisig(other, multisigOf(2, 3600, members(3).map((k) => k.publicKey)));
-    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: other, minTimeLockSecs: MIN_TL, exitTimeSecs: EXIT });
+    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: other, exitTimeSecs: EXIT });
     expect(env.expectFail([ix])).toContain("WrongUpgradeAuthority");
   });
 
   test("rejects a program whose authority is another key", async () => {
     const { env, f } = setup();
     env.setWatchedProgram(f.program, Keypair.generate().publicKey);
-    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, minTimeLockSecs: MIN_TL, exitTimeSecs: EXIT });
+    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, exitTimeSecs: EXIT });
     expect(env.expectFail([ix])).toContain("WrongUpgradeAuthority");
   });
 
-  test("first registrant wins", async () => {
+  test("first registrant wins, and chooses no baseline", async () => {
     const { env, f } = setup();
     await register(env, f);
-    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, minTimeLockSecs: 0, exitTimeSecs: 0 });
+    const ix = await registerVenueIx(env.payer.publicKey, { program: f.program, multisig: f.multisig, exitTimeSecs: 0 });
     expect(env.expectFail([ix])).toContain("already in use");
-    expect(env.venue(f.program).minTimeLockSecs).toBe(MIN_TL);
+    const v = env.venue(f.program);
+    // The timelock baseline is the multisig's own, whoever registered.
+    expect(v.minTimeLockSecs).toBe(v.timeLockSecs);
+    expect(v.minTimeLockSecs).toBe(env.multisig(f.multisig).timeLock);
+  });
+});
+
+describe("rebaseline", () => {
+  /** A venue whose program moved to a new multisig `days` ago. */
+  async function migrated(days: number) {
+    const { env, f } = setup();
+    await register(env, f);
+    const next = Keypair.generate().publicKey;
+    env.setMultisig(next, multisigOf(3, 7200, members(5).map((k) => k.publicKey)));
+    env.setWatchedProgram(f.program, vaultPda(next)[0]);
+    await update(env, f);
+    expect(env.venue(f.program).flag).toBe("red");
+    env.warp(days * DAY);
+    return { env, f, next };
+  }
+
+  test("a legitimate migration reads red until rebaselined, then clears after a cool-off", async () => {
+    const { env, f, next } = await migrated(7);
+    await update(env, f);
+    expect(env.venue(f.program).flag).toBe("red");
+    env.send([await rebaselineIx(f.program, next)]);
+    let v = env.venue(f.program);
+    expect(v.flag).toBe("red");
+    expect(v.multisig.toBase58()).toBe(next.toBase58());
+    expect([v.threshold, v.timeLockSecs, v.minTimeLockSecs, v.members.length]).toEqual([3, 7200, 7200, 5]);
+    await update(env, f, [], next);
+    env.warp(7 * DAY);
+    await update(env, f, [], next);
+    v = env.venue(f.program);
+    expect(v.flag).toBe("green");
+    expect(v.reasons).toBe(0);
+  });
+
+  test("refused before a full cool-off in red", async () => {
+    const { env, f, next } = await migrated(6);
+    expect(env.expectFail([await rebaselineIx(f.program, next)])).toContain("NotRedLongEnough");
+  });
+
+  test("refused on a green venue", async () => {
+    const { env, f } = setup();
+    await register(env, f);
+    expect(env.expectFail([await rebaselineIx(f.program, f.multisig)])).toContain("NotRedLongEnough");
+  });
+
+  test("refused for a multisig whose vault does not hold the authority", async () => {
+    const { env, f } = await migrated(8);
+    expect(env.expectFail([await rebaselineIx(f.program, f.multisig)])).toContain("WrongUpgradeAuthority");
+  });
+
+  test("refused when a single key holds the authority", async () => {
+    const { env, f } = setup();
+    await register(env, f);
+    env.setWatchedProgram(f.program, Keypair.generate().publicKey);
+    await update(env, f);
+    env.warp(8 * DAY);
+    expect(env.expectFail([await rebaselineIx(f.program, f.multisig)])).toContain("WrongUpgradeAuthority");
+  });
+
+  test("a lowered timelock is accepted only through a rebaseline", async () => {
+    const { env, f } = setup();
+    await register(env, f);
+    const before = env.multisig(f.multisig).timeLock;
+    env.editMultisig(f.multisig, (m) => { m.timeLock = Math.floor(before / 2); });
+    await update(env, f);
+    expect(env.venue(f.program).reasons & Reason.TIME_LOCK_BELOW_MIN).toBeTruthy();
+    env.warp(30 * DAY);
+    await update(env, f);
+    expect(env.venue(f.program).flag).toBe("red");
+    env.send([await rebaselineIx(f.program, f.multisig)]);
+    await update(env, f);
+    env.warp(7 * DAY);
+    await update(env, f);
+    expect(env.venue(f.program).flag).toBe("green");
+    expect(env.venue(f.program).minTimeLockSecs).toBe(Math.floor(before / 2));
   });
 });
 

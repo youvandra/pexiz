@@ -9,7 +9,7 @@ import { USDC, World, type User } from "@pexiz/localnet";
 
 /** A holder with canary LP in their own wallet, guarded by the fast canary venue. */
 async function setup(opts: { approve?: bigint } = {}) {
-  const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60, minTimeLockSecs: 30 });
+  const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60 });
   const { env } = w;
   env.send([await openRouteIx(env.payer.publicKey, w.usdcMint)]);
   const h = w.user(USDC(100));
@@ -90,7 +90,7 @@ describe("auto-exit without a deposit", () => {
   });
 
   test("a guard cannot be opened on a venue that is already red", async () => {
-    const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60, minTimeLockSecs: 30 });
+    const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60 });
     const h = w.user(USDC(10));
     w.setTimeLock(0);
     await w.update();
@@ -115,7 +115,7 @@ describe("auto-exit without a deposit", () => {
   });
 
   test("a guard cannot name a payout account the holder does not own", async () => {
-    const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60, minTimeLockSecs: 30 });
+    const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60 });
     const h = w.user(USDC(10));
     const other = w.user(0n);
     const ixs = await protectCanaryIxs(h.kp.publicKey, venuePda(FAST_CANARY_PROGRAM_ID), w.v.pool, h.lp, other.usdc, USDC(10));

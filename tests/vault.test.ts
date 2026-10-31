@@ -57,7 +57,7 @@ describe("vault lifecycle against the canary venue", () => {
 
 describe("fast canary", () => {
   test("the same cycle on minutes: cut → exit → restore → 5 min cool-off → vote → reenter", async () => {
-    const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60, minTimeLockSecs: 30 });
+    const w = await World.create({ program: FAST_CANARY_PROGRAM_ID, timeLock: 60 });
     const alice = w.user(USDC(100));
     await w.deposit(alice, USDC(100));
 
@@ -314,7 +314,7 @@ describe("binding checks", () => {
     const prog = Keypair.generate().publicKey;
     env.setMultisig(ms, multisigOf(2, 86_400, members(3).map((k) => k.publicKey)));
     env.setWatchedProgram(prog, vaultPda(ms)[0]);
-    env.send([await registerVenueIx(env.payer.publicKey, { program: prog, multisig: ms, minTimeLockSecs: 3600, exitTimeSecs: 0 })]);
+    env.send([await registerVenueIx(env.payer.publicKey, { program: prog, multisig: ms, exitTimeSecs: 0 })]);
     expect(env.expectFail([await initVaultIx(env.payer.publicKey, vaultAddresses(venuePda(prog), usdc))])).toContain("VenueMismatch");
   });
 

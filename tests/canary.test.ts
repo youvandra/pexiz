@@ -71,7 +71,7 @@ describe("canary-venue under the oracle", () => {
     const multisig = Keypair.generate().publicKey;
     env.setMultisig(multisig, multisigOf(3, 86_400, members(5).map((k) => k.publicKey)));
     env.setWatchedProgram(CANARY_PROGRAM_ID, vaultPda(multisig)[0]);
-    env.send([await registerVenueIx(env.payer.publicKey, { program: CANARY_PROGRAM_ID, multisig, minTimeLockSecs: 3600, exitTimeSecs: 600 })]);
+    env.send([await registerVenueIx(env.payer.publicKey, { program: CANARY_PROGRAM_ID, multisig, exitTimeSecs: 600 })]);
     expect(env.venue(CANARY_PROGRAM_ID).flag).toBe("green");
     env.editMultisig(multisig, (m) => { m.timeLock = 0; });
     env.send([await updateIx(CANARY_PROGRAM_ID, multisig)]);

@@ -70,7 +70,7 @@ if (!(await conn.getAccountInfo(pool.pool))) record("canary init_pool", await se
 const venue = venuePda(CANARY_PROGRAM_ID);
 if (!(await conn.getAccountInfo(venue))) {
   record("oracle register_venue (canary)", await send([await registerVenueIx(payer.publicKey, {
-    program: CANARY_PROGRAM_ID, multisig: msPda, minTimeLockSecs: 3600, exitTimeSecs: 600,
+    program: CANARY_PROGRAM_ID, multisig: msPda, exitTimeSecs: 600,
   })]));
 }
 const v = vaultAddresses(venue, usdc);
