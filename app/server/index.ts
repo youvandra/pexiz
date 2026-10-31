@@ -5,13 +5,14 @@
 //   PEXIZ_PUBLIC_URL       public origin for link-preview image URLs (behind a proxy)
 //   PEXIZ_WATCH_PORT       where the watcher serves /api/venues (default 5262)
 //   PORT                   default 5261
-import { join } from "node:path"
+import { join, resolve, sep } from "node:path"
 import { faucet } from "./faucet"
+import { underRoot } from "./static"
 import { demo } from "./demo"
 import { relay } from "./relay"
 import { ogCard, ogMeta } from "./og"
 
-const DIST = join(import.meta.dir, "../dist")
+const DIST = resolve(import.meta.dir, "../dist")
 
 /** The app shell, with link-preview tags for a protocol page. */
 async function shell(url: URL): Promise<Response> {
@@ -34,8 +35,11 @@ async function shell(url: URL): Promise<Response> {
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } })
 }
 
-async function file(path: string, url: URL): Promise<Response> {
-  const f = Bun.file(join(DIST, path))
+async function file(url: URL): Promise<Response> {
+  const full = underRoot(DIST, url.pathname)
+  if (!full) return new Response("Not found", { status: 404 })
+  const path = full.slice(DIST.length).split(sep).join("/") || "/"
+  const f = Bun.file(full)
   if (path !== "/" && path !== "/index.html" && (await f.exists())) {
     const cache = path.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache"
     return new Response(f, { headers: { "cache-control": cache } })
@@ -65,7 +69,7 @@ const server = Bun.serve({
     if (url.pathname.startsWith("/api/venues") || url.pathname.startsWith("/api/check/") || url.pathname.startsWith("/api/v1")) return watcher(url, ip)
     const og = url.pathname.match(/^\/og\/([a-z0-9-]+)\.png$/)
     if (og) return ogCard(og[1])
-    return file(decodeURIComponent(url.pathname), url)
+    return file(url)
   },
 })
 console.log(`pexiz app on :${server.port}`)
