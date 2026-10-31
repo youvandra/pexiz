@@ -440,7 +440,8 @@
           "name": "usdc_custody"
         },
         {
-          "name": "usdc_mint"
+          "name": "usdc_mint",
+          "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         },
         {
           "name": "lp_mint",
@@ -1444,6 +1445,10 @@
           },
           {
             "name": "min_time_lock_secs",
+            "docs": [
+              "Timelock baseline: the multisig's timelock at registration, raised",
+              "whenever the flag is green. A timelock below it is red."
+            ],
             "type": "u32"
           },
           {

@@ -19,7 +19,7 @@ use canary_venue::program::CanaryVenue;
 use canary_venue::Pool;
 use pexiz_oracle::{Flag, Venue, FAST_CANARY_PROGRAM};
 use pexiz_vault::math::{canary_backing, exit_floor};
-use pexiz_vault::{jlp_aum_usdc, JLP_MINT, JUPITER_PERPS_ID, REMOVE_LIQUIDITY2};
+use pexiz_vault::{jlp_aum_usdc, JLP_MINT, JUPITER_PERPS_ID, REMOVE_LIQUIDITY2, USDC_MINT};
 
 declare_id!("4GhBvwpJCaKgNuKZK4uXg3CKTZgXtJnY42BFX49qN2Nm");
 
@@ -27,8 +27,6 @@ declare_id!("4GhBvwpJCaKgNuKZK4uXg3CKTZgXtJnY42BFX49qN2Nm");
 pub const KEEPER_FEE_BPS: u64 = 10;
 /// The Jupiter Perps JLP pool.
 pub const JLP_POOL: Pubkey = pubkey!("5BUwFW4nRbftYTDMbgxykoFWqWHPzahFSNAaaaJtVKsq");
-/// Mainnet USDC, the token Jupiter pays JLP out in here.
-pub const USDC_MINT: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
 const AUTHORITY: &[u8] = b"authority";
 

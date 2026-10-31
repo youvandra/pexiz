@@ -21,6 +21,9 @@ pub const JUPITER_PERPS_ID: Pubkey = pubkey!("PERPHjGBqRHArX4DySjwM6UJHiR3sWAatq
 /// one behind `AUM_CAP_USDC`, so another pool's token would carry a cap that
 /// was never measured for it.
 pub const JLP_MINT: Pubkey = pubkey!("27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4");
+/// Mainnet USDC. A JLP vault keeps its books in it, and the share math reads
+/// the pool's `aum_usd` as USDC units, so any other mint would misprice.
+pub const USDC_MINT: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 /// `remove_liquidity2 { lp_amount_in, min_amount_out }`: the Anchor
 /// discriminator, `sha256("global:remove_liquidity2")[..8]`.
 pub const REMOVE_LIQUIDITY2: [u8; 8] = [230, 215, 82, 127, 241, 101, 227, 146];
@@ -786,6 +789,7 @@ pub struct InitJlpVault<'info> {
     /// CHECK: the custody the vault exits into; its pool and mint are read here.
     #[account(owner = JUPITER_PERPS_ID @ VaultError::NotJupiterPool)]
     pub usdc_custody: UncheckedAccount<'info>,
+    #[account(address = USDC_MINT @ VaultError::NotJupiterPool)]
     pub usdc_mint: Box<Account<'info, Mint>>,
     #[account(address = JLP_MINT @ VaultError::NotJupiterPool)]
     pub lp_mint: Box<Account<'info, Mint>>,
