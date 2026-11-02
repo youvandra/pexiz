@@ -7,6 +7,7 @@
 //   PORT                   default 5261
 import { join, resolve, sep } from "node:path"
 import { faucet } from "./faucet"
+import { clientIp } from "./ip"
 import { underRoot } from "./static"
 import { demo } from "./demo"
 import { relay } from "./relay"
@@ -62,7 +63,7 @@ const server = Bun.serve({
   port: Number(process.env.PORT ?? 5261),
   async fetch(req, srv) {
     const url = new URL(req.url)
-    const ip = req.headers.get("x-real-ip") ?? srv.requestIP(req)?.address ?? "?"
+    const ip = clientIp(req.headers.get("x-real-ip"), srv.requestIP(req)?.address)
     if (url.pathname === "/rpc/mainnet") return relay(req, ip)
     if (url.pathname === "/api/faucet") return faucet(req, ip)
     if (url.pathname === "/api/demo") return demo(req, ip)
