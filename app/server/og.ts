@@ -132,7 +132,7 @@ export async function ogCard(id: string): Promise<Response> {
     png = Buffer.from(new Resvg(svg, { font: { fontFiles: FONTS, loadSystemFonts: false, defaultFontFamily: "Inter Tight" } }).render().asPng())
     cache.set(id, { at: Date.now(), png })
   }
-  return new Response(png, { headers: { "content-type": "image/png", "cache-control": "public, max-age=300" } })
+  return new Response(new Uint8Array(png), { headers: { "content-type": "image/png", "cache-control": "public, max-age=300" } })
 }
 
 /** Title and description for link previews of a protocol page. */

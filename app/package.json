@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit",
+    "typecheck": "tsc -b --noEmit && tsc --noEmit -p tsconfig.server.json",
     "start": "bun server/index.ts",
     "watch": "bun server/watch/index.ts"
   },
