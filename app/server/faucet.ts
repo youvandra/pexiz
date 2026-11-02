@@ -36,18 +36,25 @@ export async function faucet(req: Request, ip: string): Promise<Response> {
     return json(400, { error: "Send a valid wallet address." })
   }
   const now = Date.now()
-  for (const key of [wallet.toBase58(), `ip:${ip}`]) {
+  const keys = [wallet.toBase58(), `ip:${ip}`]
+  for (const key of keys) {
     const last = claims.get(key)
     if (last && now - last < COOLDOWN_MS) {
       return json(429, { error: "Already claimed. Try again later.", retryAt: last + COOLDOWN_MS })
     }
   }
+  // Held from here, before any await, so parallel requests cannot all pass
+  // the check above while the first one is still confirming. Released if
+  // the claim fails.
+  for (const key of keys) claims.set(key, now)
+  const release = () => { for (const key of keys) if (claims.get(key) === now) claims.delete(key) }
 
   const conn = new Connection(process.env.PEXIZ_DEVNET_RPC_URL ?? "https://api.devnet.solana.com", "confirmed")
   let payer: Keypair
   try {
     payer = loadAuthority()
   } catch {
+    release()
     return json(503, { error: "The faucet is not set up on this server." })
   }
   const ata = getAssociatedTokenAddressSync(USDC_MINT, wallet)
@@ -55,7 +62,13 @@ export async function faucet(req: Request, ip: string): Promise<Response> {
     createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, ata, wallet, USDC_MINT),
     createMintToInstruction(USDC_MINT, ata, payer.publicKey, USDC_PER_CLAIM),
   )
-  const [walletSol, faucetSol] = await Promise.all([conn.getBalance(wallet), conn.getBalance(payer.publicKey)])
+  let walletSol: number, faucetSol: number
+  try {
+    ;[walletSol, faucetSol] = await Promise.all([conn.getBalance(wallet), conn.getBalance(payer.publicKey)])
+  } catch {
+    release()
+    return json(502, { error: "Devnet did not answer. Try again in a minute." })
+  }
   const sol = walletSol < SOL_FLOOR && faucetSol > SOL_RESERVE + SOL_TOP_UP
   if (sol) tx.add(SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: wallet, lamports: SOL_TOP_UP }))
 
@@ -63,10 +76,9 @@ export async function faucet(req: Request, ip: string): Promise<Response> {
     const signature = await conn.sendTransaction(tx, [payer])
     const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash()
     await conn.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed")
-    claims.set(wallet.toBase58(), now)
-    claims.set(`ip:${ip}`, now)
     return json(200, { signature, usdc: Number(USDC_PER_CLAIM / 1_000_000n), sol: sol ? SOL_TOP_UP / LAMPORTS_PER_SOL : 0 })
   } catch (e) {
+    release()
     return json(502, { error: "Devnet did not accept the transaction. Try again in a minute.", detail: String((e as Error).message ?? e) })
   }
 }
