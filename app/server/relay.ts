@@ -7,14 +7,17 @@ const ALLOWED = new Set(["getMultipleAccounts", "getAccountInfo"])
 const MAX_BODY = 64 * 1024
 const WINDOW_MS = 60_000
 // One board read is about 13 calls, so this is roughly a refresh every five seconds.
+// Every call in a batch counts, so one request cannot carry a minute's worth.
 const PER_WINDOW = 180
+/** Most calls one request may batch. */
+const MAX_CALLS = 20
 
 const hits = new Map<string, number[]>()
 
-function overLimit(ip: string): boolean {
+function overLimit(ip: string, calls: number): boolean {
   const now = Date.now()
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS)
-  recent.push(now)
+  for (let i = 0; i < calls; i++) recent.push(now)
   hits.set(ip, recent)
   if (hits.size > 5_000) for (const [k, v] of hits) if (!v.some((t) => now - t < WINDOW_MS)) hits.delete(k)
   return recent.length > PER_WINDOW
@@ -31,9 +34,10 @@ export async function relay(req: Request, ip: string): Promise<Response> {
   } catch {
     return new Response("Invalid JSON", { status: 400 })
   }
+  if (calls.length === 0 || calls.length > MAX_CALLS) return new Response(`Send 1 to ${MAX_CALLS} calls`, { status: 400 })
   const blocked = calls.find((c) => !ALLOWED.has(c?.method ?? ""))
   if (blocked) return new Response(`Method not relayed: ${blocked.method ?? "?"}`, { status: 403 })
-  if (overLimit(ip)) return new Response("Too many requests", { status: 429 })
+  if (overLimit(ip, calls.length)) return new Response("Too many requests", { status: 429 })
   const upstream = process.env.PEXIZ_MAINNET_RPC_URL ?? "https://api.mainnet-beta.solana.com"
   const res = await fetch(upstream, { method: "POST", headers: { "content-type": "application/json" }, body: text })
   return new Response(res.body, { status: res.status, headers: { "content-type": "application/json" } })
