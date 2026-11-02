@@ -209,6 +209,7 @@ const STEPS: [DemoStep["key"], string, string][] = [
   ["exit", "Red, and guarded wallets are taken out", "One crank cycle writes red with its proof, then exits every guarded wallet."],
   ["restore", "The delay is put back", "SetTimeLock 60, approved and executed."],
   ["clear", "Five minutes clear, then Safe", "The cool-off is 7 days on a real venue."],
+  ["reenter", "The escape vault buys back in", "Its depositors vote with their shares; here the house holds them all."],
 ]
 
 function Attack({ demo, wallet }: { demo: ReturnType<typeof useDemo>; wallet: Wallet | null }) {

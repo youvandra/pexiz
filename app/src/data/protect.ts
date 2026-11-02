@@ -108,7 +108,7 @@ export async function buildUnprotect(owner: PublicKey): Promise<TransactionInstr
   return unprotectIxs(owner, pool.lpMint, a.lp)
 }
 
-export type StepKey = "propose" | "timelock" | "cut" | "exit" | "restore" | "clear"
+export type StepKey = "propose" | "timelock" | "cut" | "exit" | "restore" | "clear" | "reenter"
 export interface DemoStep { key: StepKey; at?: number; until?: number; signatures: string[]; detail?: string }
 export interface DemoRun { id: number; startedAt: number; finishedAt?: number; error?: string; steps: DemoStep[] }
 

@@ -3,7 +3,9 @@
 // timelock to zero (a real proposal, three real approvals, its real 60 s
 // timelock), the crank turns the flag red and takes every guarded holder out
 // to their own wallet, then the multisig restores the timelock and the flag
-// clears five minutes later. One run at a time, for everyone.
+// clears five minutes later. The escape vault, which left on red, then votes
+// its shares and buys back in, so the next run has a vault to take out too.
+// One run at a time, for everyone.
 //
 //   PEXIZ_DEMO_KEYS        directory with member-0..4.json and fast-squads-create-key.json (default ../keys)
 //   PEXIZ_FAUCET_KEYPAIR   pays fees and rent, and is the keeper paid for the exits
@@ -12,16 +14,19 @@ import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { Connection, Keypair, PublicKey } from "@solana/web3.js"
+import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js"
+import { getAssociatedTokenAddressSync } from "@solana/spl-token"
 import * as multisig from "@sqds/multisig"
 import { Crank } from "@pexiz/crank"
-import { FAST_CANARY_PROGRAM_ID, decodeVenue, venuePda } from "@pexiz/sdk"
+import {
+  FAST_CANARY_PROGRAM_ID, VAULT_PROGRAM_ID, decodeVault, decodeVenue, reenterIx, unvoteIx, vaultAddresses, venuePda, voteReenterIx,
+} from "@pexiz/sdk"
 
 const RESTORED_TIME_LOCK = 60
 /** The fast canary's cool-off, mirrored from Timing::FAST. */
 const COOL_OFF_SECS = 5 * 60
 
-export type StepKey = "propose" | "timelock" | "cut" | "exit" | "restore" | "clear"
+export type StepKey = "propose" | "timelock" | "cut" | "exit" | "restore" | "clear" | "reenter"
 export interface Step {
   key: StepKey
   at?: number
@@ -143,6 +148,32 @@ async function run(c: Ctx, r: DemoRun) {
   const green = await crank(c)
   if (green.signature) cl.signatures.push(green.signature)
   cl.detail = `${green.from} → ${green.to}`
+
+  const re = step("reenter")
+  const rejoined = await reenter(c)
+  if (rejoined) re.signatures.push(rejoined)
+  re.detail = rejoined ? "the escape vault is back in the pool" : "the escape vault was already in the pool"
+}
+
+/**
+ * The house holds every share of the fast vault, so its vote alone carries:
+ * vote, buy back in and take the shares back, in one transaction. Null when
+ * the vault never left.
+ */
+async function reenter(c: Ctx): Promise<string | null> {
+  const venue = venuePda(FAST_CANARY_PROGRAM_ID)
+  const [vault] = PublicKey.findProgramAddressSync([Buffer.from("vault"), venue.toBuffer()], VAULT_PROGRAM_ID)
+  const info = await c.conn.getAccountInfo(vault)
+  if (!info || !decodeVault(info.data).exited) return null
+  const v = vaultAddresses(venue, decodeVault(info.data).usdcMint)
+  const userShares = getAssociatedTokenAddressSync(v.shareMint, c.payer.publicKey, true)
+  const shares = BigInt((await c.conn.getTokenAccountBalance(userShares)).value.amount)
+  const tx = new Transaction().add(
+    await voteReenterIx(v, c.payer.publicKey, userShares, shares),
+    await reenterIx(v),
+    await unvoteIx(v, c.payer.publicKey, userShares),
+  )
+  return landed(c, await c.conn.sendTransaction(tx, [c.payer]))
 }
 
 let runs = 0
