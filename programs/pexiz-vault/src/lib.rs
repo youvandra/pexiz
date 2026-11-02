@@ -14,6 +14,12 @@ declare_id!("3WXGqGargd6Wig3czzD45kstziZGhQdQ5HYYdNJkJGnz");
 pub const AUM_CAP_USDC: u64 = 10_000_000 * 1_000_000;
 /// Worst price an exit tranche may take, below the pool's value per LP token.
 pub const MAX_EXIT_SLIPPAGE_BPS: u64 = 100;
+/// Fewest shares a vault may hold once it holds any: one USDC's worth at the
+/// first deposit. With a supply this deep, a donation that inflates the price
+/// per share costs the donor far more than any depositor can lose to rounding.
+pub const MIN_SHARES: u64 = 1_000_000;
+/// What an exit tranche pays whoever sends it, out of the USDC it fetched.
+pub const KEEPER_FEE_BPS: u64 = 10;
 
 /// Jupiter Perps, whose JLP pool is the first live venue the vault can hold.
 pub const JUPITER_PERPS_ID: Pubkey = pubkey!("PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu");
@@ -111,10 +117,7 @@ pub mod pexiz_vault {
         require!(!a.vault.exited, VaultError::AlreadyExited);
         require!(a.venue.flag == Flag::Green, VaultError::VenueNotGreen);
         a.jupiter.bound_to(&a.vault)?;
-        let nav = jlp_nav(a.jupiter.vault_usdc.amount, a.jupiter.vault_lp.amount, &a.jupiter.jlp_pool, a.jupiter.jlp_mint.supply)?;
-        require!(nav.checked_add(usdc_amount).ok_or(VaultError::Overflow)? <= AUM_CAP_USDC, VaultError::AumCap);
-        let shares = math::shares_for_deposit(usdc_amount, nav, a.share_mint.supply).ok_or(VaultError::EmptyVault)?;
-        require!(shares > 0, VaultError::ZeroAmount);
+        let usdc_before = a.jupiter.vault_usdc.amount;
 
         token::transfer(
             CpiContext::new(
@@ -138,7 +141,19 @@ pub mod pexiz_vault {
 
         ctx.accounts.jupiter.vault_lp.reload()?;
         let a = &ctx.accounts;
-        require!(a.jupiter.vault_lp.amount - lp_before >= min_lp_out, VaultError::Slippage);
+        let lp_in = a.jupiter.vault_lp.amount - lp_before;
+        require!(lp_in >= min_lp_out, VaultError::Slippage);
+        // The JLP already held is valued at the price this deposit just paid,
+        // which Jupiter set from fresh prices inside the call. The pool's
+        // stored `aum_usd` is only as fresh as its last refresh, and the caller
+        // chooses whether to refresh it first. The price paid includes
+        // Jupiter's fee, so the vault is valued a little high and the
+        // depositor gets a little less, never more.
+        let nav = math::nav_at_paid_price(usdc_before, lp_before, usdc_amount, lp_in).ok_or(VaultError::Overflow)?;
+        require!(nav.checked_add(usdc_amount).ok_or(VaultError::Overflow)? <= AUM_CAP_USDC, VaultError::AumCap);
+        let shares = math::shares_for_deposit(usdc_amount, nav, a.share_mint.supply).ok_or(VaultError::EmptyVault)?;
+        require!(shares > 0, VaultError::ZeroAmount);
+        require!(math::deep_enough(a.share_mint.supply + shares), VaultError::DustSupply);
 
         token::mint_to(
             CpiContext::new_with_signer(
@@ -194,6 +209,7 @@ pub mod pexiz_vault {
         require!(nav.checked_add(usdc_amount).ok_or(VaultError::Overflow)? <= AUM_CAP_USDC, VaultError::AumCap);
         let shares = math::shares_for_deposit(usdc_amount, nav, a.share_mint.supply).ok_or(VaultError::EmptyVault)?;
         require!(shares > 0, VaultError::ZeroAmount);
+        require!(math::deep_enough(a.share_mint.supply + shares), VaultError::DustSupply);
 
         token::transfer(
             CpiContext::new(
@@ -228,11 +244,13 @@ pub mod pexiz_vault {
     }
 
     /// Withdraw pro-rata: the share of every token the vault holds (LP
-    /// before an exit, USDC after). Always open, whatever the flag.
+    /// before an exit, USDC after). Always open, whatever the flag, as long as
+    /// it leaves no shares or at least `MIN_SHARES`.
     pub fn withdraw(ctx: Context<Withdraw>, shares: u64) -> Result<()> {
         let a = &ctx.accounts;
         require!(shares > 0, VaultError::ZeroAmount);
         let supply = a.share_mint.supply;
+        require!(math::deep_enough(supply.saturating_sub(shares)), VaultError::DustSupply);
         let usdc_out = math::pro_rata(a.vault_usdc.amount, shares, supply);
         let lp_out = math::pro_rata(a.vault_lp.amount, shares, supply);
         token::burn(
@@ -305,6 +323,8 @@ pub mod pexiz_vault {
         ctx.accounts.vault_usdc.reload()?;
         let out = ctx.accounts.vault_usdc.amount - usdc_before;
         require!(out >= min_usdc_out, VaultError::Slippage);
+        let a = &ctx.accounts;
+        let fee = pay_keeper(&a.vault, &a.vault_usdc, &a.keeper_usdc, &a.token_program, out)?;
         let clock = Clock::get()?;
         let v = &mut ctx.accounts.vault;
         if !v.exited {
@@ -318,6 +338,7 @@ pub mod pexiz_vault {
             venue: v.venue,
             lp_redeemed: lp_amount,
             usdc_out: out,
+            keeper_fee: fee,
             lp_left: held - lp_amount,
             slot: clock.slot,
         });
@@ -355,6 +376,8 @@ pub mod pexiz_vault {
         ctx.accounts.jupiter.vault_usdc.reload()?;
         let out = ctx.accounts.jupiter.vault_usdc.amount - usdc_before;
         require!(out >= min_usdc_out, VaultError::Slippage);
+        let a = &ctx.accounts;
+        let fee = pay_keeper(&a.vault, &a.jupiter.vault_usdc, &a.keeper_usdc, &a.jupiter.token_program, out)?;
         let clock = Clock::get()?;
         let v = &mut ctx.accounts.vault;
         if !v.exited {
@@ -367,6 +390,7 @@ pub mod pexiz_vault {
             venue: v.venue,
             lp_redeemed: lp_amount,
             usdc_out: out,
+            keeper_fee: fee,
             lp_left: held - lp_amount,
             slot: clock.slot,
         });
@@ -453,6 +477,37 @@ pub mod pexiz_vault {
     }
 }
 
+/// Pays whoever sent an exit tranche `KEEPER_FEE_BPS` of what it fetched, so
+/// a red venue is left by the first wallet to see it, not only by our crank.
+/// Paying the vault's own account is allowed and moves nothing.
+fn pay_keeper<'info>(
+    vault: &Account<'info, Vault>,
+    vault_usdc: &Account<'info, TokenAccount>,
+    keeper_usdc: &Account<'info, TokenAccount>,
+    token_program: &Program<'info, Token>,
+    out: u64,
+) -> Result<u64> {
+    if keeper_usdc.key() == vault_usdc.key() {
+        return Ok(0);
+    }
+    let fee = math::keeper_fee(out);
+    if fee > 0 {
+        token::transfer(
+            CpiContext::new_with_signer(
+                token_program.to_account_info(),
+                Transfer {
+                    from: vault_usdc.to_account_info(),
+                    to: keeper_usdc.to_account_info(),
+                    authority: vault.to_account_info(),
+                },
+                &[&vault.seeds()],
+            ),
+            fee,
+        )?;
+    }
+    Ok(fee)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn swap_usdc_to_lp<'info>(
     vault: &Account<'info, Vault>,
@@ -493,13 +548,6 @@ pub fn jlp_aum_usdc(pool: &UncheckedAccount) -> Result<u64> {
     require!(data.len() >= end, VaultError::NotJupiterPool);
     let aum = u128::from_le_bytes(data[JLP_POOL_AUM_OFFSET..end].try_into().unwrap());
     u64::try_from(aum).map_err(|_| VaultError::Overflow.into())
-}
-
-/// What the vault is worth in USDC: the USDC it holds, plus the JLP it holds
-/// at the pool's own value per token. Rounds toward the vault.
-fn jlp_nav(usdc: u64, lp: u64, pool: &UncheckedAccount, lp_supply: u64) -> Result<u64> {
-    let lp_value = math::lp_value_usdc(lp, jlp_aum_usdc(pool)?, lp_supply).ok_or(VaultError::Overflow)?;
-    usdc.checked_add(lp_value).ok_or(VaultError::Overflow.into())
 }
 
 /// Calls Jupiter Perps with the fourteen accounts it expects, the vault
@@ -667,6 +715,9 @@ pub struct Exit<'info> {
     pub vault_usdc: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub vault_lp: Box<Account<'info, TokenAccount>>,
+    /// Where the keeper fee goes; any USDC account, the vault's own included.
+    #[account(mut, token::mint = vault.usdc_mint)]
+    pub keeper_usdc: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
     pub canary_program: Program<'info, CanaryVenue>,
 }
@@ -812,6 +863,9 @@ pub struct ExitJlp<'info> {
     #[account(mut, has_one = venue)]
     pub vault: Box<Account<'info, Vault>>,
     pub venue: Box<Account<'info, Venue>>,
+    /// Where the keeper fee goes; any USDC account, the vault's own included.
+    #[account(mut, token::mint = vault.usdc_mint)]
+    pub keeper_usdc: Box<Account<'info, TokenAccount>>,
     pub jupiter: JupiterLiquidity<'info>,
 }
 
@@ -844,7 +898,10 @@ pub struct VaultExited {
     pub vault: Pubkey,
     pub venue: Pubkey,
     pub lp_redeemed: u64,
+    /// Everything the tranche fetched, the keeper fee included.
     pub usdc_out: u64,
+    /// Paid out of `usdc_out` to whoever sent the tranche.
+    pub keeper_fee: u64,
     /// LP tokens still held after this tranche; zero once fully out.
     pub lp_left: u64,
     pub slot: u64,
@@ -878,4 +935,6 @@ pub enum VaultError {
     SlippageFloor,
     #[msg("not the Jupiter Perps pool this vault holds")]
     NotJupiterPool,
+    #[msg("would leave fewer shares than the vault's minimum")]
+    DustSupply,
 }

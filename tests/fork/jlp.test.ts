@@ -192,7 +192,7 @@ beforeAll(async () => {
       await venueAccount(redVenue, "Red"),
       await venueAccount(returningVenue, "Green"),
       ...(await returningVault()),
-      { address: getAssociatedTokenAddressSync(USDC_MINT, owner.publicKey, true), owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, owner.publicKey, DEPOSIT_USDC) },
+      { address: getAssociatedTokenAddressSync(USDC_MINT, owner.publicKey, true), owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, owner.publicKey, 2n * DEPOSIT_USDC) },
       { address: returning.vaultUsdc, owner: TOKEN_PROGRAM_ID, data: tokenAccount(USDC_MINT, returning.vault, RETURNING_USDC) },
       { address: returning.vaultLp, owner: TOKEN_PROGRAM_ID, data: tokenAccount(JLP_MINT, returning.vault, 0n) },
       ...restamped,
@@ -298,6 +298,18 @@ test.skipIf(!ready)("a vault can be opened against the real pool and funded with
   expect(shares).toBe(DEPOSIT_USDC);
   expect(worth).toBeGreaterThan((DEPOSIT_USDC * 97n) / 100n);
   expect(worth).toBeLessThanOrEqual(DEPOSIT_USDC);
+
+  // A second deposit prices the JLP already held at what it just paid, fee
+  // included, so it can only get fewer shares than one per dollar of value.
+  // A different amount, so the transaction is not a duplicate of the first.
+  const again = DEPOSIT_USDC - 1_000_000n;
+  await send(v, [
+    await depositJlpIx(open, liquidity, owner.publicKey, getAssociatedTokenAddressSync(USDC_MINT, owner.publicKey, true), userShares, again),
+  ], [owner]);
+  const second = (await balance(userShares)) - shares;
+  console.log(`second deposit: ${again} USDC in, ${second} shares out`);
+  expect(second).toBeLessThanOrEqual(again);
+  expect(second).toBeGreaterThan((again * 99n) / 100n);
 }, 120_000);
 
 test.skipIf(!ready)("and a vault on a red venue leaves, at no worse than the pool's own price", async () => {

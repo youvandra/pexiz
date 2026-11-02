@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { Keypair } from "@solana/web3.js";
+import { createTransferInstruction } from "@solana/spl-token";
 import {
-  AUM_CAP_USDC, CANARY_PROGRAM_ID, FAST_CANARY_PROGRAM_ID, depositIx, exitIx, initVaultIx, parseFlagChanged, parseVaultExited, reenterIx,
+  AUM_CAP_USDC, CANARY_PROGRAM_ID, MIN_SHARES, keeperFee, FAST_CANARY_PROGRAM_ID, depositIx, exitIx, initVaultIx, parseFlagChanged, parseVaultExited, reenterIx,
   registerVenueIx, unvoteIx, vaultAddresses, vaultPda, venuePda, voteReenterIx, withdrawIx,
 } from "@pexiz/sdk";
 import { DAY, Env, members, multisigOf } from "./helpers";
@@ -366,5 +367,46 @@ describe("invariant: random sequences never pay out more than the vault holds", 
       expect(net).toBeLessThanOrEqual(0n);
       expect(w.holdings().supply).toBe(0n);
     }
+  });
+});
+
+describe("share supply floor and keeper fee", () => {
+  test("a first deposit under one USDC is refused, and so is a withdraw that leaves dust", async () => {
+    const w = await World.create();
+    const a = w.user(USDC(10));
+    expect(w.env.expectFail([await depositIx(w.v, a.kp.publicKey, a.usdc, a.shares, MIN_SHARES - 1n)], [a.kp])).toContain("DustSupply");
+    await w.deposit(a, USDC(2));
+    const err = w.env.expectFail([await withdrawIx(w.v, a.kp.publicKey, { userShares: a.shares, userUsdc: a.usdc, userLp: a.lp }, USDC(2) - 1n)], [a.kp]);
+    expect(err).toContain("DustSupply");
+    await withdraw(w, a, USDC(1));
+    await withdraw(w, a, USDC(1));
+    expect(w.holdings().supply).toBe(0n);
+  });
+
+  test("donating to the vault to inflate the share price costs the donor, not the next depositor", async () => {
+    const w = await World.create();
+    const attacker = w.user(USDC(1_000_001));
+    const victim = w.user(USDC(10_000));
+    await w.deposit(attacker, MIN_SHARES);
+    w.env.send([createTransferInstruction(attacker.usdc, w.v.vaultUsdc, attacker.kp.publicKey, USDC(1_000_000))], [attacker.kp]);
+    await w.deposit(victim, USDC(10_000));
+    const shares = w.env.balance(victim.shares);
+    await withdraw(w, victim, shares);
+    // One share is worth about $1 now, so rounding costs the victim at most that.
+    expect(w.env.balance(victim.usdc) + w.env.balance(victim.lp)).toBeGreaterThanOrEqual(USDC(10_000) - USDC(1) - 1n);
+  });
+
+  test("an exit tranche pays its sender a tenth of a percent", async () => {
+    const w = await World.create();
+    const lp = w.user(USDC(1000));
+    const keeper = w.user(0n);
+    await w.deposit(lp, USDC(1000));
+    w.setTimeLock(0);
+    const floor = (USDC(1000) * 99n) / 100n;
+    const r = w.env.send([await w.updateIx(), await exitIx(w.v, USDC(1000), floor, keeper.usdc)]);
+    const [ex] = parseVaultExited(r.logs());
+    expect(ex.keeperFee).toBe(keeperFee(ex.usdcOut));
+    expect(w.env.balance(keeper.usdc)).toBe(ex.keeperFee);
+    expect(w.holdings().usdc).toBe(ex.usdcOut - ex.keeperFee);
   });
 });

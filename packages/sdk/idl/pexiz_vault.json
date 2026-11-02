@@ -272,6 +272,13 @@
           ]
         },
         {
+          "name": "keeper_usdc",
+          "docs": [
+            "Where the keeper fee goes; any USDC account, the vault's own included."
+          ],
+          "writable": true
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -324,6 +331,13 @@
           "relations": [
             "vault"
           ]
+        },
+        {
+          "name": "keeper_usdc",
+          "docs": [
+            "Where the keeper fee goes; any USDC account, the vault's own included."
+          ],
+          "writable": true
         },
         {
           "name": "jupiter",
@@ -1033,7 +1047,8 @@
       "name": "withdraw",
       "docs": [
         "Withdraw pro-rata: the share of every token the vault holds (LP",
-        "before an exit, USDC after). Always open, whatever the flag."
+        "before an exit, USDC after). Always open, whatever the flag, as long as",
+        "it leaves no shares or at least `MIN_SHARES`."
       ],
       "discriminator": [
         183,
@@ -1233,6 +1248,11 @@
       "code": 6012,
       "name": "NotJupiterPool",
       "msg": "not the Jupiter Perps pool this vault holds"
+    },
+    {
+      "code": 6013,
+      "name": "DustSupply",
+      "msg": "would leave fewer shares than the vault's minimum"
     }
   ],
   "types": [
@@ -1402,6 +1422,16 @@
           },
           {
             "name": "usdc_out",
+            "docs": [
+              "Everything the tranche fetched, the keeper fee included."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "keeper_fee",
+            "docs": [
+              "Paid out of `usdc_out` to whoever sent the tranche."
+            ],
             "type": "u64"
           },
           {

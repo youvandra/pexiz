@@ -13,6 +13,8 @@ export const vaultProgram = new Program(vaultIdl as Idl, offline);
 
 /** $10M with 6 decimals, mirrored from AUM_CAP_USDC. */
 export const AUM_CAP_USDC = 10_000_000n * 1_000_000n;
+/** Mirrors `MIN_SHARES`: a vault holds no shares or at least this many. */
+export const MIN_SHARES = 1_000_000n;
 
 const pda = (seeds: (Buffer | Uint8Array)[]) => PublicKey.findProgramAddressSync(seeds, VAULT_PROGRAM_ID)[0];
 
@@ -82,9 +84,15 @@ export function exitFloor(lp: bigint, reserve: bigint, lpSupply: bigint): bigint
   return (num + den - 1n) / den;
 }
 
-/** Redeems `lp` of the vault's LP tokens; the first tranche marks the vault exited. */
-export function exitIx(v: VaultAddresses, lp: bigint, minUsdcOut: bigint): Promise<TransactionInstruction> {
-  return vaultProgram.methods.exit(bn(lp), bn(minUsdcOut)).accountsStrict(poolAccounts(v)).instruction();
+/** What a vault exit tranche pays whoever sent it: the vault's `KEEPER_FEE_BPS`, the router's tenth of a percent. */
+export const keeperFee = (out: bigint) => (out * 10n) / 10_000n;
+
+/**
+ * Redeems `lp` of the vault's LP tokens; the first tranche marks the vault
+ * exited. The keeper fee goes to `keeperUsdc`; left out, it stays in the vault.
+ */
+export function exitIx(v: VaultAddresses, lp: bigint, minUsdcOut: bigint, keeperUsdc = v.vaultUsdc): Promise<TransactionInstruction> {
+  return vaultProgram.methods.exit(bn(lp), bn(minUsdcOut)).accountsStrict({ ...poolAccounts(v), keeperUsdc }).instruction();
 }
 
 /** Addresses of a vault that holds JLP rather than the canary LP token. */
@@ -148,10 +156,12 @@ export function depositJlpIx(
     .instruction();
 }
 
-/** Redeems `lp` of the vault's JLP through Jupiter Perps itself. */
-export function exitJlpIx(v: JlpVaultAddresses, j: JlpLiquidityAccounts, lp: bigint, minUsdcOut: bigint): Promise<TransactionInstruction> {
+/** Redeems `lp` of the vault's JLP through Jupiter Perps itself; the keeper fee as in `exitIx`. */
+export function exitJlpIx(
+  v: JlpVaultAddresses, j: JlpLiquidityAccounts, lp: bigint, minUsdcOut: bigint, keeperUsdc = v.vaultUsdc,
+): Promise<TransactionInstruction> {
   return vaultProgram.methods.exitJlp(bn(lp), bn(minUsdcOut))
-    .accountsStrict({ vault: v.vault, venue: v.venue, jupiter: jupiterAccounts(v, j) })
+    .accountsStrict({ vault: v.vault, venue: v.venue, keeperUsdc, jupiter: jupiterAccounts(v, j) })
     .remainingAccounts(aumRemaining(j))
     .instruction();
 }
@@ -164,7 +174,7 @@ export function reenterJlpIx(v: JlpVaultAddresses, j: JlpLiquidityAccounts, minL
     .instruction();
 }
 
-/** What the vault is worth in USDC, mirrored from the program's own `jlp_nav`. */
+/** What the vault is worth in USDC at the pool's own value per JLP; for display; deposits price at what they pay. */
 export function jlpNav(usdc: bigint, lp: bigint, aum: bigint, lpSupply: bigint): bigint {
   return usdc + (lpSupply === 0n ? 0n : (lp * aum) / lpSupply);
 }
@@ -212,6 +222,7 @@ export function parseVaultExited(logs: string[]) {
       const d = e.data as any;
       return {
         vault: d.vault as PublicKey, lpRedeemed: BigInt(d.lp_redeemed.toString()), usdcOut: BigInt(d.usdc_out.toString()),
+        keeperFee: BigInt((d.keeper_fee ?? 0).toString()),
         lpLeft: BigInt((d.lp_left ?? 0).toString()), slot: BigInt(d.slot.toString()),
       };
     });

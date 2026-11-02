@@ -67,6 +67,13 @@ in the same transaction, so no caller can route the vault into a fire sale.
 On the fork the vault took 100 JLP out for 445.55 USDC against a floor of
 442.07.
 
+**Changed 2 Nov:** `deposit_jlp` no longer reads `aum_usd`. The stored value
+is only as fresh as the pool's last refresh, and the depositor chooses whether
+to refresh it first. The vault now prices the JLP it already holds at what the
+deposit just paid Jupiter, fee included, so a new depositor never gets more
+shares than their dollars are worth. On the fork a second $4,999 deposit got
+4,998.99999 shares.
+
 **Closed (28 Oct):** a JLP vault can now be created and funded.
 `init_jlp_vault` binds a vault to the Jupiter pool, checking the pool and the
 custody it exits into against each other on chain (the custody names its pool

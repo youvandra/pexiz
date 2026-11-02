@@ -49,6 +49,30 @@ pub fn exit_floor(lp: u64, reserve: u64, lp_supply: u64) -> Option<u64> {
     u64::try_from(num.div_ceil(den)).ok()
 }
 
+/// True when a share supply is empty or at least `MIN_SHARES` deep.
+pub fn deep_enough(supply: u64) -> bool {
+    supply == 0 || supply >= crate::MIN_SHARES
+}
+
+/// What a vault holding `usdc` and `lp` is worth, with each LP token priced at
+/// what a deposit just paid: `paid` USDC for `bought` LP. Rounds up, toward
+/// the vault, so the depositor's shares are never rounded in their favour.
+pub fn nav_at_paid_price(usdc: u64, lp: u64, paid: u64, bought: u64) -> Option<u64> {
+    if lp == 0 {
+        return Some(usdc);
+    }
+    if bought == 0 {
+        return None;
+    }
+    let lp_value = u64::try_from((lp as u128 * paid as u128).div_ceil(bought as u128)).ok()?;
+    usdc.checked_add(lp_value)
+}
+
+/// The keeper's cut of an exit tranche that fetched `out`, rounded down.
+pub fn keeper_fee(out: u64) -> u64 {
+    (out as u128 * crate::KEEPER_FEE_BPS as u128 / 10_000) as u64
+}
+
 /// What the canary pool's reserve is worth to its LP tokens. The canary
 /// redeems at a fixed 1 USDC per LP less its fee, and the fee stays in the
 /// reserve, so a reserve above the LP supply does not raise what one LP
@@ -105,6 +129,42 @@ mod tests {
         // than the LP already in the vault is worth.
         assert_eq!(lp_value_usdc(3, 10, 3), Some(10));
         assert_eq!(lp_value_usdc(1, 10, 3), Some(3));
+    }
+
+    #[test]
+    fn a_supply_is_empty_or_one_usdc_deep() {
+        assert!(deep_enough(0));
+        assert!(!deep_enough(1));
+        assert!(!deep_enough(999_999));
+        assert!(deep_enough(1_000_000));
+    }
+
+    #[test]
+    fn held_lp_is_valued_at_the_price_just_paid() {
+        // $5,000 bought 1,119.5 JLP; 2,000 JLP already held is then worth
+        // $8,932.56, rounded up.
+        assert_eq!(nav_at_paid_price(0, 2_000_000_000, 5_000_000_000, 1_119_500_000), Some(8_932_559_179));
+        assert_eq!(nav_at_paid_price(7, 0, 5, 0), Some(7));
+        assert_eq!(nav_at_paid_price(0, 1, 5, 0), None);
+    }
+
+    #[test]
+    fn keeper_fee_is_a_tenth_of_a_percent_rounded_down() {
+        assert_eq!(keeper_fee(1_000_000), 1_000);
+        assert_eq!(keeper_fee(999), 0);
+    }
+
+    #[test]
+    fn a_donation_cannot_rob_the_next_depositor() {
+        // The attacker holds the minimum supply and donates $1M to inflate the
+        // price per share; the victim then deposits $10k.
+        let (supply, nav) = (crate::MIN_SHARES, crate::MIN_SHARES + 1_000_000_000_000);
+        let dep = 10_000_000_000u64;
+        let shares = shares_for_deposit(dep, nav, supply).unwrap();
+        let back = pro_rata(nav + dep, shares, supply + shares);
+        // The victim loses less than one share's worth, about $1.
+        assert!(dep - back < nav / supply + 1);
+        assert!(dep - back <= 1_000_001);
     }
 
     #[test]
